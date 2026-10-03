@@ -111,24 +111,39 @@ export class ObjectStorageService {
   }
 
   async getObjectEntityUploadURL(userId?: string): Promise<string> {
-    const privateObjectDir = this.getPrivateObjectDir();
-    if (!privateObjectDir) {
-      throw new Error(
-        "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var."
-      );
-    }
+    return (await this.createUploadTarget(userId)).uploadUrl;
+  }
+
+  /**
+   * A fresh, signed PUT URL plus the entity path ("/objects/users/<uid>/<uuid>") the upload will
+   * land at. The caller keeps the path (e.g. in a signed token) to attach the object later.
+   */
+  async createUploadTarget(userId?: string, ttlSec = 900): Promise<{ uploadUrl: string; objectPath: string }> {
+    const privateObjectDir = this.getPrivateObjectDir().replace(/\/+$/, "");
     const objectId = randomUUID();
     // Store in user-specific folder if userId provided, otherwise use generic uploads folder
-    const userFolder = userId ? `users/${userId}` : 'uploads';
+    const userFolder = userId ? `users/${userId}` : "uploads";
     const fullPath = `${privateObjectDir}/${userFolder}/${objectId}`;
     const { bucketName, objectName } = parseObjectPath(fullPath);
-    return signObjectURL({
+    const uploadUrl = await signObjectURL({
       bucketName,
       objectName,
       method: "PUT",
-      ttlSec: 900,
+      ttlSec,
     });
+    return { uploadUrl, objectPath: `/objects/${userFolder}/${objectId}` };
+  }
+
+  /** Delete a stored entity ("/objects/..."). Resolves to false when it didn't exist. */
+  async deleteObjectEntity(objectPath: string): Promise<boolean> {
+    try {
+      const file = await this.getObjectEntityFile(objectPath);
+      await file.delete({ ignoreNotFound: true });
+      return true;
+    } catch (e) {
+      if (e instanceof ObjectNotFoundError) return false;
+      throw e;
+    }
   }
 
   async getObjectEntityFile(objectPath: string): Promise<File> {
@@ -136,7 +151,8 @@ export class ObjectStorageService {
       throw new ObjectNotFoundError();
     }
     const parts = objectPath.slice(1).split("/");
-    if (parts.length < 2) {
+    // Reject empty, "." and ".." segments and anything outside a conservative character set.
+    if (parts.length < 2 || parts.some((p) => !p || p === "." || p === ".." || !/^[A-Za-z0-9._-]+$/.test(p))) {
       throw new ObjectNotFoundError();
     }
     const entityId = parts.slice(1).join("/");

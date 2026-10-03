@@ -138,6 +138,7 @@ export const users = pgTable("users", {
   googleId: varchar("google_id").unique(),
   favoriteTelescopeId: integer("favorite_telescope_id"), // User's preferred telescope for calculations
   favoriteLocationId: integer("favorite_location_id"), // User's preferred location for calculations
+  preferences: jsonb("preferences"), // AstroPilot 2: units, time format, default ids, onboarding state
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -237,6 +238,9 @@ export const locations = pgTable("locations", {
   bortle: integer("bortle").notNull(), // 1-9
   notes: text("notes"),
   isFavorite: boolean("is_favorite").default(false),
+  timezone: varchar("timezone", { length: 64 }), // IANA zone, e.g. Europe/Athens
+  elevation: real("elevation"), // metres
+  sqm: real("sqm"), // measured sky brightness, mag/arcsec² (optional, overrides Bortle)
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -278,6 +282,9 @@ export const observationSessions = pgTable("observation_sessions", {
   planetScore: real("planet_score"), // computed 0-5
   dsoScore: real("dso_score"), // computed 0-7
   notes: text("notes"),
+  title: varchar("title", { length: 120 }),
+  endDate: timestamp("end_date"),
+  conditions: jsonb("conditions"), // forecast snapshot + observer ratings (AstroPilot 2)
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -304,6 +311,10 @@ export const observations = pgTable("observations", {
   exposure: varchar("exposure", { length: 50 }),
   iso: integer("iso"),
   notes: text("notes"),
+  observedAt: timestamp("observed_at"),
+  catalogRef: varchar("catalog_ref", { length: 50 }), // AstroPilot 2 catalog id, e.g. "M31", "NGC7000", "jupiter"
+  seeing: integer("seeing"), // 1 (poor) .. 5 (excellent), observer's rating
+  transparency: integer("transparency"), // 1..5
   createdAt: timestamp("created_at").defaultNow(),
 });
 

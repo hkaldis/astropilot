@@ -30,10 +30,6 @@ const toastVariants = cva(
         default: "border bg-background text-foreground",
         destructive:
           "destructive group border-destructive bg-destructive text-destructive-foreground",
-        badge:
-          "border-2 border-amber-500/50 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 text-foreground",
-        levelUp:
-          "border-2 border-purple-500/50 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 text-foreground",
       },
     },
     defaultVariants: {

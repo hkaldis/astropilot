@@ -1,0 +1,108 @@
+/** Public observing-conditions endpoints: forecast, space weather (aurora) and ISS passes. */
+import type { Express, Request, Response } from "express";
+import { z } from "zod";
+import { HttpError, ah, rateLimit } from "../http";
+import { getForecast } from "../services/forecast";
+import { getSpaceWeather } from "../services/spaceWeather";
+import { getIssPasses } from "../services/satellites";
+
+/** Like http.parse, but for schemas whose input (query strings) differs from their output. */
+function parseQuery<S extends z.ZodTypeAny>(schema: S, data: unknown): z.output<S> {
+  const r = schema.safeParse(data);
+  if (!r.success) throw new HttpError(400, r.error.issues.map((i) => i.message).join("; "));
+  return r.data;
+}
+
+/** The global error handler hides 5xx messages; an upstream outage deserves a specific one. */
+const handle = (fn: (req: Request, res: Response) => Promise<unknown>) =>
+  ah(async (req, res) => {
+    try {
+      await fn(req, res);
+    } catch (e) {
+      if (e instanceof HttpError && e.status >= 500 && !res.headersSent) {
+        res.status(e.status).json({ message: e.message });
+        return;
+      }
+      throw e;
+    }
+  });
+
+const range = (label: string, min: number, max: number) =>
+  z
+    .number({ invalid_type_error: `${label} must be a number` })
+    .finite(`${label} must be a number`)
+    .min(min, `${label} must be between ${min} and ${max}`)
+    .max(max, `${label} must be between ${min} and ${max}`);
+
+/** Required number from a query string ("lat=" or "lat=abc" are errors, never 0). */
+const qnum = (label: string, min: number, max: number) =>
+  z
+    .string({ required_error: `${label} is required`, invalid_type_error: `${label} must be a single number` })
+    .trim()
+    .min(1, `${label} is required`)
+    .transform(Number)
+    .pipe(range(label, min, max));
+
+/** Optional number from a query string (missing or empty → undefined). */
+const qnumOpt = (label: string, min: number, max: number) =>
+  z
+    .string({ invalid_type_error: `${label} must be a single number` })
+    .trim()
+    .optional()
+    .transform((s) => (s ? Number(s) : undefined))
+    .pipe(range(label, min, max).optional());
+
+const forecastQuery = z.object({
+  lat: qnum("lat", -90, 90),
+  lon: qnum("lon", -180, 180),
+  bortle: qnumOpt("bortle", 1, 9),
+  units: z.enum(["metric", "imperial"], { message: "units must be metric or imperial" }).optional(),
+});
+
+/** lat/lon are optional for space weather, but must come as a pair. */
+const spaceWeatherQuery = z
+  .object({ lat: qnumOpt("lat", -90, 90), lon: qnumOpt("lon", -180, 180) })
+  .refine((q) => (q.lat === undefined) === (q.lon === undefined), { message: "Pass both lat and lon, or neither" });
+
+const issQuery = z.object({
+  lat: qnum("lat", -90, 90),
+  lon: qnum("lon", -180, 180),
+  elev: qnumOpt("elev", -500, 9000),
+});
+
+export function registerForecast(app: Express) {
+  const limit = (max: number) => rateLimit({ windowMs: 60_000, max, message: "Too many requests — please wait a moment." });
+
+  app.get(
+    "/api/forecast",
+    limit(60),
+    handle(async (req, res) => {
+      const q = parseQuery(forecastQuery, req.query);
+      const data = await getForecast(q);
+      res.setHeader("Cache-Control", "public, max-age=300");
+      res.json(data);
+    }),
+  );
+
+  app.get(
+    "/api/space-weather",
+    limit(60),
+    handle(async (req, res) => {
+      const q = parseQuery(spaceWeatherQuery, req.query);
+      const data = await getSpaceWeather(q);
+      res.setHeader("Cache-Control", "public, max-age=600");
+      res.json(data);
+    }),
+  );
+
+  app.get(
+    "/api/iss/passes",
+    limit(30),
+    handle(async (req, res) => {
+      const q = parseQuery(issQuery, req.query);
+      const data = await getIssPasses(q);
+      res.setHeader("Cache-Control", "public, max-age=600");
+      res.json(data);
+    }),
+  );
+}
