@@ -18,6 +18,7 @@ import { PlanetsTonight, MoonPanel } from "@/features/tonight/SkyBodies";
 import { EventsList, IssPasses, AuroraNote } from "@/features/tonight/Extras";
 import { Welcome } from "@/features/tonight/Welcome";
 import { GuestSiteBar } from "@/features/tonight/GuestSiteBar";
+import { ScopePrompt } from "@/features/tonight/ScopePrompt";
 
 function GuestBanner() {
   const [hidden, setHidden] = useState(() => store.get("ap.hideGuestBanner", false));
@@ -98,6 +99,7 @@ export default function TonightPage() {
             </Link>
           }
         >
+          <ScopePrompt />
           <BestTargets site={site} frames={ctx.frames} tz={tz} hour12={hour12} />
         </Section>
         <div className="flex flex-col gap-8">

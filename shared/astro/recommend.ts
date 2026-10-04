@@ -66,6 +66,13 @@ export function evaluateTarget<T extends CatalogLike>(o: T, nf: NightFrames, ctx
   const det = difficultyScore(detect);
   let raw = 100 * Math.pow(altQ, 0.6) * (0.12 + 0.88 * det) * (0.6 + 0.4 * dur) * interestOf(o);
   if (alt < minAlt) raw *= 0.25;
+  // Naked eye and binoculars (~1–10×): tiny objects look like stars and close pairs don't split.
+  if (ctx.apertureMm < 60) {
+    const eye = ctx.apertureMm < 10;
+    if (o.type === "double_star") {
+      if ((o.sep ?? 0) < (eye ? 240 : 30)) raw *= 0.2;
+    } else if ((o.size?.[0] ?? 0) < (eye ? 30 : 4)) raw *= 0.35;
+  }
   const reasons: string[] = [];
   if (track.maxAltTime) reasons.push(`peaks at ${Math.round(alt)}°`);
   if (track.hoursAboveMin > 0) reasons.push(`${track.hoursAboveMin.toFixed(1)} h above ${minAlt}°`);
