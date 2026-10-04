@@ -11,6 +11,8 @@ export function serveStatic(app: Express) {
   app.use(
     "/assets",
     express.static(path.join(distPath, "assets"), { immutable: true, maxAge: "1y" }),
+    // A missing hashed asset (an old tab after a redeploy) must 404, not receive index.html as JS.
+    (_req, res) => res.status(404).setHeader("Cache-Control", "no-store").end(),
   );
   app.use(express.static(distPath, { maxAge: "1h", index: false }));
   app.use("*", (_req, res) => {

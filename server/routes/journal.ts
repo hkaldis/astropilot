@@ -32,6 +32,7 @@ import { A } from "@shared/astro/core";
 import { ah, parse, requireAuth, userId, idParam, HttpError, rateLimit } from "../http";
 import { catalog, resolveRef, ensureObjectRow, legacyRef, type CatalogEntry } from "../catalog";
 import { photosEnabled } from "./features";
+import { sessionSecret } from "../env";
 
 const HOUR = 3_600_000;
 const SAME_NIGHT_WINDOW_H = 14;
@@ -116,6 +117,10 @@ const observationPatchSchema = z.object({ ...observationFields, sessionId: idSch
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 
+/** Legacy rows can hold out-of-range values; the API promises 1–5 ratings and a 1–9 Bortle class. */
+const scale5 = (v: number | null | undefined) => (typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 5 ? v : null);
+const bortleOf = (b: number | null | undefined) => (typeof b === "number" && Number.isFinite(b) ? Math.min(9, Math.max(1, Math.round(b))) : 5);
+
 /** Route id that also fits a Postgres integer (anything larger can't exist → 404, not a DB error). */
 function pid(req: Request, name = "id"): number {
   const n = idParam(req, name);
@@ -185,16 +190,36 @@ const objectKey = (info: ObjectInfo, objectId: number) => (info.ref ? info.ref.t
  * solar time at the site when we know its longitude (anything before local noon counts towards
  * the previous evening), else to the site's time zone, else UTC.
  */
+/**
+ * Intl formatters are expensive to build (tens of µs each); stats and the CSV export format one
+ * date per row, so reuse them per zone (null = invalid zone). Bounded by the number of IANA zones.
+ */
+const formatters = new Map<string, Intl.DateTimeFormat | null>();
+function formatterFor(tz: string, withTime: boolean): Intl.DateTimeFormat | null {
+  const key = `${withTime ? "t" : "d"}|${tz}`;
+  let f = formatters.get(key);
+  if (f === undefined) {
+    try {
+      f = new Intl.DateTimeFormat("en-CA", {
+        timeZone: tz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        ...(withTime ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" as const } : {}),
+      });
+    } catch {
+      f = null;
+    }
+    if (formatters.size < 2000) formatters.set(key, f);
+  }
+  return f;
+}
+
 function nightKey(ms: number, lon: number | null | undefined, tz: string | null | undefined): string {
   const t = ms - 12 * HOUR;
   if (lon !== null && lon !== undefined && Number.isFinite(lon)) return solarDateOf(t, lon);
-  if (tz) {
-    try {
-      return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(t);
-    } catch {
-      /* invalid zone: fall through */
-    }
-  }
+  const f = tz ? formatterFor(tz, false) : null; // invalid zone: fall through to UTC
+  if (f) return f.format(t);
   return new Date(t).toISOString().slice(0, 10);
 }
 
@@ -218,17 +243,20 @@ function toApiSession(s: ObservationSession, locationName: string | null, observ
     endDate: iso(s.endDate),
     locationId: s.locationId,
     locationName,
-    bortle: s.bortle,
+    bortle: bortleOf(s.bortle),
     notes: s.notes,
     conditions: sessionConditions(s),
     observationCount,
   };
 }
 
-/** Public URL for a stored photo. New and legacy rows store "/objects/<path>". */
-function photoUrl(imageUrl: string): string {
+/**
+ * Public URL for a stored photo. New and legacy rows store "/objects/<path>"; other legacy values
+ * are passed through only when they are plain http(s) URLs (never e.g. `javascript:`).
+ */
+function photoUrl(imageUrl: string): string | null {
   if (imageUrl.startsWith("/objects/")) return `/api/photos/${imageUrl.slice("/objects/".length)}`;
-  return imageUrl;
+  return /^https?:\/\//i.test(imageUrl) ? imageUrl : null;
 }
 
 function moonIlluminationAt(d: Date): number | null {
@@ -360,8 +388,10 @@ async function loadObservations(uid: string, where: SQL | undefined): Promise<Ap
     : [];
   const byObs = new Map<number, { id: number; url: string }[]>();
   for (const p of photos) {
+    const url = photoUrl(p.imageUrl);
+    if (!url) continue;
     const list = byObs.get(p.observationId) ?? [];
-    list.push({ id: p.id, url: photoUrl(p.imageUrl) });
+    list.push({ id: p.id, url });
     byObs.set(p.observationId, list);
   }
   return rows.map(({ o, catalogId, name, category }) => {
@@ -379,9 +409,9 @@ async function loadObservations(uid: string, where: SQL | undefined): Promise<Ap
       filterId: o.filterId,
       cameraId: o.cameraId,
       magnification: o.magnification,
-      rating: o.visibilityRating,
-      seeing: o.seeing,
-      transparency: o.transparency,
+      rating: scale5(o.visibilityRating),
+      seeing: scale5(o.seeing),
+      transparency: scale5(o.transparency),
       notes: o.notes,
       photos: byObs.get(o.id) ?? [],
       createdAt: iso(o.createdAt),
@@ -578,7 +608,7 @@ async function detachObservations(tx: Tx, observationIds: number[]) {
 }
 
 /** Remove stored photo files after their rows are gone (best effort; never fails the request). */
-function deleteStoredPhotos(imageUrls: string[]) {
+export function deleteStoredPhotos(imageUrls: string[]) {
   const paths = imageUrls.filter((u) => u.startsWith("/objects/"));
   if (!paths.length || !photosEnabled()) return;
   void (async () => {
@@ -613,7 +643,7 @@ interface UploadClaim {
   e: number; // expiry (ms)
 }
 
-const tokenSecret = () => process.env.SESSION_SECRET || "astropilot-dev-secret";
+const tokenSecret = () => sessionSecret;
 
 function signUpload(claim: UploadClaim): string {
   const body = Buffer.from(JSON.stringify(claim)).toString("base64url");
@@ -681,14 +711,10 @@ function csvCell(v: unknown, freeText = false): string {
 }
 
 function localParts(ms: number, tz: string | null) {
-  if (tz) {
-    try {
-      const f = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-      const p = Object.fromEntries(f.formatToParts(ms).map((x) => [x.type, x.value]));
-      return { date: `${p.year}-${p.month}-${p.day}`, time: `${p.hour}:${p.minute}`, tz };
-    } catch {
-      /* fall through */
-    }
+  const f = tz ? formatterFor(tz, true) : null;
+  if (f && tz) {
+    const p = Object.fromEntries(f.formatToParts(ms).map((x) => [x.type, x.value]));
+    return { date: `${p.year}-${p.month}-${p.day}`, time: `${p.hour}:${p.minute}`, tz };
   }
   const d = new Date(ms).toISOString();
   return { date: d.slice(0, 10), time: d.slice(11, 16), tz: "UTC" };
@@ -801,7 +827,8 @@ export function registerJournal(app: Express) {
           tx,
           obs.map((o) => o.id),
         );
-        await tx.update(messierProgress).set({ bestSessionId: null }).where(and(eq(messierProgress.bestSessionId, id), eq(messierProgress.userId, uid)));
+        // Any row still pointing at this session (the FK has no ON DELETE action) must let go of it.
+        await tx.update(messierProgress).set({ bestSessionId: null }).where(eq(messierProgress.bestSessionId, id));
         // observations (and their photo rows) cascade with the session
         await tx.delete(observationSessions).where(and(eq(observationSessions.id, id), eq(observationSessions.userId, uid)));
         return urls;

@@ -1,6 +1,7 @@
 import { Storage, File } from "@google-cloud/storage";
 import { Response } from "express";
 import { randomUUID } from "crypto";
+import { fetchWithTimeout } from "./http";
 import {
   ObjectAclPolicy,
   ObjectPermission,
@@ -96,16 +97,18 @@ export class ObjectStorageService {
       });
       const stream = file.createReadStream();
       stream.on("error", (err) => {
-        console.error("Stream error:", err);
+        console.error("Stream error:", err?.message ?? err);
         if (!res.headersSent) {
-          res.status(500).json({ error: "Error streaming file" });
+          res.status(500).json({ message: "We couldn't load this photo. Please try again." });
+        } else {
+          res.destroy(err); // never leave a half-sent response hanging
         }
       });
       stream.pipe(res);
     } catch (error) {
-      console.error("Error downloading file:", error);
+      console.error("Error downloading file:", (error as Error)?.message ?? error);
       if (!res.headersSent) {
-        res.status(500).json({ error: "Error downloading file" });
+        res.status(500).json({ message: "We couldn't load this photo. Please try again." });
       }
     }
   }
@@ -260,12 +263,13 @@ async function signObjectURL({
     method,
     expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
   };
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `${REPLIT_SIDECAR_ENDPOINT}/object-storage/signed-object-url`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(request),
+      timeoutMs: 10_000,
     }
   );
   if (!response.ok) {

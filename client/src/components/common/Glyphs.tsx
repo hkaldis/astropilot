@@ -121,9 +121,9 @@ export function TypeGlyph({ type, className }: { type: string; className?: strin
 
 /**
  * The Moon's phase as seen from Earth. `elongation` 0..360 (0 new, 180 full);
- * the lit side is on the right while waxing (northern-hemisphere view).
+ * the lit side is on the right while waxing as seen from the north; pass `southern` to mirror it.
  */
-export function MoonGlyph({ elongation, size = 44, className }: { elongation: number; size?: number; className?: string }) {
+export function MoonGlyph({ elongation, size = 44, className, southern = false }: { elongation: number; size?: number; className?: string; southern?: boolean }) {
   const e = ((elongation % 360) + 360) % 360;
   const frac = (1 - Math.cos((e * Math.PI) / 180)) / 2; // illuminated fraction
   const waxing = e < 180;
@@ -135,7 +135,7 @@ export function MoonGlyph({ elongation, size = 44, className }: { elongation: nu
   const sweepInner = frac > 0.5 ? (waxing ? 1 : 0) : waxing ? 0 : 1;
   const d = `M 22 2 A ${r} ${r} 0 0 ${sweepOuter} 22 42 A ${k} ${r} 0 0 ${sweepInner} 22 2 Z`;
   return (
-    <svg viewBox="0 0 44 44" width={size} height={size} className={className} aria-label={`Moon ${Math.round(frac * 100)}% illuminated`} role="img">
+    <svg viewBox="0 0 44 44" width={size} height={size} className={className} aria-label={`Moon ${Math.round(frac * 100)}% illuminated`} role="img" style={southern ? { transform: "scaleX(-1)" } : undefined}>
       <circle cx="22" cy="22" r={r} style={{ fill: "hsl(var(--sky-night))" }} />
       {frac > 0.01 && <path d={d} fill="#efe6cf" />}
       <circle cx="22" cy="22" r={r} fill="none" style={{ stroke: "hsl(var(--foreground) / 0.18)" }} strokeWidth="1" />

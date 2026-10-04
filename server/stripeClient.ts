@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { fetchWithTimeout } from './http';
 
 let connectionSettings: any;
 
@@ -23,18 +24,20 @@ async function getCredentials() {
   url.searchParams.set('connector_names', connectorName);
   url.searchParams.set('environment', targetEnvironment);
 
-  const response = await fetch(url.toString(), {
+  const response = await fetchWithTimeout(url.toString(), {
+    timeoutMs: 8000,
     headers: {
       'Accept': 'application/json',
       'X_REPLIT_TOKEN': xReplitToken
     }
   });
+  if (!response.ok) throw new Error(`Stripe connector lookup failed (HTTP ${response.status})`);
 
   const data = await response.json();
-  
+
   connectionSettings = data.items?.[0];
 
-  if (!connectionSettings || (!connectionSettings.settings.publishable || !connectionSettings.settings.secret)) {
+  if (!connectionSettings?.settings?.publishable || !connectionSettings?.settings?.secret) {
     throw new Error(`Stripe ${targetEnvironment} connection not found`);
   }
 
@@ -49,6 +52,8 @@ export async function getUncachableStripeClient() {
 
   return new Stripe(secretKey, {
     apiVersion: '2025-11-17.clover' as any,
+    timeout: 15_000, // the SDK default (80 s) would hold the request far longer than anyone waits
+    maxNetworkRetries: 1,
   });
 }
 

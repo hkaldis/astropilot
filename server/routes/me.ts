@@ -3,16 +3,20 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db";
 import { users } from "@shared/schema";
-import { ah, parse, requireAuth, userId, HttpError, rateLimit } from "../http";
-import { getUser, publicUser, hashPassword, verifyPassword } from "../auth";
+import { ah, parse, requireAuth, userId, HttpError, rateLimit, PG_INT_MAX } from "../http";
+import { getUser, publicUser, hashPassword, verifyPassword, destroyUserSessions } from "../auth";
+import { deleteAccount } from "../account";
+import { deleteStoredPhotos } from "./journal";
+
+const prefId = z.number().int().positive().max(PG_INT_MAX, "Invalid id");
 
 /** User preferences, stored as JSON on the user row. Unknown keys are dropped. */
 export const preferencesSchema = z
   .object({
     units: z.enum(["metric", "imperial"]).optional(),
     timeFormat: z.enum(["24h", "12h"]).optional(),
-    defaultLocationId: z.number().int().positive().nullable().optional(),
-    defaultTelescopeId: z.number().int().positive().nullable().optional(),
+    defaultLocationId: prefId.nullable().optional(),
+    defaultTelescopeId: prefId.nullable().optional(),
     minAltitude: z.number().min(0).max(60).optional(),
     experience: z.enum(["beginner", "intermediate", "advanced"]).optional(),
     onboarded: z.boolean().optional(),
@@ -55,13 +59,21 @@ export function registerMe(app: Express) {
     requireAuth,
     rateLimit({ windowMs: 10 * 60_000, max: 10 }),
     ah(async (req, res) => {
-      const body = parse(z.object({ current: z.string().optional(), next: z.string().min(8, "Use at least 8 characters").max(200) }), req.body);
+      const body = parse(
+        z.object({
+          current: z.string().max(200, "That password is too long").optional(),
+          next: z.string({ required_error: "Choose a new password" }).min(8, "Use at least 8 characters").max(200, "Keep the password under 200 characters"),
+        }),
+        req.body,
+      );
       const u = await getUser(userId(req));
       if (!u) throw new HttpError(404, "Account not found");
       if (u.passwordHash) {
         if (!body.current || !(await verifyPassword(body.current, u.passwordHash))) throw new HttpError(400, "Your current password is incorrect.");
       }
       await db.update(users).set({ passwordHash: await hashPassword(body.next), updatedAt: new Date() }).where(eq(users.id, u.id));
+      // A changed password signs out every other device (this one stays signed in).
+      await destroyUserSessions(u.id, req.sessionID).catch((e) => console.warn("[me] couldn't end other sessions:", e?.message));
       res.json({ ok: true });
     }),
   );
@@ -69,10 +81,28 @@ export function registerMe(app: Express) {
   app.delete(
     "/api/me",
     requireAuth,
+    rateLimit({ windowMs: 10 * 60_000, max: 10 }),
     ah(async (req, res) => {
       const id = userId(req);
-      await db.delete(users).where(eq(users.id, id));
-      req.logout(() => req.session?.destroy(() => res.json({ ok: true })));
+      let photos: string[];
+      try {
+        photos = await deleteAccount(id);
+      } catch (e: any) {
+        if (e?.code === "23503") {
+          console.error("[me] account deletion blocked by a reference:", e?.constraint ?? e?.message);
+          throw new HttpError(409, "We couldn't delete your account because some records still depend on it. Please contact support.");
+        }
+        throw e;
+      }
+      deleteStoredPhotos(photos);
+      // Sign out everywhere: other devices' sessions are removed from the store, this one is destroyed.
+      await destroyUserSessions(id, req.sessionID).catch((e) => console.warn("[me] couldn't end other sessions:", e?.message));
+      req.logout(() => {
+        req.session?.destroy(() => {
+          res.clearCookie("connect.sid", { path: "/" });
+          res.json({ ok: true });
+        });
+      });
     }),
   );
 }

@@ -36,9 +36,18 @@ export function parse<T>(schema: ZodType<T>, data: unknown): T {
   return r.data;
 }
 
+/** Largest value of a Postgres `integer` (all serial/identity ids are int4). */
+export const PG_INT_MAX = 2_147_483_647;
+
+/**
+ * A positive integer route id. Only plain digits are accepted ("1e3", "0x1A", " 7" are not ids),
+ * and anything beyond int4 can't exist: 404 instead of a Postgres "out of range" error (500).
+ */
 export function idParam(req: Request, name = "id"): number {
-  const n = Number(req.params[name]);
-  if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, "Invalid id");
+  const raw = String(req.params[name] ?? "");
+  if (!/^\d{1,16}$/.test(raw) || Number(raw) <= 0) throw new HttpError(400, "Invalid id");
+  const n = Number(raw);
+  if (n > PG_INT_MAX) throw new HttpError(404, "Not found.");
   return n;
 }
 
@@ -88,14 +97,22 @@ export class TTLCache<V> {
   }
 }
 
-/** fetch with a timeout. */
+/**
+ * fetch with a deadline. The deadline also covers reading the body: `fetch` resolves as soon as
+ * the headers arrive, so an upstream that then stalls would otherwise hang `res.json()` forever —
+ * and with it every request waiting on the same in-flight (de-duplicated) promise.
+ * Aborting after the body has been read is a no-op. Rejects with an "AbortError" on timeout.
+ */
 export async function fetchWithTimeout(url: string, init: RequestInit & { timeoutMs?: number } = {}) {
+  const { timeoutMs = 12_000, ...rest } = init;
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), init.timeoutMs ?? 12_000);
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  t.unref?.();
   try {
-    return await fetch(url, { ...init, signal: ctrl.signal });
-  } finally {
+    return await fetch(url, { ...rest, signal: ctrl.signal });
+  } catch (e) {
     clearTimeout(t);
+    throw e;
   }
 }
 

@@ -4,7 +4,7 @@ import { MoonGlyph } from "@/components/common/Glyphs";
 import { QUALITY_BG, QUALITY_TEXT, qualityOf } from "@/lib/objects";
 import { cn } from "@/lib/utils";
 
-export function Outlook({ nights, selected, onSelect }: { nights: NightForecast[]; selected: number; onSelect: (i: number) => void }) {
+export function Outlook({ nights, selected, onSelect, southern = false }: { nights: NightForecast[]; selected: number; onSelect: (i: number) => void; southern?: boolean }) {
   const best = nights.reduce((b, n, i) => (n.hasData && n.score > (nights[b]?.score ?? -1) ? i : b), 0);
   return (
     <div className="grid grid-cols-7 gap-1.5 sm:gap-2" role="tablist" aria-label="Choose a night">
@@ -23,7 +23,7 @@ export function Outlook({ nights, selected, onSelect }: { nights: NightForecast[
             )}
           >
             <span className={cn("text-[0.7rem] font-medium sm:text-xs", selected === i ? "text-foreground" : "text-muted-foreground")}>{label}</span>
-            <MoonGlyph elongation={n.moon.elongation} size={18} />
+            <MoonGlyph elongation={n.moon.elongation} size={18} southern={southern} />
             {n.hasData ? (
               <span className={cn("num text-base font-semibold leading-none sm:text-lg", QUALITY_TEXT[q.key])}>{Math.round(n.score)}</span>
             ) : (

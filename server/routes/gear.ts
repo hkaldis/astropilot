@@ -279,19 +279,12 @@ export function registerGear(app: Express) {
             .for("update");
           if (!owned) throw new HttpError(404, `${LABEL[kind]} not found`);
 
-          // Keep the observing log: detach the item from this user's observations instead of blocking the delete.
-          await tx.execute(sql`
-            UPDATE observations SET ${col} = NULL
-            WHERE ${col} = ${id}
-              AND session_id IN (SELECT id FROM observation_sessions WHERE user_id = ${uid})`);
+          // Keep the observing log: detach the item from observations instead of blocking the delete.
+          // (Only this user's observations should point here; any other row doing so — an old-app
+          // bug — would make the delete fail, so its dangling pointer is cleared as well.)
+          await tx.execute(sql`UPDATE observations SET ${col} = NULL WHERE ${col} = ${id}`);
           if (kind === "cameras") {
-            await tx.execute(sql`
-              UPDATE observation_photos SET camera_id = NULL
-              WHERE camera_id = ${id}
-                AND observation_id IN (
-                  SELECT o.id FROM observations o
-                  JOIN observation_sessions s ON s.id = o.session_id
-                  WHERE s.user_id = ${uid})`);
+            await tx.execute(sql`UPDATE observation_photos SET camera_id = NULL WHERE camera_id = ${id}`);
           }
           if (kind === "telescopes") {
             // Forget it as the default telescope (preferences JSON and the legacy column).

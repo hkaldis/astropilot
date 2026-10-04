@@ -68,13 +68,20 @@ const patchSchema = z
   .partial()
   .refine((o) => Object.keys(o).length > 0, "Nothing to update");
 
+/** Legacy rows may lack coordinates or hold impossible ones: report those as "no coordinates". */
+function coords(r: LocationRow): { latitude: number | null; longitude: number | null } {
+  const ok =
+    typeof r.latitude === "number" && Number.isFinite(r.latitude) && Math.abs(r.latitude) <= 90 &&
+    typeof r.longitude === "number" && Number.isFinite(r.longitude) && Math.abs(r.longitude) <= 180;
+  return ok ? { latitude: r.latitude, longitude: r.longitude } : { latitude: null, longitude: null };
+}
+
 function toApi(r: LocationRow): ApiLocation {
   return {
     id: r.id,
     name: r.name,
-    latitude: r.latitude,
-    longitude: r.longitude,
-    bortle: r.bortle,
+    ...coords(r),
+    bortle: Number.isFinite(r.bortle) ? Math.min(9, Math.max(1, Math.round(r.bortle))) : 5,
     sqm: r.sqm,
     elevation: r.elevation,
     timezone: r.timezone,
@@ -108,7 +115,7 @@ async function clearDefault(tx: any, uid: string, id: number) {
  * a few rows, a few seconds) so times show in the site's zone; failures retry on a later load.
  */
 async function backfill(rows: LocationRow[]) {
-  const todo = rows.filter((r) => r.latitude !== null && r.longitude !== null && (r.timezone === null || r.elevation === null)).slice(0, 6);
+  const todo = rows.filter((r) => coords(r).latitude !== null && (r.timezone === null || r.elevation === null)).slice(0, 6);
   if (!todo.length) return;
   const work = Promise.all(
     todo.map(async (r) => {
@@ -271,10 +278,11 @@ export function registerLocations(app: Express) {
             .where(and(eq(locations.id, id), eq(locations.userId, uid)))
             .for("update");
           if (!owned) throw new HttpError(404, "Location not found");
-          // These foreign keys have no ON DELETE action: detach the user's sessions and saved
-          // conditions first (they keep their own Bortle value), then delete. Watchlist windows cascade.
-          await tx.execute(sql`UPDATE observation_sessions SET location_id = NULL WHERE location_id = ${id} AND user_id = ${uid}`);
-          await tx.execute(sql`UPDATE night_conditions SET location_id = NULL WHERE location_id = ${id} AND user_id = ${uid}`);
+          // These foreign keys have no ON DELETE action: detach sessions and saved conditions first
+          // (they keep their own Bortle value), then delete. Watchlist windows cascade. Rows of other
+          // users can only point here through old-app bugs; their dangling pointer is cleared too.
+          await tx.execute(sql`UPDATE observation_sessions SET location_id = NULL WHERE location_id = ${id}`);
+          await tx.execute(sql`UPDATE night_conditions SET location_id = NULL WHERE location_id = ${id}`);
           await clearDefault(tx, uid, id);
           await tx.delete(locations).where(and(eq(locations.id, id), eq(locations.userId, uid)));
         });

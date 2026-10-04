@@ -224,10 +224,18 @@ const searchQuery = z.object({
     .max(100, "That search is too long"),
 });
 
-const coordQuery = z.object({
-  lat: z.coerce.number({ invalid_type_error: "Latitude must be a number" }).finite().min(-90, "Latitude must be between -90 and 90").max(90, "Latitude must be between -90 and 90"),
-  lon: z.coerce.number({ invalid_type_error: "Longitude must be a number" }).finite().min(-180, "Longitude must be between -180 and 180").max(180, "Longitude must be between -180 and 180"),
-});
+/** A coordinate from the query string; "", missing or repeated values are errors (never 0). */
+const coord = (label: string, max: number) =>
+  z.preprocess(
+    (v) => (typeof v === "string" && v.trim() !== "" ? v : NaN),
+    z.coerce
+      .number({ invalid_type_error: `${label} must be a number` })
+      .finite(`${label} must be a number`)
+      .min(-max, `${label} must be between -${max} and ${max}`)
+      .max(max, `${label} must be between -${max} and ${max}`),
+  ) as unknown as z.ZodType<number>; // input is a query string; `parse` wants input = output
+
+const coordQuery = z.object({ lat: coord("Latitude", 90), lon: coord("Longitude", 180) });
 
 export function registerGeo(app: Express) {
   app.get(

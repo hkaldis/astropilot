@@ -36,6 +36,7 @@ export function TonightHero({
   tz,
   hour12,
   now,
+  southern = false,
 }: {
   night: NightInfo;
   forecast: NightForecast | null;
@@ -45,6 +46,7 @@ export function TonightHero({
   tz?: string;
   hour12?: boolean;
   now: number;
+  southern?: boolean;
 }) {
   const fmt = (t: number | null) => formatTime(t, { tz, hour12 });
   const score = forecast?.hasData ? forecast.score : null;
@@ -58,9 +60,7 @@ export function TonightHero({
       <Starfield />
       <div className="relative grid gap-6 p-5 sm:p-7 md:grid-cols-[1fr_auto] md:items-center">
         <div className="min-w-0">
-          <div className="eyebrow">
-            {when} · {formatNightDate(night.date)} · {siteName}
-          </div>
+          <div className="eyebrow">{isTonight ? `${when} · ${formatNightDate(night.date)} · ${siteName}` : `${when} · ${siteName}`}</div>
           {loading ? (
             <Skel className="mt-3 h-12 w-72" />
           ) : forecast?.hasData ? (
@@ -106,7 +106,7 @@ export function TonightHero({
           label="Moon"
           value={
             <span className="flex items-center gap-2">
-              <MoonGlyph elongation={moon.elongation} size={20} />
+              <MoonGlyph elongation={moon.elongation} size={20} southern={southern} />
               {Math.round(moon.illumination * 100)}%
             </span>
           }

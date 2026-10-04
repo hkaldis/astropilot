@@ -109,7 +109,7 @@ export function MoonPanel({ night, site, tz, hour12, now }: { night: NightInfo; 
           : "Rises late: the evening stays dark for deep-sky objects.";
   return (
     <Link href="/object/moon" className="flex gap-4 rounded-xl p-1 hover:bg-accent/40">
-      <MoonGlyph elongation={m.elongation} size={64} className="shrink-0" />
+      <MoonGlyph elongation={m.elongation} size={64} className="shrink-0" southern={site.lat < 0} />
       <div className="min-w-0">
         <div className="font-medium">
           {m.phaseName} <span className="num text-sm text-muted-foreground">· {Math.round(m.illumination * 100)}% lit · {m.ageDays.toFixed(1)} days</span>

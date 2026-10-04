@@ -7,6 +7,7 @@ import catalogData from "@shared/data/catalog.json";
 import { db } from "./db";
 import { celestialObjects } from "@shared/schema";
 import { SOLAR_SYSTEM } from "@shared/astro/planets";
+import { HttpError } from "./http";
 
 export interface CatalogEntry {
   id: string;
@@ -68,7 +69,7 @@ const LEGACY_CATEGORY: Record<string, string> = {
  */
 export async function ensureObjectRow(ref: string): Promise<number> {
   const r = resolveRef(ref);
-  if (!r) throw Object.assign(new Error(`Unknown object "${ref}"`), { status: 400 });
+  if (!r) throw new HttpError(400, `We couldn't find "${ref.trim().slice(0, 50)}" in the catalog.`);
   const legacyIds = r.ref === "moon" ? ["Moon", "Luna"] : [r.ref];
   for (const id of legacyIds) {
     const [row] = await db

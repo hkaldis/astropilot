@@ -74,11 +74,11 @@ export default function TonightPage() {
     <div className="flex flex-col gap-8">
       {!user && <GuestBanner />}
       {site.key === "guest" && <GuestSiteBar site={site} />}
-      <TonightHero night={ctx.night} forecast={ctx.forecast} loading={fq.isLoading} isTonight={ctx.isTonight} siteName={site.name} tz={tz} hour12={hour12} now={now} />
+      <TonightHero night={ctx.night} forecast={ctx.forecast} loading={fq.isLoading} isTonight={ctx.isTonight} siteName={site.name} tz={tz} hour12={hour12} now={now} southern={site.lat < 0} />
 
       {nights.length > 0 && (
         <Section title="This week" description="Tap a night to plan it.">
-          <Outlook nights={nights} selected={offset} onSelect={setOffset} />
+          <Outlook nights={nights} selected={offset} onSelect={setOffset} southern={site.lat < 0} />
         </Section>
       )}
       {fq.isError && <p className="text-sm text-muted-foreground">The weather forecast is unavailable right now — sky and Moon times below are still exact.</p>}

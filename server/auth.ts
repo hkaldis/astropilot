@@ -9,8 +9,8 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, pool } from "./db";
 import { users, type User } from "@shared/schema";
-import { ah, parse, rateLimit } from "./http";
-import { isProd } from "./env";
+import { ah, parse, rateLimit, HttpError } from "./http";
+import { isProd, sessionSecret } from "./env";
 
 const SALT_ROUNDS = 12;
 
@@ -55,11 +55,24 @@ async function getUserByEmail(email: string) {
   return rows[0] ? getUser(rows[0].id) : undefined;
 }
 
+/**
+ * Delete a user's stored login sessions (all devices), optionally keeping one (the caller's).
+ * Sessions written by this app store `passport.user = { id }`; older ones may hold the bare id.
+ */
+export async function destroyUserSessions(uid: string, keepSid?: string) {
+  await pool.query(
+    `DELETE FROM sessions
+      WHERE (sess->'passport'->'user'->>'id' = $1 OR sess->'passport'->>'user' = $1)
+        AND sid IS DISTINCT FROM $2`,
+    [uid, keepSid ?? null],
+  );
+}
+
 export function sessionMiddleware() {
   const ttl = 30 * 24 * 60 * 60 * 1000; // 30 days: observers come back weekly
   const PgStore = connectPg(session);
   return session({
-    secret: process.env.SESSION_SECRET || "astropilot-dev-secret",
+    secret: sessionSecret,
     store: new PgStore({ pool, createTableIfMissing: false, ttl: ttl / 1000, tableName: "sessions" }),
     resave: false,
     saveUninitialized: false,
@@ -84,9 +97,16 @@ const credentials = z.object({
   lastName: z.string().trim().max(60).optional().nullable(),
 });
 
+/** Login body: types and sizes only (legacy accounts may have unusual but valid emails). */
+const loginBody = z.object({
+  email: z.string({ required_error: "Enter your email address", invalid_type_error: "Enter your email address" }).trim().min(1, "Enter your email address").max(254, "That email address is too long"),
+  password: z.string({ required_error: "Enter your password", invalid_type_error: "Enter your password" }).min(1, "Enter your password").max(200, "That password is too long"),
+});
+
 export function setupAuth(app: Express) {
   app.set("trust proxy", 1);
-  app.use("/api", sessionMiddleware(), passport.initialize(), passport.session());
+  // `/objects/*` serves legacy photo URLs to their owner, so it needs the session too.
+  app.use(["/api", "/objects"], sessionMiddleware(), passport.initialize(), passport.session());
 
   passport.serializeUser((user: any, done) => done(null, { id: user.id }));
   passport.deserializeUser(async (data: any, done) => {
@@ -95,8 +115,10 @@ export function setupAuth(app: Express) {
       if (!id) return done(null, false);
       const u = await getUser(id);
       done(null, u ?? false);
-    } catch {
-      done(null, false);
+    } catch (e) {
+      // A database hiccup must fail this request, not sign the user out: answering `false` here
+      // makes passport delete the login from the session for good.
+      done(e as Error);
     }
   });
 
@@ -175,16 +197,26 @@ export function setupAuth(app: Express) {
       const email = body.email.toLowerCase();
       if (await getUserByEmail(email)) return res.status(409).json({ message: "An account with this email already exists. Sign in instead." });
       const passwordHash = await bcrypt.hash(body.password, SALT_ROUNDS);
-      const [u] = await db
-        .insert(users)
-        .values({ email, passwordHash, firstName: body.firstName || null, lastName: body.lastName || null, authProvider: "local" })
-        .returning();
+      let u: User;
+      try {
+        [u] = await db
+          .insert(users)
+          .values({ email, passwordHash, firstName: body.firstName || null, lastName: body.lastName || null, authProvider: "local" })
+          .returning();
+      } catch (e: any) {
+        // Two sign-ups racing for the same address: the unique index decides.
+        if (e?.code === "23505") throw new HttpError(409, "An account with this email already exists. Sign in instead.");
+        throw e;
+      }
       await login(req, u);
       res.status(201).json({ user: publicUser(u) });
     }),
   );
 
   app.post("/api/auth/login", authLimiter, (req, res, next) => {
+    // Reject non-string credentials up front (an object here used to reach `.trim()` → 500).
+    const check = loginBody.safeParse(req.body ?? {});
+    if (!check.success) return res.status(400).json({ message: check.error.issues[0]?.message ?? "Enter your email and password." });
     passport.authenticate("local", async (err: any, u: User | false, info: any) => {
       if (err) return next(err);
       if (!u) return res.status(401).json({ message: info?.message ?? "Sign-in failed." });
