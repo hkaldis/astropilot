@@ -29,16 +29,28 @@ import { cn } from "@/lib/utils";
 import { clearOfflineApiCache } from "@/lib/offline";
 import type { ApiUser } from "@shared/api";
 
+/** A segmented control whose highlight slides to the chosen option. */
 function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; label: string }) {
+  const idx = Math.max(0, options.findIndex((o) => o.value === value));
   return (
-    <div role="radiogroup" aria-label={label} className="inline-flex rounded-lg border bg-surface-2/50 p-0.5">
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="relative inline-grid rounded-lg border bg-surface-2/50 p-0.5"
+      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+    >
+      <span
+        className="absolute inset-y-0.5 left-0.5 rounded-md bg-background shadow-sm transition-transform duration-300 [transition-timing-function:var(--ease-out)]"
+        style={{ width: `calc((100% - 0.25rem) / ${options.length})`, transform: `translateX(${idx * 100}%)` }}
+        aria-hidden="true"
+      />
       {options.map((o) => (
         <button
           key={o.value}
           role="radio"
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
-          className={cn("rounded-md px-3 py-1.5 text-sm transition-colors", value === o.value ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}
+          className={cn("relative rounded-md px-3 py-1.5 text-sm transition-colors duration-200", value === o.value ? "font-medium" : "text-muted-foreground hover:text-foreground")}
         >
           {o.label}
         </button>

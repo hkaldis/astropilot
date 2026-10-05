@@ -5,6 +5,7 @@ import { Check } from "lucide-react";
 import { SOLAR_SYSTEM } from "@shared/astro/planets";
 import type { CatalogObject } from "@shared/data/types";
 import { cn } from "@/lib/utils";
+import { useInView } from "@/lib/motion";
 import { monthLabel, typePlural } from "./format";
 
 /** Small numbered tiles, ten per row (so rows read 1–10, 11–20, …). Observed tiles are filled. */
@@ -33,8 +34,10 @@ export function CatalogGrid({
     return map;
   }, [objects, field]);
   const pct = Math.round((seenSet.size / total) * 100);
+  // When the grid scrolls into view, the observed tiles light up one after another, like stars coming out.
+  const [ref, inView] = useInView<HTMLDivElement>();
   return (
-    <div className="flex flex-col gap-3">
+    <div ref={ref} data-inview={inView} className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="text-sm font-medium">{title}</h3>
         <span className="num text-sm">
@@ -43,7 +46,7 @@ export function CatalogGrid({
         </span>
       </div>
       <div className="h-1 overflow-hidden rounded-full bg-muted" aria-hidden="true">
-        <div className="h-full rounded-full bg-primary transition-[width] duration-700" style={{ width: `${pct}%` }} />
+        <div className="play-on-view h-full origin-left animate-grow-x rounded-full bg-primary" style={{ width: `${pct}%` }} />
       </div>
       <ol className="grid grid-cols-10 gap-[3px]" aria-label={`${title}: ${seenSet.size} of ${total} observed`}>
         {Array.from({ length: total }, (_, i) => i + 1).map((n) => {
@@ -59,9 +62,10 @@ export function CatalogGrid({
                 className={cn(
                   "num grid aspect-square place-items-center rounded-[5px] text-[0.6rem] leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   on
-                    ? "bg-primary font-semibold text-primary-foreground hover:bg-primary/85"
+                    ? "play-on-view animate-ignite bg-primary font-semibold text-primary-foreground hover:bg-primary/85"
                     : "border border-border text-muted-foreground/80 hover:border-primary/50 hover:text-foreground",
                 )}
+                style={on ? { animationDelay: `${n * 7}ms` } : undefined}
               >
                 {n}
               </Link>
@@ -79,10 +83,10 @@ export function SolarSystemChips({ planetsSeen, moonSeen }: { planetsSeen: strin
   if (moonSeen) seen.add("moon");
   return (
     <ul className="flex flex-wrap gap-1.5" aria-label={`Solar System: ${seen.size} of ${SOLAR_SYSTEM.length} observed`}>
-      {SOLAR_SYSTEM.map((p) => {
+      {SOLAR_SYSTEM.map((p, i) => {
         const on = seen.has(p.id);
         return (
-          <li key={p.id}>
+          <li key={p.id} className="animate-fade" style={{ animationDelay: `${i * 50}ms` }}>
             <Link
               href={`/object/${p.id}`}
               className={cn(
@@ -105,16 +109,17 @@ export function SolarSystemChips({ planetsSeen, moonSeen }: { planetsSeen: strin
 export function TypeBars({ byType }: { byType: Record<string, number> }) {
   const rows = Object.entries(byType).sort((a, b) => b[1] - a[1]);
   const max = Math.max(1, ...rows.map((r) => r[1]));
+  const [ref, inView] = useInView<HTMLDListElement>();
   if (!rows.length) return <p className="text-sm text-muted-foreground">Nothing logged yet.</p>;
   return (
-    <dl className="flex flex-col gap-2.5">
-      {rows.map(([type, n]) => (
+    <dl ref={ref} data-inview={inView} className="flex flex-col gap-2.5">
+      {rows.map(([type, n], i) => (
         <div key={type} className="grid grid-cols-[minmax(0,9.5rem)_1fr_2.25rem] items-center gap-3 text-sm">
           <dt className="truncate text-muted-foreground">{typePlural(type)}</dt>
           <dd className="contents">
             <svg className="h-2 w-full overflow-visible" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
               <rect x="0" y="0" width="100" height="8" rx="4" className="fill-muted" />
-              <rect x="0" y="0" width={Math.max(3, (n / max) * 100)} height="8" rx="4" className="fill-primary" />
+              <rect x="0" y="0" width={Math.max(3, (n / max) * 100)} height="8" rx="4" className="play-on-view origin-box origin-left animate-grow-x fill-primary" style={{ animationDelay: `${i * 60}ms` }} />
             </svg>
             <span className="num text-right">{n}</span>
           </dd>
@@ -130,8 +135,9 @@ export function MonthBars({ perMonth }: { perMonth: { month: string; observation
   const H = 96;
   const W = perMonth.length * 10;
   const total = perMonth.reduce((a, m) => a + m.observations, 0);
+  const [ref, inView] = useInView<HTMLElement>();
   return (
-    <figure className="flex flex-col gap-2">
+    <figure ref={ref} data-inview={inView} className="flex flex-col gap-2">
       <div className="grid text-center" style={{ gridTemplateColumns: `repeat(${perMonth.length}, minmax(0, 1fr))` }} aria-hidden="true">
         {perMonth.map((m) => (
           <span key={m.month} className={cn("num text-2xs", m.observations ? "text-foreground" : "text-transparent")}>
@@ -144,7 +150,16 @@ export function MonthBars({ perMonth }: { perMonth: { month: string; observation
         {perMonth.map((m, i) => {
           const h = m.observations ? Math.max(3, (m.observations / max) * (H - 4)) : 0;
           return (
-            <rect key={m.month} x={i * 10 + 2} y={H - h} width="6" height={h} rx="1.2" className={i === perMonth.length - 1 ? "fill-primary" : "fill-primary/55"}>
+            <rect
+              key={m.month}
+              x={i * 10 + 2}
+              y={H - h}
+              width="6"
+              height={h}
+              rx="1.2"
+              className={cn("play-on-view origin-box origin-bottom animate-grow-y", i === perMonth.length - 1 ? "fill-primary" : "fill-primary/55")}
+              style={{ animationDelay: `${i * 45}ms` }}
+            >
               <title>{`${monthLabel(m.month)}: ${m.observations} observation${m.observations === 1 ? "" : "s"}`}</title>
             </rect>
           );

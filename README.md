@@ -89,7 +89,7 @@ Replit **Shell**, then **Deploy → Republish**.
 ## Credits & licences
 
 Catalog data: OpenNGC by Mattia Verga (CC BY-SA 4.0). Star chart data: d3-celestial by Olaf Frohn (BSD-3-Clause), Hipparcos.
-Weather: Open-Meteo (CC BY 4.0). Space weather: NOAA SWPC. Orbits: CelesTrak. Maps: © OpenStreetMap contributors.
+Weather: Open-Meteo (CC BY 4.0). Space weather: NOAA SWPC. Orbits: CelesTrak (SatNOGS and AMSAT as fallbacks). Maps: © OpenStreetMap contributors.
 Light pollution: World Atlas of Artificial Night Sky Brightness, D. J. Lorenz (2025), from VIIRS data by the Earth Observation
 Group, Colorado School of Mines — https://djlorenz.github.io/astronomy/lp/. Comets: NASA/JPL Small-Body Database and Horizons.
 Meteor showers: International Meteor Organization working list.

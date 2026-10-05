@@ -30,8 +30,10 @@ export function AchievementSummary({ stats }: { stats: JournalStats }) {
       <div className="flex min-w-0 flex-col gap-2">
         {latest.length > 0 && (
           <div className="flex items-center gap-1.5" aria-hidden="true">
-            {latest.map(({ family, tier }) => (
-              <Medal key={tier.id} family={family.id} tier={tier.tier} size={34} title={`${family.title} · ${TIER_STYLE[tier.tier].label}`} />
+            {latest.map(({ family, tier }, i) => (
+              <span key={tier.id} className="inline-flex animate-zoom-fade" style={{ animationDelay: `${150 + i * 70}ms` }}>
+                <Medal family={family.id} tier={tier.tier} size={34} title={`${family.title} · ${TIER_STYLE[tier.tier].label}`} delay={150 + i * 70} />
+              </span>
             ))}
           </div>
         )}

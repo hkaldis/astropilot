@@ -25,6 +25,7 @@ import { usePrefs } from "@/hooks/usePrefs";
 import { useSite } from "@/hooks/useSite";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { stagger } from "@/lib/motion";
 import { BortleExplainer, BortleScale, SKY_SWATCH, bortleTone, fmtElevation, fmtLat, fmtLon, lightPollutionUrl, tzOffset, useBortleLabelId } from "./bortle";
 import { LocationDialog, type LocationSeed } from "./LocationDialog";
 import { LOCATIONS_KEY, useLocationMutations } from "./useLocationMutations";
@@ -69,6 +70,7 @@ function siteLine(l: { latitude: number | null; longitude: number | null; elevat
 
 function LocationCard({
   l,
+  i = 0,
   isDefault,
   isCurrent,
   units,
@@ -78,6 +80,8 @@ function LocationCard({
   onDelete,
 }: {
   l: ApiLocation;
+  /** Position in the list, for the staggered entrance. */
+  i?: number;
   isDefault: boolean;
   isCurrent: boolean;
   units: "metric" | "imperial";
@@ -89,7 +93,7 @@ function LocationCard({
   const b = BORTLE[Math.min(9, Math.max(1, l.bortle))];
   const hasCoords = l.latitude !== null && l.longitude !== null;
   return (
-    <li className={cn("panel flex flex-col gap-4 p-4 sm:p-5", isCurrent && "border-primary/50")}>
+    <li className={cn("panel flex animate-rise flex-col gap-4 p-4 transition-colors [transition-duration:300ms] sm:p-5", isCurrent && "border-primary/50")} style={stagger(i, 60)}>
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -274,10 +278,11 @@ function MyLocations() {
       ) : (
         <Section title={`${locs.length} saved ${locs.length === 1 ? "location" : "locations"}`}>
           <ul className="grid gap-3 lg:grid-cols-2">
-            {locs.map((l) => (
+            {locs.map((l, i) => (
               <LocationCard
                 key={l.id}
                 l={l}
+                i={i}
                 units={units}
                 isDefault={l.id === defaultId}
                 isCurrent={site?.locationId === l.id}

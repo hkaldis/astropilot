@@ -143,16 +143,16 @@ export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestW
               ) : null,
             )}
             {/* sky band */}
-            <rect x={0} y={rowY[0]} width={plotW} height={ROWS[0].h} rx={6} fill={`url(#${gradId})`} />
+            <rect key={`sky-${night.date}`} x={0} y={rowY[0]} width={plotW} height={ROWS[0].h} rx={6} fill={`url(#${gradId})`} className="animate-fade" />
             {bestWindow && (
-              <g>
+              <g key={`best-${bestWindow.start}`} className="animate-fade" style={{ animationDelay: "0.45s" }}>
                 <rect x={x(bestWindow.start)} y={rowY[0] - 2} width={Math.max(2, x(bestWindow.end) - x(bestWindow.start))} height={H - rowY[0]} rx={8} fill="hsl(var(--primary))" opacity={0.07} />
                 <text x={x(bestWindow.start) + 6} y={rowY[0] + 17} className="fill-primary text-[10.5px] font-medium">
                   best window
                 </text>
               </g>
             )}
-            {/* weather rows */}
+            {/* weather rows: the night unfolds column by column, dusk to dawn */}
             {colTimes.map((t, i) => {
               const h = byHour.get(t);
               const cx = i * colW;
@@ -178,7 +178,7 @@ export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestW
                 </g>
               );
               return (
-                <g key={t} onMouseEnter={() => setHover(i)} onClick={() => setHover(i)} style={{ cursor: "default" }}>
+                <g key={t} onMouseEnter={() => setHover(i)} onClick={() => setHover(i)} className="animate-fade" style={{ cursor: "default", animationDelay: `${Math.min(i, 24) * 22}ms` }}>
                   <rect x={cx} y={0} width={colW} height={H} fill="transparent" />
                   {h ? (
                     <>
@@ -201,11 +201,23 @@ export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestW
             })}
             {/* moon */}
             <rect x={0} y={rowY[4]} width={plotW} height={ROWS[4].h} rx={4} fill="hsl(var(--muted))" opacity={0.35} />
-            <path d={moonPath} fill="none" stroke="hsl(var(--gold))" strokeWidth={1.6} strokeOpacity={0.4 + 0.6 * frames.moonIllumination} />
-            {/* now */}
+            <path
+              key={`moon-${night.date}`}
+              d={moonPath}
+              fill="none"
+              stroke="hsl(var(--gold))"
+              strokeWidth={1.6}
+              strokeOpacity={0.4 + 0.6 * frames.moonIllumination}
+              pathLength={1}
+              strokeDasharray={1}
+              className="animate-draw"
+              style={{ animationDelay: "0.2s" }}
+            />
+            {/* now, with a soft pulse */}
             {now >= start && now <= end && (
               <g>
                 <line x1={x(now)} x2={x(now)} y1={rowY[0] - 4} y2={H} stroke="hsl(var(--primary))" strokeWidth={1.5} />
+                <circle cx={x(now)} cy={rowY[0] - 4} r={3} fill="hsl(var(--primary))" opacity={0} className="origin-box origin-center animate-ping-soft" />
                 <circle cx={x(now)} cy={rowY[0] - 4} r={3} fill="hsl(var(--primary))" />
               </g>
             )}

@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { PageHeader, usePageTitle } from "@/components/common/Page";
 import { useFeatures } from "@/hooks/useAuth";
 
-const UPDATED = "4 October 2026";
+const UPDATED = "5 October 2026";
 
 function Prose({ children }: { children: React.ReactNode }) {
   return <div className="prose prose-sm max-w-2xl text-foreground/90 dark:prose-invert prose-headings:font-semibold prose-headings:text-foreground prose-a:text-primary prose-strong:text-foreground prose-li:my-0.5">{children}</div>;
@@ -32,7 +32,7 @@ function Privacy() {
       <ul>
         <li><strong>Open-Meteo</strong> — weather and geocoding. We send the coordinates of the place you're viewing, never your identity.</li>
         <li><strong>OpenStreetMap (Nominatim and map tiles)</strong> — place names and maps for coordinates you choose.</li>
-        <li><strong>NOAA SWPC and CelesTrak</strong> — space weather and satellite orbits (no personal data sent).</li>
+        <li><strong>NOAA SWPC, CelesTrak, SatNOGS and AMSAT</strong> — space weather and space-station orbits, fetched by our server (no personal data sent).</li>
         <li><strong>D. J. Lorenz's light-pollution atlas (GitHub Pages)</strong> — our server downloads the 5° map tile covering a place to estimate its sky darkness (no personal data sent).</li>
         <li><strong>NASA/JPL Small-Body Database and Horizons</strong> — comet orbits and positions, fetched by our server (no personal data sent).</li>
         <li><strong>Google</strong> — only if you choose "Continue with Google".</li>

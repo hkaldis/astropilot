@@ -33,7 +33,7 @@ function GuestBanner() {
   const [hidden, setHidden] = useState(() => store.get("ap.hideGuestBanner", false));
   if (hidden) return null;
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/[0.06] px-4 py-3 text-sm">
+    <div className="flex animate-rise items-center gap-3 rounded-xl border border-primary/25 bg-primary/[0.06] px-4 py-3 text-sm">
       <p className="min-w-0 flex-1">
         <span className="font-medium">Make it yours.</span>{" "}
         <span className="text-muted-foreground">A free account saves your locations, telescope and eyepieces for exact advice, and keeps your observing log.</span>

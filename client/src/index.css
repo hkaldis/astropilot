@@ -95,6 +95,12 @@
     color-scheme: light;
   }
 
+  :root {
+    /* Motion: entrances decelerate (ease-out-quint); drawn lines ease in and out. */
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
   * {
     @apply border-border;
   }
@@ -137,6 +143,12 @@ html.night-vision body::after {
   mix-blend-mode: multiply;
   pointer-events: none;
   z-index: 2147483647;
+  animation: red-light-in 0.6s ease-out both; /* dims in like a red torch, rather than snapping */
+}
+@keyframes red-light-in {
+  from {
+    opacity: 0;
+  }
 }
 
 @layer components {
@@ -164,6 +176,74 @@ html.night-vision body::after {
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
+  /* Loading placeholder: a soft light sweeping across, instead of blinking. */
+  .skeleton {
+    background: linear-gradient(100deg, hsl(var(--muted) / 0.55) 30%, hsl(var(--muted) / 0.95) 50%, hsl(var(--muted) / 0.55) 70%);
+    background-size: 220% 100%;
+    @apply animate-shimmer;
+  }
+}
+
+/* A faint meteor across a starfield, once in a long while (decorative; night themes only). */
+.meteor {
+  position: absolute;
+  height: 1px;
+  width: 7rem;
+  border-radius: 9999px;
+  background: linear-gradient(to right, hsl(var(--foreground) / 0.85), transparent);
+  opacity: 0;
+  pointer-events: none;
+  animation: meteor 37s linear infinite;
+}
+.light .meteor {
+  display: none;
+}
+@keyframes meteor {
+  0%,
+  97.6% {
+    opacity: 0;
+    transform: rotate(-32deg) translateX(0);
+  }
+  98.2% {
+    opacity: 1;
+  }
+  99.4% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(-32deg) translateX(-15rem);
+  }
+}
+
+@layer utilities {
+  /* Fades an element out towards its bottom edge (e.g. a sky band behind content). */
+  .fade-bottom {
+    -webkit-mask-image: linear-gradient(to bottom, #000 30%, transparent);
+    mask-image: linear-gradient(to bottom, #000 30%, transparent);
+  }
+  /* SVG shapes scale/rotate about their own box (with origin-left, origin-bottom, origin-center…). */
+  .origin-box {
+    transform-box: fill-box;
+  }
+  /*
+    Entrance animations that wait while their container hasn't scrolled into view yet (useInView →
+    data-inview="false"). Outside such a container they simply play when they appear.
+  */
+  [data-inview="false"] .play-on-view,
+  .play-on-view[data-inview="false"] {
+    animation-play-state: paused;
+  }
+  /* Progress arcs sweep from nothing to their value (set --arc to the drawn fraction, with pathLength 1). */
+  .animate-arc {
+    animation: arc-in 1.1s var(--ease-out) backwards;
+  }
+}
+
+@keyframes arc-in {
+  from {
+    stroke-dashoffset: var(--arc, 1);
+  }
 }
 
 /* Leaflet controls in our palette */
@@ -180,6 +260,7 @@ html.night-vision body::after {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }

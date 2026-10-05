@@ -35,6 +35,8 @@ const STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS ap_photos_observation_idx ON observation_photos (observation_id)`,
   // Photo bytes when photos are stored in the database (the default outside Replit).
   `CREATE TABLE IF NOT EXISTS photo_blobs (path varchar(300) PRIMARY KEY, content_type varchar(100) NOT NULL, size integer NOT NULL, data bytea NOT NULL, created_at timestamp DEFAULT now())`,
+  // Latest orbital elements of the space stations, so pass predictions survive restarts and source outages.
+  `CREATE TABLE IF NOT EXISTS orbit_elements (norad integer PRIMARY KEY, name varchar(64), line1 varchar(80) NOT NULL, line2 varchar(80) NOT NULL, source varchar(32), fetched_at timestamptz NOT NULL DEFAULT now())`,
 ];
 
 const ident = (s: string) => s.replace(/"/g, "").toLowerCase();

@@ -88,15 +88,15 @@ export function KitChart({ analysis: a, className }: { analysis: KitAnalysis; cl
           <rect x={padX} y={trackTop} width={Math.max(0, minX - padX)} height={trackH} fill={`url(#hatch-${uid})`} rx="6" />
           <rect x={maxX} y={trackTop} width={Math.max(0, W - padX - maxX)} height={trackH} fill={`url(#hatch-${uid})`} rx="6" />
           {/* useful range */}
-          <rect x={minX} y={trackTop} width={maxX - minX} height={trackH} className="fill-muted/60" rx="6" />
+          <rect x={minX} y={trackTop} width={maxX - minX} height={trackH} className="origin-box origin-left animate-grow-x fill-muted/60" rx="6" />
 
           {/* sweet spots */}
-          {a.bands.map((b) => {
+          {a.bands.map((b, i) => {
             const bx = x(b.range[0]);
             const bw = Math.max(4, x(b.range[1]) - bx);
             const ok = b.coveredBy.length > 0;
             return (
-              <g key={b.band.id}>
+              <g key={b.band.id} className="animate-fade" style={{ animationDelay: `${250 + i * 110}ms` }}>
                 <rect
                   x={bx}
                   y={trackTop}
@@ -124,21 +124,21 @@ export function KitChart({ analysis: a, className }: { analysis: KitAnalysis; cl
             .filter((p) => p.barlow)
             .map((p) =>
               p.zoom ? (
-                <line key={p.key} x1={x(p.mag)} x2={x(p.magHigh)} y1={cy + 9} y2={cy + 9} strokeWidth="3" strokeLinecap="round" className="stroke-primary/40" />
+                <line key={p.key} x1={x(p.mag)} x2={x(p.magHigh)} y1={cy + 9} y2={cy + 9} strokeWidth="3" strokeLinecap="round" className="animate-fade stroke-primary/40" style={{ animationDelay: "0.7s" }} />
               ) : (
-                <circle key={p.key} cx={x(p.mag)} cy={cy} r="4.5" className="fill-background stroke-primary/70" strokeWidth="1.5" />
+                <circle key={p.key} cx={x(p.mag)} cy={cy} r="4.5" className="origin-box origin-center animate-pop fill-background stroke-primary/70" strokeWidth="1.5" style={{ animationDelay: "0.7s" }} />
               ),
             )}
-          {/* Eyepieces on their own */}
-          {singles.map((p) =>
+          {/* Eyepieces on their own: each pops into place (a newly added one too) */}
+          {singles.map((p, i) =>
             p.zoom ? (
-              <line key={p.key} x1={x(p.mag)} x2={x(p.magHigh)} y1={cy} y2={cy} strokeWidth="7" strokeLinecap="round" className="stroke-primary" />
+              <line key={p.key} x1={x(p.mag)} x2={x(p.magHigh)} y1={cy} y2={cy} strokeWidth="7" strokeLinecap="round" className="origin-box origin-left animate-grow-x stroke-primary" style={{ animationDelay: `${400 + i * 80}ms` }} />
             ) : (
-              <circle key={p.key} cx={x(p.mag)} cy={cy} r="5.5" className="fill-primary stroke-background" strokeWidth="2" />
+              <circle key={p.key} cx={x(p.mag)} cy={cy} r="5.5" className="origin-box origin-center animate-pop fill-primary stroke-background" strokeWidth="2" style={{ animationDelay: `${400 + i * 80}ms` }} />
             ),
           )}
           {labels.map((l) => (
-            <text key={l.p.key} x={l.cx} y={l.y} textAnchor="middle" className="num fill-foreground text-[10.5px]">
+            <text key={l.p.key} x={l.cx} y={l.y} textAnchor="middle" className="num animate-fade fill-foreground text-[10.5px]" style={{ animationDelay: "0.55s" }}>
               {l.text}
             </text>
           ))}

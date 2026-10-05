@@ -37,6 +37,7 @@ import { DarkCalendar } from "@/features/plan/DarkCalendar";
 import { BODY_SUN_LIMIT, bodyWindow, evaluateBody } from "@/features/explore/sky";
 import { DIFFICULTY_TONE, TYPE_LABEL } from "@/lib/objects";
 import { cn } from "@/lib/utils";
+import { stagger } from "@/lib/motion";
 import { toast } from "@/hooks/use-toast";
 
 const RUN_MINUTES = 25;
@@ -217,7 +218,7 @@ export default function PlanPage() {
               role="tab"
               aria-selected={offset === i}
               onClick={() => setOffset(i)}
-              className={cn("rounded-full border px-3 py-1 text-xs", offset === i ? "border-primary/50 bg-primary/10" : "text-muted-foreground hover:bg-accent")}
+              className={cn("rounded-full border px-3 py-1 text-xs transition-colors duration-200", offset === i ? "border-primary/50 bg-primary/10" : "text-muted-foreground hover:bg-accent")}
             >
               {i === 0 ? "Tonight" : tonight ? formatNightDate(addDays(tonight, i)) : ""}
             </button>
@@ -226,7 +227,7 @@ export default function PlanPage() {
             onClick={() => setShowCalendar((v) => !v)}
             aria-expanded={showCalendar}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs",
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors duration-200",
               showCalendar ? "border-primary/50 bg-primary/10" : "text-muted-foreground hover:bg-accent",
             )}
           >
@@ -234,7 +235,7 @@ export default function PlanPage() {
           </button>
         </div>
         {showCalendar && tonight && (
-          <div className="panel p-3 sm:p-4">
+          <div className="panel animate-rise p-3 sm:p-4">
             <DarkCalendar site={site} tonight={tonight} selected={offset} onSelect={setOffset} southern={site.lat < 0} />
           </div>
         )}
@@ -295,13 +296,14 @@ export default function PlanPage() {
             }
           />
         ) : (
-          <ol className="panel divide-y">
-            {schedule.map(({ target: r, at }) => {
+          // The night's running order deals itself in, in time order, for each night picked.
+          <ol key={date ?? ""} className="panel divide-y">
+            {schedule.map(({ target: r, at }, i) => {
               const item = evaluated.find((e) => e.r.object.id === r.object.id);
               const p = r.track.points.reduce((best, pt) => (Math.abs(pt.t - at) < Math.abs(best.t - at) ? pt : best), r.track.points[0]);
               const until = item ? untilText(item) : null;
               return (
-                <li key={r.object.id} className="flex items-center gap-3 px-3 py-3 sm:px-4">
+                <li key={r.object.id} className="flex animate-rise items-center gap-3 px-3 py-3 sm:px-4" style={stagger(i, 50)}>
                   <div className="num w-14 shrink-0 text-sm font-medium">{fmt(at)}</div>
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-primary">
                     <TypeGlyph type={r.object.type} id={r.object.id} className="h-[1.1rem] w-[1.1rem]" />
@@ -347,7 +349,7 @@ export default function PlanPage() {
               {[...planned, ...done].map((t) => {
                 const ev = evaluated.find((e) => e.target?.id === t.id);
                 return (
-                  <li key={t.id} className={cn("flex items-center gap-3 px-3 py-2.5 sm:px-4", t.status !== "planned" && "opacity-60")}>
+                  <li key={t.id} className={cn("flex animate-fade items-center gap-3 px-3 py-2.5 transition-opacity [transition-duration:300ms] sm:px-4", t.status !== "planned" && "opacity-60")}>
                     <Link href={`/object/${t.ref}`} className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium hover:underline">{t.name}</div>
                       <div className="text-xs text-muted-foreground">

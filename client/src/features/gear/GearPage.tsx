@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { GearItemDialog, type PreviewScope } from "./GearItemDialog";
 import { BarlowList, CameraList, DeleteConfirm, EyepieceTable, FilterList, ItemMenu, TelescopeCard } from "./GearParts";
+import { stagger } from "@/lib/motion";
 import { KitChart } from "./KitChart";
 import { analyseKit, gapSentence, type KitAnalysis } from "./kit";
 import { fmtFocal } from "./format";
@@ -212,17 +213,18 @@ function MyGear() {
       >
         {tels.length ? (
           <div className="grid gap-3 md:grid-cols-2">
-            {tels.map((t) => (
-              <TelescopeCard
-                key={t.id}
-                t={t}
-                isDefault={t.id === defaultId}
-                onMakeDefault={() => makeDefault(t.id, t.name)}
-                selected={tels.length > 1 && t.id === selected?.id}
-                onSelect={tels.length > 1 ? () => setSelectedId(t.id) : undefined}
-                onEdit={() => openEdit("telescopes", t)}
-                onDelete={() => setDel({ kind: "telescopes", item: t })}
-              />
+            {tels.map((t, i) => (
+              <div key={t.id} className="grid animate-rise" style={stagger(i, 70)}>
+                <TelescopeCard
+                  t={t}
+                  isDefault={t.id === defaultId}
+                  onMakeDefault={() => makeDefault(t.id, t.name)}
+                  selected={tels.length > 1 && t.id === selected?.id}
+                  onSelect={tels.length > 1 ? () => setSelectedId(t.id) : undefined}
+                  onEdit={() => openEdit("telescopes", t)}
+                  onDelete={() => setDel({ kind: "telescopes", item: t })}
+                />
+              </div>
             ))}
           </div>
         ) : (
@@ -269,7 +271,7 @@ function MyGear() {
           ) : (
             <ul className="panel divide-y">
               {g.eyepieces.map((e) => (
-                <li key={e.id} className="flex items-center gap-3 px-3 py-2.5 sm:px-4">
+                <li key={e.id} className="flex animate-fade items-center gap-3 px-3 py-2.5 sm:px-4">
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{e.name}</div>
                     <div className="num text-xs text-muted-foreground">

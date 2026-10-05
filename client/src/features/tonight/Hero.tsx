@@ -6,6 +6,7 @@ import { MoonGlyph } from "@/components/common/Glyphs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { QUALITY_TEXT, qualityOf } from "@/lib/objects";
 import { cn } from "@/lib/utils";
+import { stagger } from "@/lib/motion";
 import { moonEventsText, nightClock } from "./useTonight";
 
 const VERDICT_WORD: Record<string, string> = {
@@ -100,16 +101,19 @@ export function TonightHero({
       <div className="relative grid gap-6 p-5 sm:p-7 md:grid-cols-[1fr_auto] md:items-center">
         <div className="min-w-0">
           <div className="eyebrow">{isTonight ? `${when} · ${formatNightDate(night.date)} · ${siteName}` : `${when} · ${siteName}`}</div>
+          {/* The verdict and its story rise in when they arrive, and again for each night picked. */}
           {loading ? (
             <Skel className="mt-3 h-12 w-72" />
           ) : forecast?.hasData ? (
-            <h1 className={cn("mt-2 font-display text-[2.4rem] leading-[1.02] tracking-tight sm:text-[3.1rem]", QUALITY_TEXT[q.key])}>
+            <h1 key={`${night.date}-${forecast.verdict}`} className={cn("mt-2 animate-rise font-display text-[2.4rem] leading-[1.02] tracking-tight sm:text-[3.1rem]", QUALITY_TEXT[q.key])}>
               {VERDICT_WORD[forecast.verdict] ?? q.label}
             </h1>
           ) : (
-            <h1 className="mt-2 font-display text-[2.4rem] leading-[1.02] tracking-tight sm:text-[3.1rem]">{darknessLabel(night)}</h1>
+            <h1 key={`${night.date}-dark`} className="mt-2 animate-rise font-display text-[2.4rem] leading-[1.02] tracking-tight sm:text-[3.1rem]">
+              {darknessLabel(night)}
+            </h1>
           )}
-          <p className="mt-2 max-w-xl text-[0.95rem] text-foreground/90">
+          <p key={`${night.date}-h`} className="mt-2 max-w-xl animate-rise text-[0.95rem] text-foreground/90" style={stagger(1, 90)}>
             {forecast?.hasData ? forecast.headline : loading ? "" : "No weather forecast for this date yet — here's what the sky itself offers."}
           </p>
           {forecast?.hasData && forecast.confidence && (
@@ -118,9 +122,9 @@ export function TonightHero({
             </div>
           )}
           {forecast?.details?.length ? (
-            <ul className="mt-3 flex max-w-xl flex-col gap-1 text-sm text-muted-foreground">
+            <ul key={`${night.date}-details`} className="mt-3 flex max-w-xl flex-col gap-1 text-sm text-muted-foreground">
               {forecast.details.map((d, i) => (
-                <li key={i} className="flex gap-2">
+                <li key={i} className="flex animate-rise gap-2" style={stagger(i + 2, 70)}>
                   <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/60" />
                   {d}
                 </li>
@@ -144,7 +148,7 @@ export function TonightHero({
           </div>
         )}
       </div>
-      <div className="relative grid grid-cols-2 border-t sm:grid-cols-4">
+      <div key={night.date} className="relative grid animate-fade grid-cols-2 border-t sm:grid-cols-4">
         <Fact
           label="Darkness"
           value={night.darkStart ? `${fmt(night.darkStart)} – ${fmt(night.darkEnd)}` : "—"}
@@ -186,7 +190,7 @@ function Fact({ label, value, sub }: { label: string; value: React.ReactNode; su
   );
 }
 
-/** Deterministic faint starfield behind the hero. */
+/** Deterministic faint starfield behind the hero: a few stars twinkle, and very rarely a meteor. */
 function Starfield() {
   const stars = Array.from({ length: 70 }, (_, i) => {
     const r = Math.sin(i * 91.7) * 10000;
@@ -194,17 +198,33 @@ function Starfield() {
     return { x: (r - Math.floor(r)) * 100, y: (s - Math.floor(s)) * 100, o: 0.15 + ((i * 37) % 10) / 22, r: i % 9 === 0 ? 1.3 : 0.7 };
   });
   return (
-    <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
-      <defs>
-        <radialGradient id="hero-glow" cx="85%" cy="0%" r="70%">
-          <stop offset="0" style={{ stopColor: "hsl(var(--primary))", stopOpacity: 0.10 }} />
-          <stop offset="1" style={{ stopColor: "hsl(var(--primary))", stopOpacity: 0 }} />
-        </radialGradient>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#hero-glow)" />
-      {stars.map((st, i) => (
-        <circle key={i} cx={`${st.x}%`} cy={`${st.y}%`} r={st.r} fill="hsl(var(--foreground))" opacity={st.o * 0.6} />
-      ))}
-    </svg>
+    <>
+      <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
+        <defs>
+          <radialGradient id="hero-glow" cx="85%" cy="0%" r="70%">
+            <stop offset="0" style={{ stopColor: "hsl(var(--primary))", stopOpacity: 0.10 }} />
+            <stop offset="1" style={{ stopColor: "hsl(var(--primary))", stopOpacity: 0 }} />
+          </radialGradient>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#hero-glow)" />
+        {stars.map((st, i) =>
+          i % 6 === 0 ? (
+            <g key={i} opacity={st.o * 0.75}>
+              <circle
+                cx={`${st.x}%`}
+                cy={`${st.y}%`}
+                r={st.r + 0.2}
+                fill="hsl(var(--foreground))"
+                className="animate-twinkle"
+                style={{ animationDuration: `${2.6 + (i % 5) * 0.7}s`, animationDelay: `${-((i * 0.83) % 4)}s` }}
+              />
+            </g>
+          ) : (
+            <circle key={i} cx={`${st.x}%`} cy={`${st.y}%`} r={st.r} fill="hsl(var(--foreground))" opacity={st.o * 0.6} />
+          ),
+        )}
+      </svg>
+      <span className="meteor left-[58%] top-[16%]" aria-hidden="true" />
+    </>
   );
 }

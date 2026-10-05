@@ -4,7 +4,7 @@ import { Check, Lock, Sparkles } from "lucide-react";
 import { FAMILY_BY_ID, familyMembers } from "@shared/achievements";
 import type { AchievementFamily, AchievementTierResult, JournalStats } from "@shared/api";
 import { formatTime } from "@shared/astro";
-import { ErrorState, PageHeader, Section, SignInPrompt, Skel, usePageTitle } from "@/components/common/Page";
+import { CountUp, ErrorState, PageHeader, Section, SignInPrompt, Skel, usePageTitle } from "@/components/common/Page";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,6 +13,7 @@ import { usePrefs } from "@/hooks/usePrefs";
 import { useSite, siteTz } from "@/hooks/useSite";
 import { DIFFICULTY_TONE } from "@/lib/objects";
 import { cn } from "@/lib/utils";
+import { stagger, useInView } from "@/lib/motion";
 import { useJournalStats } from "@/features/journal/api";
 import { ResponsiveModal } from "@/features/journal/controls";
 import { Medal, RankEmblem, TIER_STYLE } from "@/features/achievements/Medal";
@@ -56,21 +57,27 @@ function SignedIn() {
       <RankHero stats={s} />
       <UpNextSection stats={s} onOpen={setOpen} />
       {GROUPS.map((g) => (
-        <Section key={g.id} title={g.title} description={g.blurb}>
-          <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            {fams
-              .filter((f) => f.group === g.id)
-              .map((f) => (
-                <li key={f.id}>
-                  <FamilyCard f={f} onOpen={() => setOpen(f.id)} />
-                </li>
-              ))}
-          </ul>
-        </Section>
+        <FamilyGroup key={g.id} title={g.title} blurb={g.blurb} fams={fams.filter((f) => f.group === g.id)} onOpen={setOpen} />
       ))}
       <Timeline fams={fams} />
       <FamilyDetail family={openFamily} stats={s} onOpenChange={(o) => !o && setOpen(null)} />
     </div>
+  );
+}
+
+/** One group of achievement cards; they deal in, medals sweeping and glinting, as the group scrolls into view. */
+function FamilyGroup({ title, blurb, fams, onOpen }: { title: string; blurb: string; fams: AchievementFamily[]; onOpen: (id: string) => void }) {
+  const [ref, inView] = useInView<HTMLUListElement>();
+  return (
+    <Section title={title} description={blurb}>
+      <ul ref={ref} data-inview={inView} className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+        {fams.map((f, i) => (
+          <li key={f.id} className="play-on-view animate-rise" style={stagger(i, 40, 12)}>
+            <FamilyCard f={f} onOpen={() => onOpen(f.id)} delay={Math.min(i, 12) * 40} />
+          </li>
+        ))}
+      </ul>
+    </Section>
   );
 }
 
@@ -97,14 +104,17 @@ function RankHero({ stats }: { stats: JournalStats }) {
   const earned = earnedCount(stats.achievements);
   const total = tierCount(stats.achievements);
   return (
-    <section className="grid gap-6 rounded-2xl border bg-card/60 p-5 sm:p-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]" aria-label="Your observer rank">
+    <section className="grid animate-rise gap-6 rounded-2xl border bg-card/60 p-5 sm:p-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]" aria-label="Your observer rank">
       <div className="flex items-center gap-5">
         <RankEmblem level={rank.level} progress={frac} size={104} />
         <div className="min-w-0">
           <div className="eyebrow">Level {rank.level}</div>
           <div className="font-display text-[1.9rem] leading-tight tracking-tight">{rank.title}</div>
           <p className="mt-1 text-sm text-muted-foreground">
-            <span className="num text-foreground">{rank.objects}</span> different objects seen
+            <span className="num text-foreground">
+              <CountUp value={rank.objects} />
+            </span>{" "}
+            different objects seen
             {rank.next ? (
               <>
                 {" "}
@@ -125,9 +135,9 @@ function RankHero({ stats }: { stats: JournalStats }) {
           <p className="text-sm text-muted-foreground">Log your first observation to earn First Light.</p>
         ) : (
           <ul className="flex flex-col gap-1.5">
-            {latest.map(({ family, tier }) => (
-              <li key={tier.id} className="flex items-center gap-2.5 text-sm">
-                <Medal family={family.id} tier={tier.tier} size={30} />
+            {latest.map(({ family, tier }, i) => (
+              <li key={tier.id} className="flex animate-rise items-center gap-2.5 text-sm" style={stagger(i + 2, 70)}>
+                <Medal family={family.id} tier={tier.tier} size={30} delay={300 + i * 70} />
                 <span className="min-w-0 flex-1 truncate">
                   <span className="font-medium">{family.title}</span>
                   <span className="text-muted-foreground"> · {tier.label ?? goalText(family, tier)}</span>
@@ -159,8 +169,8 @@ function UpNextSection({ stats, onOpen }: { stats: JournalStats; onOpen: (id: st
         <p className="text-sm text-muted-foreground">You've earned everything there is. Clear skies!</p>
       ) : (
         <ul className="grid gap-3 md:grid-cols-3">
-          {items.map((u) => (
-            <li key={u.family.id}>
+          {items.map((u, i) => (
+            <li key={u.family.id} className="animate-rise" style={stagger(i, 80)}>
               <UpNextCard u={u} onOpen={() => onOpen(u.family.id)} tz={tz} hour12={hour12} />
             </li>
           ))}
@@ -212,7 +222,7 @@ function UpNextCard({ u, onOpen, tz, hour12 }: { u: UpNext; onOpen: () => void; 
   );
 }
 
-function FamilyCard({ f, onOpen }: { f: AchievementFamily; onOpen: () => void }) {
+function FamilyCard({ f, onOpen, delay = 0 }: { f: AchievementFamily; onOpen: () => void; delay?: number }) {
   const best = bestTier(f);
   const next = nextTier(f);
   const target = next ?? best!;
@@ -224,7 +234,7 @@ function FamilyCard({ f, onOpen }: { f: AchievementFamily; onOpen: () => void })
         best ? "bg-card" : "bg-transparent",
       )}
     >
-      <Medal family={f.id} tier={best?.tier ?? null} progress={toNext(f)} nextTier={next?.tier ?? null} size={48} />
+      <Medal family={f.id} tier={best?.tier ?? null} progress={toNext(f)} nextTier={next?.tier ?? null} size={48} delay={delay} />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
           <span className="truncate text-sm font-medium">{f.title}</span>
@@ -248,8 +258,12 @@ function FamilyCard({ f, onOpen }: { f: AchievementFamily; onOpen: () => void })
         </div>
         {f.tiers.length > 1 && (
           <div className="mt-1.5 flex gap-1" aria-hidden="true">
-            {f.tiers.map((t) => (
-              <span key={t.id} className="h-1 w-5 rounded-full" style={{ background: t.earned ? TIER_STYLE[t.tier].color : "hsl(var(--muted))" }} />
+            {f.tiers.map((t, k) => (
+              <span key={t.id} className="h-1 w-5 overflow-hidden rounded-full bg-muted">
+                {t.earned && (
+                  <span className="play-on-view block h-full origin-left animate-grow-x rounded-full" style={{ background: TIER_STYLE[t.tier].color, animationDelay: `${delay + 250 + k * 90}ms` }} />
+                )}
+              </span>
             ))}
           </div>
         )}
@@ -278,8 +292,8 @@ function FamilyDetailBody({ f, stats }: { f: AchievementFamily; stats: JournalSt
   return (
     <div className="flex flex-col gap-5">
       <ol className="flex flex-col gap-2">
-        {f.tiers.map((t) => (
-          <TierRow key={t.id} f={f} t={t} />
+        {f.tiers.map((t, i) => (
+          <TierRow key={t.id} f={f} t={t} i={i} />
         ))}
       </ol>
       {f.hint && <p className="rounded-lg bg-surface-2/60 px-3 py-2 text-xs text-muted-foreground">{f.hint}</p>}
@@ -302,7 +316,7 @@ function FamilyDetailBody({ f, stats }: { f: AchievementFamily; stats: JournalSt
               {members
                 .slice()
                 .sort((a, b) => (a.m ?? a.c ?? 999) - (b.m ?? b.c ?? 999) || a.name.localeCompare(b.name))
-                .map((o) => {
+                .map((o, k) => {
                   const done = seen.has(o.id.toUpperCase());
                   const label = f.id === "messier" ? String(o.m) : f.id === "caldwell" ? String(o.c) : o.name.replace(/^(NGC|IC) ?/, "");
                   return (
@@ -312,8 +326,9 @@ function FamilyDetailBody({ f, stats }: { f: AchievementFamily; stats: JournalSt
                         title={`${o.name} — ${done ? "observed" : "not yet"}`}
                         className={cn(
                           "num grid aspect-square place-items-center overflow-hidden rounded-[5px] text-[0.58rem] leading-none",
-                          done ? "bg-primary font-semibold text-primary-foreground" : "border border-border text-muted-foreground/80 hover:border-primary/50",
+                          done ? "animate-ignite bg-primary font-semibold text-primary-foreground" : "border border-border text-muted-foreground/80 hover:border-primary/50",
                         )}
+                        style={done ? { animationDelay: `${200 + k * 6}ms` } : undefined}
                       >
                         {label.length > 4 ? label.slice(0, 4) : label}
                       </Link>
@@ -334,12 +349,16 @@ function FamilyDetailBody({ f, stats }: { f: AchievementFamily; stats: JournalSt
   );
 }
 
-function TierRow({ f, t }: { f: AchievementFamily; t: AchievementTierResult }) {
+function TierRow({ f, t, i }: { f: AchievementFamily; t: AchievementTierResult; i: number }) {
   const style = TIER_STYLE[t.tier];
   return (
-    <li className="flex items-center gap-3">
+    <li className="flex animate-rise items-center gap-3" style={stagger(i, 70)}>
       <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border" style={t.earned ? { borderColor: style.color, background: `${style.color}26` } : undefined}>
-        {t.earned ? <Check className="h-3.5 w-3.5" style={{ color: style.color }} /> : <Lock className="h-3 w-3 text-muted-foreground" />}
+        {t.earned ? (
+          <Check className="h-3.5 w-3.5 animate-pop" style={{ color: style.color, animationDelay: `${150 + i * 70}ms` }} />
+        ) : (
+          <Lock className="h-3 w-3 text-muted-foreground" />
+        )}
       </span>
       <div className="min-w-0 flex-1">
         <div className="text-sm">
@@ -393,14 +412,15 @@ function ChecklistChip({ id, name, done }: { id: string; name: string; done: boo
 function Timeline({ fams }: { fams: AchievementFamily[] }) {
   const items = earnedTimeline(fams);
   const [all, setAll] = useState(false);
+  const [ref, inView] = useInView<HTMLOListElement>();
   if (!items.length) return null;
   const shown = all ? items : items.slice(0, 12);
   return (
     <Section title="Your achievements" description="Everything you've earned, newest first.">
-      <ol className="flex flex-col divide-y divide-border/70 rounded-xl border">
-        {shown.map(({ family, tier }) => (
-          <li key={tier.id} className="flex items-center gap-3 px-3 py-2.5 sm:px-4">
-            <Medal family={family.id} tier={tier.tier} size={34} />
+      <ol ref={ref} data-inview={inView} className="flex flex-col divide-y divide-border/70 rounded-xl border">
+        {shown.map(({ family, tier }, i) => (
+          <li key={tier.id} className="play-on-view flex animate-fade items-center gap-3 px-3 py-2.5 sm:px-4" style={stagger(i, 45, 12)}>
+            <Medal family={family.id} tier={tier.tier} size={34} delay={Math.min(i, 12) * 45} />
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm">
                 <span className="font-medium">{family.title}</span> <span style={{ color: TIER_STYLE[tier.tier].color }}>· {TIER_STYLE[tier.tier].label}</span>

@@ -881,3 +881,13 @@ export const photoBlobs = pgTable("photo_blobs", {
   data: bytea("data").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Latest orbital elements (TLEs) of the space stations, refreshed by server/services/satellites.ts.
+export const orbitElements = pgTable("orbit_elements", {
+  norad: integer("norad").primaryKey(),
+  name: varchar("name", { length: 64 }),
+  line1: varchar("line1", { length: 80 }).notNull(),
+  line2: varchar("line2", { length: 80 }).notNull(),
+  source: varchar("source", { length: 32 }),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+});

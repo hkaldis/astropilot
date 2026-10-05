@@ -116,17 +116,19 @@ export function DarkCalendar({
           </span>
         ))}
       </div>
+      {/* The weeks sweep in as a diagonal wave; each night's moon-free bar then fills. */}
       <div className="grid grid-cols-7 gap-1" role="grid" aria-label="Dark-sky calendar">
         {cells.map((n, k) =>
           n ? (
             <button
               key={n.date}
+              style={{ animationDelay: `${Math.floor(k / 7) * 45 + (k % 7) * 15}ms` }}
               onClick={() => onSelect(n.i)}
               aria-pressed={selected === n.i}
               aria-label={`${nightLabel(n.date)}: ${n.astro ? `${formatDuration(n.moonFree)} of moon-free darkness` : "no full darkness"}, Moon ${Math.round(n.illumination * 100)}% lit${n.events.length ? `, ${n.events.map((e) => e.title).join(", ")}` : ""}`}
               title={n.events.map((e) => e.title).join(" · ") || undefined}
               className={cn(
-                "relative flex min-w-0 flex-col items-center gap-1 rounded-lg border px-0.5 pb-1.5 pt-1.5 transition-colors",
+                "relative flex min-w-0 animate-rise flex-col items-center gap-1 rounded-lg border px-0.5 pb-1.5 pt-1.5 transition-colors",
                 selected === n.i ? "border-primary/70 bg-primary/10" : prime(n) ? "border-q-excellent/35 bg-q-excellent/[0.06] hover:bg-q-excellent/10" : "border-border/70 hover:bg-accent",
               )}
             >
@@ -137,7 +139,10 @@ export function DarkCalendar({
               <MoonGlyph elongation={n.elongation} size={14} southern={southern} />
               <span className="num text-[0.62rem] leading-none text-muted-foreground">{n.astro ? `${n.moonFree.toFixed(n.moonFree >= 10 ? 0 : 1)}h` : "—"}</span>
               <span className="mt-0.5 h-1 w-[78%] overflow-hidden rounded-full bg-muted">
-                <span className={cn("block h-full rounded-full", prime(n) ? "bg-q-excellent" : "bg-primary/70")} style={{ width: `${(n.moonFree / maxDark) * 100}%` }} />
+                <span
+                  className={cn("block h-full origin-left animate-grow-x rounded-full", prime(n) ? "bg-q-excellent" : "bg-primary/70")}
+                  style={{ width: `${(n.moonFree / maxDark) * 100}%`, animationDelay: `${200 + Math.floor(k / 7) * 45 + (k % 7) * 15}ms` }}
+                />
               </span>
               {n.events.length > 0 && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-gold" />}
             </button>

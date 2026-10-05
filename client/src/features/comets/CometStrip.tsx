@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Section } from "@/components/common/Page";
 import { DIFFICULTY_TONE } from "@/lib/objects";
 import { cn } from "@/lib/utils";
+import { stagger } from "@/lib/motion";
 import { useActiveScope } from "@/hooks/useScope";
 import { constellationName } from "@/features/explore/constellations";
 
@@ -98,7 +99,9 @@ function CometGlyph({ className }: { className?: string }) {
       </defs>
       <path d="M2.5 4.5 L16 13.2 L13.6 15.8 Z" fill="url(#comet-tail)" />
       <path d="M5 2.8 L17.2 12.4" stroke="hsl(var(--primary))" strokeOpacity="0.35" strokeWidth="0.8" strokeLinecap="round" />
-      <circle cx="16.6" cy="15.2" r="3.1" fill="hsl(var(--primary))" opacity="0.35" />
+      <g opacity="0.35">
+        <circle cx="16.6" cy="15.2" r="3.1" fill="hsl(var(--primary))" className="animate-breathe" />
+      </g>
       <circle cx="16.6" cy="15.2" r="1.6" fill="hsl(var(--primary))" />
     </svg>
   );
@@ -151,8 +154,8 @@ export function CometStrip({
   const note = "Predicted brightness from NASA/JPL — comets often surprise by a magnitude or two.";
   const list = (
     <ul className="grid gap-2 sm:grid-cols-[repeat(auto-fill,minmax(17rem,1fr))]" aria-label="Comets in reach">
-      {rows.map((c) => (
-        <li key={c.comet.id} className="flex items-center gap-3 rounded-xl border bg-card/60 px-3 py-2.5">
+      {rows.map((c, i) => (
+        <li key={c.comet.id} className="flex animate-rise items-center gap-3 rounded-xl border bg-card/60 px-3 py-2.5" style={stagger(i, 60)}>
           <span className="grid h-10 w-10 shrink-0 place-items-center">
             <CometGlyph />
           </span>

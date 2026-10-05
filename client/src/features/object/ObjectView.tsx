@@ -242,14 +242,14 @@ function SubjectPage({ subject }: { subject: Subject }) {
       {/* ------------------------------------------------------------ header */}
       <header className="mt-3 flex flex-col gap-5">
         <div className="flex items-start gap-4">
-          <div className="hidden h-14 w-14 shrink-0 place-items-center rounded-2xl border bg-surface-2/60 text-foreground/85 sm:grid">
+          <div className="hidden h-14 w-14 shrink-0 animate-zoom-fade place-items-center rounded-2xl border bg-surface-2/60 text-foreground/85 sm:grid">
             {subject.kind === "body" && subject.id === "moon" && ctx ? (
               <MoonGlyph elongation={ctx.night.moon.elongation} size={40} southern={ctx.site.lat < 0} />
             ) : (
               <TypeGlyph type={subject.type} id={subject.id} className={subject.kind === "body" ? "h-8 w-8 text-gold" : "h-8 w-8"} />
             )}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 animate-rise">
             <div className="eyebrow">
               {typeLabel}
               {conAbbr ? ` · in ${constellationName(conAbbr)}` : ""}

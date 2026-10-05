@@ -205,6 +205,8 @@ export function AltitudeChart({
   };
 
   const hover = hoverT !== null ? series.map((s) => ({ s, alt: interpolate(s.points, hoverT) })) : null;
+  // The curves draw themselves in once per subject and night (not on resize or hover).
+  const drawKey = `${start}-${series.map((s) => s.id).join(",")}`;
   const clipPlot = `plot-${uid}`;
   const clipAbove = `above-${uid}`;
   const grad = `grad-${uid}`;
@@ -270,7 +272,7 @@ export function AltitudeChart({
             )}
 
             {/* Series */}
-            <g clipPath={`url(#${clipPlot})`}>
+            <g key={`series-${drawKey}`} clipPath={`url(#${clipPlot})`}>
               {series
                 .filter((s) => s.variant === "moon" || s.variant === "muted")
                 .map((s) => (
@@ -278,22 +280,30 @@ export function AltitudeChart({
                     key={s.id}
                     d={pathOf(s.points)}
                     fill="none"
-                    className={s.variant === "moon" ? "stroke-gold/70" : "stroke-muted-foreground/60"}
+                    className={cn("animate-fade", s.variant === "moon" ? "stroke-gold/70" : "stroke-muted-foreground/60")}
+                    style={{ animationDelay: "0.5s", animationDuration: "0.9s" }}
                     strokeWidth={s.variant === "moon" ? 1.4 : 1.2}
                     strokeDasharray={s.variant === "moon" ? "5 4" : undefined}
                   />
                 ))}
               {primary && (
                 <>
-                  <path d={`${pathOf(primary.points)}L${x(primary.points[primary.points.length - 1]?.t ?? end)},${y(0)}L${x(primary.points[0]?.t ?? start)},${y(0)}Z`} fill={`url(#${grad})`} />
-                  <path d={pathOf(primary.points)} fill="none" className="stroke-primary/40" strokeWidth={1.6} strokeLinejoin="round" />
+                  <path
+                    d={`${pathOf(primary.points)}L${x(primary.points[primary.points.length - 1]?.t ?? end)},${y(0)}L${x(primary.points[0]?.t ?? start)},${y(0)}Z`}
+                    fill={`url(#${grad})`}
+                    className="animate-fade"
+                    style={{ animationDelay: "0.6s", animationDuration: "0.9s" }}
+                  />
+                  <path d={pathOf(primary.points)} fill="none" className="animate-draw stroke-primary/40" strokeWidth={1.6} strokeLinejoin="round" pathLength={1} strokeDasharray={1} />
                   <path
                     d={pathOf(primary.points)}
                     fill="none"
-                    className="stroke-primary"
+                    className="animate-draw stroke-primary"
                     strokeWidth={2.4}
                     strokeLinejoin="round"
                     strokeLinecap="round"
+                    pathLength={1}
+                    strokeDasharray={1}
                     clipPath={yMin !== null ? `url(#${clipAbove})` : undefined}
                   />
                 </>
@@ -329,7 +339,7 @@ export function AltitudeChart({
               const nearNow = now !== null && now !== undefined && now >= start && now <= end && Math.abs(x(now) - px) < 56;
               const below = py - 9 < M.t + 10 || (nearNow && py - 9 < M.t + 24);
               return (
-                <g>
+                <g key={`peak-${drawKey}`} className="animate-fade" style={{ animationDelay: "1s" }}>
                   <circle cx={px} cy={py} r={4} className="fill-background stroke-primary" strokeWidth={2} />
                   <text
                     x={Math.min(Math.max(px, M.l + 40), M.l + pw - 40)}
@@ -347,6 +357,7 @@ export function AltitudeChart({
             {/* Now */}
             {now !== null && now !== undefined && now >= start && now <= end && (
               <g>
+                <circle cx={x(now)} cy={M.t + ph} r={3} className="origin-box origin-center animate-ping-soft fill-gold" opacity={0} />
                 <line x1={x(now)} x2={x(now)} y1={M.t} y2={M.t + ph} className="stroke-gold" strokeWidth={1.4} />
                 <rect x={x(now) - 15} y={M.t - 13} width={30} height={13} rx={6.5} className="fill-gold" />
                 <text x={x(now)} y={M.t - 3.5} textAnchor="middle" className="fill-background text-[9px] font-semibold uppercase tracking-wider">

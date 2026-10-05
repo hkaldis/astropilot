@@ -101,7 +101,8 @@ export const ResultRow = memo(function ResultRow({ item, rc }: { item: ExploreIt
     ) : null;
 
   return (
-    <li>
+    // New matches fade in as the list changes (rows that stay put don't re-animate).
+    <li className="animate-fade" style={{ animationDuration: "0.35s" }}>
       <Link
         href={`/object/${encodeURIComponent(o.id)}`}
         className={cn(

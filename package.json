@@ -12,7 +12,8 @@
     "test": "tsx --test shared/astro/*.test.ts shared/*.test.ts",
     "db:push": "drizzle-kit push",
     "data:catalog": "node scripts/data/build-catalog.mjs",
-    "data:sky": "node scripts/data/build-sky.mjs"
+    "data:sky": "node scripts/data/build-sky.mjs",
+    "data:backdrop": "node scripts/data/build-backdrop.mjs"
   },
   "engines": {
     "node": ">=20.11"

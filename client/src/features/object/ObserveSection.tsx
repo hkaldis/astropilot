@@ -299,7 +299,8 @@ export function ObserveSection({ subject, tonight, ctx, scope }: { subject: Subj
             <PairView sep={subject.obj.sep} pa={subject.obj.pa} mag1={subject.obj.mag} mag2={subject.obj.mag2} />
           ) : fieldDeg ? (
             <>
-              <FieldView fieldDeg={fieldDeg} shape={shape} label={`Framing of ${subject.name} in a ${fieldText(fieldDeg)} field`} />
+              {/* A new eyepiece or scope "re-focuses": the field zooms gently into place. */}
+              <FieldView key={fieldDeg.toFixed(4)} className="animate-zoom-fade" fieldDeg={fieldDeg} shape={shape} label={`Framing of ${subject.name} in a ${fieldText(fieldDeg)} field`} />
               <figcaption className="mt-1 max-w-[17rem] text-center text-2xs leading-relaxed text-muted-foreground">
                 {framing && <span className="block text-xs text-foreground/90">{framing}</span>}
                 True field {fieldText(fieldDeg)}

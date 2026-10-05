@@ -65,12 +65,13 @@ export default function SupportPage() {
         <Skel className="h-32 w-full" />
       ) : (
         <div className="grid gap-3 sm:grid-cols-3">
-          {(q.data?.products ?? []).map((p) => (
+          {(q.data?.products ?? []).map((p, i) => (
             <button
               key={p.id}
               onClick={() => checkout.mutate(p.id)}
               disabled={checkout.isPending}
-              className="panel flex flex-col items-center gap-1 p-6 text-center transition-colors hover:border-primary/50 hover:bg-primary/[0.04]"
+              className="panel flex animate-rise flex-col items-center gap-1 p-6 text-center transition-[color,background-color,border-color,transform] [transition-duration:200ms] hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary/[0.04]"
+              style={{ animationDelay: `${i * 70}ms` }}
             >
               <span className="num text-2xl font-semibold">{money(p.amount, p.currency)}</span>
               <span className="text-sm font-medium">{p.name}</span>

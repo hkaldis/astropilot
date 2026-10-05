@@ -1,5 +1,5 @@
 /** Achievement medals (tier ring, family glyph, progress arc) and the observer-rank emblem. */
-import { useId, type ReactNode } from "react";
+import { useId, type CSSProperties, type ReactNode } from "react";
 import {
   Binoculars,
   Building2,
@@ -155,7 +155,8 @@ export function familyGlyph(id: string, size = "h-5 w-5"): ReactNode {
 
 /**
  * A medal: the tier it reached (none = locked), with an arc showing progress to the next tier.
- * Locked medals are monochrome; earned ones take their tier's metal.
+ * Locked medals are monochrome; earned ones take their tier's metal. The arc sweeps up to its value,
+ * and gold and platinum medals catch a passing glint (both wait for a `data-inview` container).
  */
 export function Medal({
   family,
@@ -165,6 +166,7 @@ export function Medal({
   size = 48,
   className,
   title,
+  delay = 0,
 }: {
   family: string;
   tier: AchievementTier | null;
@@ -174,13 +176,15 @@ export function Medal({
   size?: number;
   className?: string;
   title?: string;
+  /** ms before the arc and glint start (for staggered lists). */
+  delay?: number;
 }) {
   const gid = useId().replace(/:/g, "");
   const style = tier ? TIER_STYLE[tier] : null;
   const arcColor = nextTier ? TIER_STYLE[nextTier].color : style?.color;
   const r = 21;
-  const circ = 2 * Math.PI * r;
   const p = Math.max(0, Math.min(1, progress));
+  const shiny = tier === "gold" || tier === "platinum";
   return (
     <div className={cn("relative grid shrink-0 place-items-center", className)} style={{ width: size, height: size }} title={title} aria-hidden={title ? undefined : true}>
       <svg viewBox="0 0 48 48" className="absolute inset-0 h-full w-full">
@@ -214,8 +218,11 @@ export function Medal({
                 stroke={arcColor}
                 strokeWidth="2"
                 strokeLinecap="round"
-                strokeDasharray={`${p * circ} ${circ}`}
+                pathLength={1}
+                strokeDasharray={`${p} 1`}
                 transform="rotate(-90 24 24)"
+                className="play-on-view animate-arc"
+                style={{ "--arc": p, animationDelay: `${delay + 150}ms` } as CSSProperties}
               />
             )}
           </>
@@ -224,6 +231,14 @@ export function Medal({
       <span className={cn("relative grid place-items-center", style ? "text-foreground" : "text-muted-foreground opacity-60 grayscale")} style={{ transform: `scale(${size / 48})` }}>
         {familyGlyph(family)}
       </span>
+      {shiny && (
+        <span className="pointer-events-none absolute inset-[15%] overflow-hidden rounded-full" aria-hidden="true">
+          <span
+            className="play-on-view absolute inset-y-0 left-1/4 w-1/2 animate-sheen bg-gradient-to-r from-transparent via-white/45 to-transparent opacity-0"
+            style={{ animationDelay: `${delay + 600}ms` }}
+          />
+        </span>
+      )}
     </div>
   );
 }
@@ -232,7 +247,7 @@ export function Medal({
 export function RankEmblem({ level, progress, size = 96 }: { level: number; progress: number; size?: number }) {
   const gid = useId().replace(/:/g, "");
   const r = 44;
-  const circ = 2 * Math.PI * r;
+  const p = Math.max(0.001, Math.min(1, progress));
   const star = Array.from({ length: 10 }, (_, i) => {
     const a = (Math.PI / 5) * i - Math.PI / 2;
     const rr = i % 2 === 0 ? 30 : 13;
@@ -255,11 +270,14 @@ export function RankEmblem({ level, progress, size = 96 }: { level: number; prog
         stroke="hsl(var(--primary))"
         strokeWidth="4"
         strokeLinecap="round"
-        strokeDasharray={`${Math.max(0.001, Math.min(1, progress)) * circ} ${circ}`}
+        pathLength={1}
+        strokeDasharray={`${p} 1`}
         transform="rotate(-90 50 50)"
+        className="animate-arc"
+        style={{ "--arc": p, animationDuration: "1.4s", animationDelay: "0.2s" } as CSSProperties}
       />
       <circle cx="50" cy="50" r="36" fill="hsl(var(--primary) / 0.08)" />
-      <polygon points={star} fill={`url(#r-${gid})`} stroke="hsl(var(--gold))" strokeWidth="1" strokeLinejoin="round" />
+      <polygon points={star} fill={`url(#r-${gid})`} stroke="hsl(var(--gold))" strokeWidth="1" strokeLinejoin="round" className="origin-box origin-center animate-pop" style={{ animationDelay: "0.35s" }} />
       <text x="50" y="56" textAnchor="middle" className="fill-background font-display" style={{ fontSize: 17, fontWeight: 700 }}>
         {level}
       </text>

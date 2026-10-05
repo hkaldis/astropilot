@@ -3,6 +3,7 @@ import { formatNightDate } from "@shared/astro";
 import { MoonGlyph } from "@/components/common/Glyphs";
 import { QUALITY_BG, QUALITY_TEXT, qualityOf } from "@/lib/objects";
 import { cn } from "@/lib/utils";
+import { stagger } from "@/lib/motion";
 
 /** "0 h", "36 m", "3 h", "3 h 36 m" — short enough for a seventh of the row. */
 function shortDuration(hours: number) {
@@ -45,9 +46,10 @@ export function Outlook({
             aria-selected={selected === n.date}
             onClick={() => onSelect(n.date)}
             className={cn(
-              "group relative flex min-w-0 flex-col items-center gap-1.5 rounded-xl border px-1 py-2.5 text-center transition-colors sm:px-2",
+              "group relative flex min-w-0 animate-rise flex-col items-center gap-1.5 rounded-xl border px-1 py-2.5 text-center transition-colors [transition-duration:300ms] sm:px-2",
               selected === n.date ? "border-primary/60 bg-primary/[0.07]" : "hover:bg-accent",
             )}
+            style={stagger(i, 45)}
           >
             <span className={cn("text-[0.7rem] font-medium sm:text-xs", selected === n.date ? "text-foreground" : "text-muted-foreground")}>{label}</span>
             <MoonGlyph elongation={n.moon.elongation} size={18} southern={southern} />
@@ -70,10 +72,14 @@ export function Outlook({
             ) : (
               <span className="text-xs text-muted-foreground">—</span>
             )}
-            <span className={cn("h-1 w-8 rounded-full", n.hasData ? QUALITY_BG[q.key] : "bg-muted")} />
+            <span className={cn("h-1 w-8 origin-center animate-grow-x rounded-full", n.hasData ? QUALITY_BG[q.key] : "bg-muted")} style={{ animationDelay: `${200 + i * 45}ms` }} />
             <span className="hidden text-2xs text-muted-foreground sm:block">{n.hasData ? `${shortDuration(n.clearDarkHours)} clear` : "no data"}</span>
             {i === best && n.hasData && n.score >= 42 && !isTonight && (
-              <span className="absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-gold px-1.5 text-[0.6rem] font-semibold uppercase tracking-wide text-background">Best</span>
+              <span className="absolute -top-2 left-1/2 -translate-x-1/2">
+                <span className="block animate-pop rounded-full bg-gold px-1.5 text-[0.6rem] font-semibold uppercase tracking-wide text-background" style={{ animationDelay: "0.55s" }}>
+                  Best
+                </span>
+              </span>
             )}
           </button>
         );

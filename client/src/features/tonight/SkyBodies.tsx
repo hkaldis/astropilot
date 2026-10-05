@@ -4,6 +4,7 @@ import { SOLAR_SYSTEM, bodyAltAz, bodyState, bodyEvents, moonPosition, observerO
 import type { ObservingSite } from "@shared/api";
 import { TypeGlyph, MoonGlyph } from "@/components/common/Glyphs";
 import { cn } from "@/lib/utils";
+import { stagger } from "@/lib/motion";
 import { capitalize, joinNightEvents, moonEvents, moonEventsText, nightClock, nightSpan, type NightEvent } from "./useTonight";
 
 interface Row {
@@ -88,8 +89,8 @@ export function PlanetsTonight({ night, site, tz, hour12, isTonight, now }: { ni
   if (night.sunNeverSets) return <p className="py-3 text-sm text-muted-foreground">The Sun doesn't set this night: the planets are lost in the daylit sky.</p>;
   return (
     <div className="flex flex-col">
-      {visible.map((r) => (
-        <Link key={r.id} href={`/object/${r.id}`} className="group flex items-center gap-3 border-b py-2.5 last:border-b-0 hover:bg-accent/40">
+      {visible.map((r, i) => (
+        <Link key={r.id} href={`/object/${r.id}`} className="group flex animate-rise items-center gap-3 border-b py-2.5 last:border-b-0 hover:bg-accent/40" style={stagger(i, 50)}>
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={{ background: `${r.color}22`, color: r.color }}>
             <TypeGlyph type="planet" id={r.id} className="h-6 w-6" />
           </span>
@@ -173,7 +174,15 @@ export function MoonPanel({
   const events = capitalize(moonEventsText(night, frames, clock));
   return (
     <Link href="/object/moon" className="flex gap-4 rounded-xl p-1 hover:bg-accent/40">
-      <MoonGlyph elongation={m.elongation} size={64} className="shrink-0" southern={site.lat < 0} />
+      {/* Moonlight: a soft halo that breathes, as bright as the Moon is full. */}
+      <span className="relative grid shrink-0 place-items-center">
+        <span
+          className="absolute inset-[-14px] animate-breathe rounded-full"
+          style={{ background: `radial-gradient(circle, rgba(239, 230, 207, ${(0.08 + 0.3 * m.illumination).toFixed(2)}) 35%, transparent 70%)` }}
+          aria-hidden="true"
+        />
+        <MoonGlyph elongation={m.elongation} size={64} className="relative" southern={site.lat < 0} />
+      </span>
       <div className="min-w-0">
         <div className="font-medium">
           {m.phaseName}{" "}

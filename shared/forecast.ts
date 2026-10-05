@@ -5,6 +5,7 @@
  *   GET /api/space-weather?lat=&lon=         → SpaceWeather
  *   GET /api/iss/passes?lat=&lon=&elev=[&sat=iss|tiangong|all] → IssPass[] (default: ISS only)
  *   GET /api/satellites/passes?lat=&lon=&elev=[&sat=…]        → IssPass[] (default: all stations)
+ *       (every pass above 10° in the next 10 days, visible or not)
  * The scoring model behind the numbers lives in shared/astro/conditions.ts.
  */
 
@@ -143,6 +144,8 @@ export interface IssPass {
   max: number; // epoch ms of the highest (visible) point
   end: number; // epoch ms
   maxAlt: number; // deg
+  startAlt?: number; // deg, where the (visible) pass begins: 10°, or higher when it emerges from Earth's shadow
+  endAlt?: number; // deg, where it ends: 10°, or higher when it vanishes into the shadow
   startAz: number; // deg
   maxAz: number; // deg
   endAz: number; // deg
@@ -150,6 +153,8 @@ export interface IssPass {
   endDir: string;
   visible: boolean; // observer in darkness (Sun < −6°) while the ISS is sunlit, at some point above 10°
   magnitude?: number | null; // estimated at the brightest visible point; null when not visible
+  hidden?: "daylight" | "shadow"; // why a pass isn't visible: the sky is too bright, or the station is in Earth's shadow
+  track?: [number, number][]; // [az, alt] (deg, rounded) every ~30 s along the visible part; visible passes only
   passStart?: number; // epoch ms, whole pass above 10° (equals start for non-visible passes)
   passEnd?: number;
   peakAlt?: number; // culmination altitude of the whole pass, deg

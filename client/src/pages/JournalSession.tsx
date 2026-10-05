@@ -303,7 +303,7 @@ function ObservationItem({
   ].filter(Boolean) as string[];
 
   return (
-    <li className="flex gap-3 py-4 sm:gap-4">
+    <li className="flex animate-rise gap-3 py-4 sm:gap-4">
       <div className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full border bg-surface-2 text-foreground/80" aria-hidden="true">
         <TypeGlyph type={o.objectType ?? "galaxy"} id={o.ref ?? undefined} />
       </div>

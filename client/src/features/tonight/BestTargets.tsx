@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DIFFICULTY_TONE, TYPE_LABEL, objectDesignation } from "@/lib/objects";
 import { cn } from "@/lib/utils";
+import { stagger } from "@/lib/motion";
 import { moonEvents } from "./useTonight";
 import { altAt } from "@/features/explore/sky";
 
@@ -75,7 +76,7 @@ function Sparkline({ r, frames, minAlt }: { r: RankedTarget; frames: NightFrames
     <svg width={w} height={h} className="shrink-0" aria-hidden="true">
       {frames.darkStart && frames.darkEnd && <rect x={X(frames.darkStart)} y={0} width={Math.max(0, X(frames.darkEnd) - X(frames.darkStart))} height={h} fill="hsl(var(--primary))" opacity={0.08} rx={3} />}
       <line x1={0} x2={w} y1={Y(minAlt)} y2={Y(minAlt)} stroke="hsl(var(--border))" strokeDasharray="2 3" />
-      <path d={d} fill="none" stroke="hsl(var(--primary))" strokeWidth={1.5} />
+      <path d={d} fill="none" stroke="hsl(var(--primary))" strokeWidth={1.5} pathLength={1} strokeDasharray={1} className="animate-draw" style={{ animationDelay: "0.25s" }} />
     </svg>
   );
 }
@@ -177,7 +178,8 @@ export function BestTargets({
         </div>
         <InstrumentPicker />
       </div>
-      <div className="panel divide-y overflow-hidden">
+      {/* Re-keyed per category and night, so the list deals itself in again. */}
+      <div key={`${chip}-${night.date}`} className="panel divide-y overflow-hidden">
         {isLoading &&
           Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 p-3">
@@ -190,8 +192,13 @@ export function BestTargets({
           ))}
         {failed && <p className="p-5 text-sm text-muted-foreground">Couldn't load the catalog. Reload the page to try again.</p>}
         {!isLoading && !failed && shown.length === 0 && <p className="p-5 text-sm text-muted-foreground">Nothing in this category is well placed {which} from here. Try another category or night.</p>}
-        {shown.map((r) => (
-          <Link key={r.object.id} href={`/object/${r.object.id}`} className="group flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-accent/50 sm:px-4">
+        {shown.map((r, i) => (
+          <Link
+            key={r.object.id}
+            href={`/object/${r.object.id}`}
+            className="group flex animate-rise items-center gap-3 px-3 py-2.5 transition-colors hover:bg-accent/50 sm:px-4"
+            style={stagger(i, 35, 8)}
+          >
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-primary">
               <TypeGlyph type={r.object.type} className="h-[1.15rem] w-[1.15rem]" />
             </span>
@@ -217,7 +224,7 @@ export function BestTargets({
             <Badge variant={DIFFICULTY_TONE[r.detect.difficulty]} className="shrink-0 capitalize">
               {r.detect.difficulty}
             </Badge>
-            <ChevronRight className="hidden h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground sm:block" />
+            <ChevronRight className="hidden h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-foreground sm:block" />
           </Link>
         ))}
       </div>

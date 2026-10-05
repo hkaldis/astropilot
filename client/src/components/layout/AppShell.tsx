@@ -23,6 +23,7 @@ import { SiteSwitcher } from "./SiteSwitcher";
 import { AchievementWatcher } from "@/features/achievements/Watcher";
 import { useAuth, useLogout, displayName, useFeatures } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
+import { withViewTransition } from "@/lib/motion";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -62,12 +63,12 @@ function NightToggle({ compact }: { compact?: boolean }) {
         <Button
           variant={on ? "subtle" : "ghost"}
           size={compact ? "icon-sm" : "icon"}
-          onClick={toggleNight}
+          onClick={() => withViewTransition(toggleNight)}
           aria-pressed={on}
           aria-label={on ? "Turn off night vision" : "Turn on night vision (red light)"}
           className={cn(on && "text-red-500")}
         >
-          <Eye />
+          <Eye key={String(on)} className="animate-spin-in" />
         </Button>
       </TooltipTrigger>
       <TooltipContent>{on ? "Night vision on" : "Night vision (red light)"}</TooltipContent>
@@ -79,8 +80,8 @@ function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const light = theme === "light";
   return (
-    <Button variant="ghost" size="icon-sm" onClick={() => setTheme(light ? "dark" : "light")} aria-label={light ? "Switch to dark theme" : "Switch to light theme"}>
-      {light ? <Moon /> : <Sun />}
+    <Button variant="ghost" size="icon-sm" onClick={() => withViewTransition(() => setTheme(light ? "dark" : "light"))} aria-label={light ? "Switch to dark theme" : "Switch to light theme"}>
+      {light ? <Moon key="moon" className="animate-spin-in" /> : <Sun key="sun" className="animate-spin-in" />}
     </Button>
   );
 }
@@ -180,7 +181,7 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
       )}
       aria-current={active ? "page" : undefined}
     >
-      <Icon className={cn("h-[1.05rem] w-[1.05rem]", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+      <Icon key={String(active)} className={cn("h-[1.05rem] w-[1.05rem] transition-colors", active ? "animate-pop text-primary" : "text-muted-foreground group-hover:text-foreground")} />
       {item.label}
     </Link>
   );
@@ -204,8 +205,14 @@ function MobileTabs() {
             const active = isActive(item, path);
             const Icon = item.icon;
             return (
-              <Link key={item.href} href={item.href} className={cn("flex flex-col items-center gap-1 py-2.5 text-[0.68rem]", active ? "text-primary" : "text-muted-foreground")} aria-current={active ? "page" : undefined}>
-                <Icon className="h-5 w-5" />
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn("relative flex flex-col items-center gap-1 py-2.5 text-[0.68rem] transition-colors", active ? "text-primary" : "text-muted-foreground")}
+                aria-current={active ? "page" : undefined}
+              >
+                {active && <span className="absolute inset-x-0 top-0 mx-auto h-0.5 w-8 origin-center animate-grow-x rounded-full bg-primary" aria-hidden="true" />}
+                <Icon key={String(active)} className={cn("h-5 w-5", active && "animate-pop")} />
                 {item.label.replace(" chart", "")}
               </Link>
             );

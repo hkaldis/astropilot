@@ -1,4 +1,4 @@
-import { lazy, Suspense, Component, type ReactNode } from "react";
+import { lazy, Suspense, Component, useEffect, useRef, type ReactNode } from "react";
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/api";
@@ -73,8 +73,28 @@ class ErrorBoundary extends Component<{ children: ReactNode; fullPage?: boolean;
   }
 }
 
+/**
+ * A new page starts at the top (browsers keep the old scroll position on in-app navigation), except
+ * when going back or forward, where the browser restores where you were.
+ */
+function useScrollToTopOnNavigate(path: string) {
+  const popped = useRef(false);
+  useEffect(() => {
+    const onPop = () => {
+      popped.current = true;
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  useEffect(() => {
+    if (popped.current) popped.current = false;
+    else window.scrollTo({ top: 0 });
+  }, [path]);
+}
+
 function Routes() {
   const [path] = useLocation();
+  useScrollToTopOnNavigate(path);
   return (
     <Switch>
       <Route path="/login">{() => <Auth mode="login" />}</Route>
@@ -84,38 +104,41 @@ function Routes() {
           <AppShell>
             <ErrorBoundary resetKey={path}>
               <Suspense fallback={<PageFallback />}>
-                <Switch>
-                  <Route path="/" component={Tonight} />
-                  <Route path="/sky" component={Sky} />
-                  <Route path="/explore" component={Explore} />
-                  <Route path="/object/:id">{(p) => <ObjectPage id={decodeURIComponent(p.id)} />}</Route>
-                  <Route path="/plan" component={Plan} />
-                  <Route path="/journal" component={Journal} />
-                  <Route path="/journal/:id">{(p) => <JournalSession id={Number(p.id)} />}</Route>
-                  <Route path="/achievements" component={Achievements} />
-                  <Route path="/gear" component={Gear} />
-                  <Route path="/locations" component={Locations} />
-                  <Route path="/settings" component={Settings} />
-                  <Route path="/privacy">{() => <Legal page="privacy" />}</Route>
-                  <Route path="/terms">{() => <Legal page="terms" />}</Route>
-                  <Route path="/about">{() => <Legal page="about" />}</Route>
-                  <Route path="/support" component={Support} />
-                  <Route path="/support/thanks" component={Support} />
-                  {/* AstroPilot 1 addresses → their new homes */}
-                  <Route path="/donation/success">{() => <Redirect to={`/support/thanks${location.search}`} replace />}</Route>
-                  <Route path="/donation/cancel">{() => <Redirect to="/support" replace />}</Route>
-                  <Route path="/sky-tonight">{() => <Redirect to="/sky" replace />}</Route>
-                  <Route path="/objects">{() => <Redirect to="/explore" replace />}</Route>
-                  <Route path="/recommendations">{() => <Redirect to="/explore" replace />}</Route>
-                  <Route path="/wizard">{() => <Redirect to="/plan" replace />}</Route>
-                  <Route path="/watchlist">{() => <Redirect to="/plan" replace />}</Route>
-                  <Route path="/sessions">{() => <Redirect to="/journal" replace />}</Route>
-                  <Route path="/achievements">{() => <Redirect to="/journal" replace />}</Route>
-                  <Route path="/equipment">{() => <Redirect to="/gear" replace />}</Route>
-                  <Route path="/equipment-analyzer">{() => <Redirect to="/gear" replace />}</Route>
-                  <Route path="/help">{() => <Redirect to="/about" replace />}</Route>
-                  <Route component={NotFound} />
-                </Switch>
+                {/* Each page fades in as it arrives. */}
+                <div key={path} className="animate-page">
+                  <Switch>
+                    <Route path="/" component={Tonight} />
+                    <Route path="/sky" component={Sky} />
+                    <Route path="/explore" component={Explore} />
+                    <Route path="/object/:id">{(p) => <ObjectPage id={decodeURIComponent(p.id)} />}</Route>
+                    <Route path="/plan" component={Plan} />
+                    <Route path="/journal" component={Journal} />
+                    <Route path="/journal/:id">{(p) => <JournalSession id={Number(p.id)} />}</Route>
+                    <Route path="/achievements" component={Achievements} />
+                    <Route path="/gear" component={Gear} />
+                    <Route path="/locations" component={Locations} />
+                    <Route path="/settings" component={Settings} />
+                    <Route path="/privacy">{() => <Legal page="privacy" />}</Route>
+                    <Route path="/terms">{() => <Legal page="terms" />}</Route>
+                    <Route path="/about">{() => <Legal page="about" />}</Route>
+                    <Route path="/support" component={Support} />
+                    <Route path="/support/thanks" component={Support} />
+                    {/* AstroPilot 1 addresses → their new homes */}
+                    <Route path="/donation/success">{() => <Redirect to={`/support/thanks${location.search}`} replace />}</Route>
+                    <Route path="/donation/cancel">{() => <Redirect to="/support" replace />}</Route>
+                    <Route path="/sky-tonight">{() => <Redirect to="/sky" replace />}</Route>
+                    <Route path="/objects">{() => <Redirect to="/explore" replace />}</Route>
+                    <Route path="/recommendations">{() => <Redirect to="/explore" replace />}</Route>
+                    <Route path="/wizard">{() => <Redirect to="/plan" replace />}</Route>
+                    <Route path="/watchlist">{() => <Redirect to="/plan" replace />}</Route>
+                    <Route path="/sessions">{() => <Redirect to="/journal" replace />}</Route>
+                    <Route path="/achievements">{() => <Redirect to="/journal" replace />}</Route>
+                    <Route path="/equipment">{() => <Redirect to="/gear" replace />}</Route>
+                    <Route path="/equipment-analyzer">{() => <Redirect to="/gear" replace />}</Route>
+                    <Route path="/help">{() => <Redirect to="/about" replace />}</Route>
+                    <Route component={NotFound} />
+                  </Switch>
+                </div>
               </Suspense>
             </ErrorBoundary>
           </AppShell>

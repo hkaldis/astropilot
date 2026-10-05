@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { QUALITY_BG, QUALITY_TEXT, qualityOf, type QualityKey } from "@/lib/objects";
+import { useCountUp } from "@/lib/motion";
 import { useEffect } from "react";
 
 export function usePageTitle(title: string) {
@@ -26,12 +27,16 @@ export function PageHeader({
 }) {
   return (
     <header className={cn("flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between", className)}>
-      <div className="min-w-0">
+      <div className="min-w-0 animate-rise">
         {eyebrow && <div className="eyebrow mb-2">{eyebrow}</div>}
         <h1 className="font-display text-[2.1rem] leading-[1.05] tracking-tight sm:text-[2.6rem]">{title}</h1>
         {description && <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-[0.95rem]">{description}</p>}
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex shrink-0 animate-fade flex-wrap items-center gap-2" style={{ animationDelay: "0.12s" }}>
+          {actions}
+        </div>
+      )}
     </header>
   );
 }
@@ -91,12 +96,13 @@ export function ToneDot({ tone, className }: { tone: QualityKey; className?: str
   return <span className={cn("inline-block h-2 w-2 rounded-full", QUALITY_BG[tone], className)} />;
 }
 
-/** Circular 0–100 score dial. */
+/** Circular 0–100 score dial. The arc sweeps up to the score as the number counts to it. */
 export function ScoreDial({ score, size = 112, stroke = 9, label }: { score: number; size?: number; stroke?: number; label?: ReactNode }) {
+  const shown = useCountUp(score, { duration: 1100 });
   const q = qualityOf(score);
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const pct = Math.max(0, Math.min(100, score)) / 100;
+  const pct = Math.max(0, Math.min(100, shown)) / 100;
   return (
     <div className="relative inline-grid place-items-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
@@ -106,7 +112,7 @@ export function ScoreDial({ score, size = 112, stroke = 9, label }: { score: num
           cy={size / 2}
           r={r}
           fill="none"
-          className={cn("transition-[stroke-dashoffset] duration-700", QUALITY_TEXT[q.key])}
+          className={cn("transition-colors duration-700", QUALITY_TEXT[q.key])}
           stroke="currentColor"
           strokeWidth={stroke}
           strokeLinecap="round"
@@ -116,7 +122,10 @@ export function ScoreDial({ score, size = 112, stroke = 9, label }: { score: num
       </svg>
       <div className="absolute inset-0 grid place-items-center text-center">
         <div>
-          <div className="num text-[1.9rem] font-semibold leading-none">{Math.round(score)}</div>
+          <div className="num text-[1.9rem] font-semibold leading-none" aria-hidden="true">
+            {Math.round(shown)}
+          </div>
+          <span className="sr-only">{Math.round(score)}</span>
           {label && <div className="mt-1 text-2xs uppercase tracking-[0.12em] text-muted-foreground">{label}</div>}
         </div>
       </div>
@@ -184,6 +193,17 @@ export function SignInPrompt({ title, description }: { title: string; descriptio
   );
 }
 
+/** A number that counts up when it first shows (screen readers get the final value straight away). */
+export function CountUp({ value, format = (v: number) => String(Math.round(v)), duration = 900 }: { value: number; format?: (v: number) => string; duration?: number }) {
+  const shown = useCountUp(value, { duration });
+  return (
+    <>
+      <span aria-hidden="true">{format(shown)}</span>
+      <span className="sr-only">{format(value)}</span>
+    </>
+  );
+}
+
 export function Skel({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-lg bg-muted/70", className)} />;
+  return <div className={cn("skeleton rounded-lg", className)} />;
 }

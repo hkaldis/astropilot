@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { BookOpen, ChevronRight, Download, Loader2, Plus, Sparkles } from "lucide-react";
 import type { ApiLocation, ApiSession, JournalStats } from "@shared/api";
-import { ErrorState, PageHeader, Section, SignInPrompt, Skel, usePageTitle } from "@/components/common/Page";
+import { CountUp, ErrorState, PageHeader, Section, SignInPrompt, Skel, usePageTitle } from "@/components/common/Page";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -12,6 +12,7 @@ import { usePrefs } from "@/hooks/usePrefs";
 import { useCatalog } from "@/hooks/useCatalog";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { stagger } from "@/lib/motion";
 import { EXPORT_URL, useCreateSession, useJournalSessions, useJournalStats } from "@/features/journal/api";
 import { ResponsiveModal } from "@/features/journal/controls";
 import { CatalogGrid, MonthBars, SolarSystemChips, TypeBars } from "@/features/journal/progress";
@@ -91,12 +92,13 @@ function JournalHeader({ canExport }: { canExport: boolean }) {
 
 function StatsStrip({ stats, estimatedSessions }: { stats: JournalStats; estimatedSessions: number }) {
   const hours = stats.hoursObserved;
-  const hoursText = `${estimatedSessions > 0 ? "≈" : ""}${hours < 10 ? hours.toFixed(1) : Math.round(hours)}`;
+  const hoursOf = (h: number) => `${estimatedSessions > 0 ? "≈" : ""}${hours < 10 ? h.toFixed(1) : Math.round(h)}`;
+  const hoursText = <CountUp value={hours} format={hoursOf} />;
   return (
     <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-4">
       {[
-        { label: "Sessions", value: stats.sessions, sub: stats.firstSession ? `since ${new Date(stats.firstSession).getFullYear()}` : null },
-        { label: "Objects", value: stats.uniqueObjects, sub: `${stats.observations} observation${stats.observations === 1 ? "" : "s"}` },
+        { label: "Sessions", value: <CountUp value={stats.sessions} />, sub: stats.firstSession ? `since ${new Date(stats.firstSession).getFullYear()}` : null },
+        { label: "Objects", value: <CountUp value={stats.uniqueObjects} />, sub: `${stats.observations} observation${stats.observations === 1 ? "" : "s"}` },
         {
           label: "Hours",
           value:
@@ -117,9 +119,9 @@ function StatsStrip({ stats, estimatedSessions }: { stats: JournalStats; estimat
             ),
           sub: estimatedSessions > 0 ? "under the sky, estimated" : "under the sky",
         },
-        { label: "Best streak", value: stats.longestStreakNights, sub: `night${stats.longestStreakNights === 1 ? "" : "s"} in a row` },
-      ].map((x) => (
-        <div key={x.label} className="bg-background px-4 py-4 sm:px-5">
+        { label: "Best streak", value: <CountUp value={stats.longestStreakNights} />, sub: `night${stats.longestStreakNights === 1 ? "" : "s"} in a row` },
+      ].map((x, i) => (
+        <div key={x.label} className="animate-fade bg-background px-4 py-4 sm:px-5" style={stagger(i, 70)}>
           <dt className="eyebrow">{x.label}</dt>
           <dd className="num mt-1.5 text-[1.6rem] font-medium leading-none">{x.value}</dd>
           {x.sub && <dd className="mt-1 text-xs text-muted-foreground">{x.sub}</dd>}
@@ -175,6 +177,7 @@ function SessionList({ sessions, locations }: { sessions: ApiSession[]; location
     return out;
   }, [sessions, locations]);
 
+  let n = 0; // running position, so the first rows of the list arrive in sequence
   return (
     <div className="flex flex-col gap-6">
       {groups.map((g) => (
@@ -182,7 +185,7 @@ function SessionList({ sessions, locations }: { sessions: ApiSession[]; location
           <h3 className="eyebrow sticky top-14 z-10 -mx-1 bg-background/90 px-1 py-2 backdrop-blur">{monthLabel(g.month)}</h3>
           <ul className="flex flex-col divide-y divide-border/70 border-y border-border/70">
             {g.items.map(({ s, night }) => (
-              <li key={s.id}>
+              <li key={s.id} className="animate-rise" style={stagger(n++, 40)}>
                 <SessionRow s={s} night={night} locations={locations} hour12={hour12} />
               </li>
             ))}

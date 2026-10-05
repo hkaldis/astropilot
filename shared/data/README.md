@@ -13,6 +13,7 @@ Generated, static data for the deep-sky catalog and the sky chart. **Do not edit
 | `constellation-lines.json` | `import lines from '@shared/data/constellation-lines.json'` | stick figures of all 88 constellations |
 | `constellation-labels.json` | `import labels from '@shared/data/constellation-labels.json'` | 89 label anchors (Serpens Caput + Cauda) |
 | `milkyway.json` | `import milkyway from '@shared/data/milkyway.json'` | Milky Way outline, 5 brightness levels |
+| `backdrop.json` | `import backdrop from '@shared/data/backdrop.json'` | `{ stars, lines }`: the 1,018 stars to V 4.6 and 26 well-known figures around both poles, for the sign-in sky |
 
 The JSON needs a cast when imported in TypeScript (`as CatalogObject[]`): TS infers `type: string` and
 `size: number[]` from JSON, not the literal union / tuple types.
@@ -209,6 +210,7 @@ IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY O
 ```sh
 npm run data:catalog   # = node scripts/data/build-catalog.mjs  → shared/data/catalog.json
 npm run data:sky       # = node scripts/data/build-sky.mjs      → stars, starnames, constellation-*, milkyway, constellations-meta.ts
+npm run data:backdrop  # = node scripts/data/build-backdrop.mjs → backdrop.json (from stars.json + constellation-lines.json)
 # add --refresh to re-download every source (otherwise scripts/data/.cache/ is reused)
 ```
 

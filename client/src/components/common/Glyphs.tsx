@@ -1,23 +1,36 @@
 import { useId } from "react";
 import { cn } from "@/lib/utils";
 
-/** AstroPilot mark: a crescent orbit with a guiding star. */
-export function Logo({ className, withText = true }: { className?: string; withText?: boolean }) {
-  const gid = `ap-g-${useId().replace(/:/g, "")}`;
+/**
+ * AstroPilot mark: a crescent orbit with a guiding star.
+ * `intro` draws it in once (orbit, then the star); `glow` lets the guiding star softly shine.
+ */
+export function Logo({ className, withText = true, intro = false, glow = false }: { className?: string; withText?: boolean; intro?: boolean; glow?: boolean }) {
+  const uid = useId().replace(/:/g, "");
+  const gid = `ap-g-${uid}`;
+  const halo = `ap-h-${uid}`;
+  const draw = intro ? { pathLength: 1, strokeDasharray: 1, className: "animate-draw" } : {};
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <svg viewBox="0 0 32 32" className="h-7 w-7 shrink-0" aria-hidden="true">
+      <svg viewBox="0 0 32 32" className="h-7 w-7 shrink-0 overflow-visible" aria-hidden="true">
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" style={{ stopColor: "hsl(var(--primary))" }} />
             <stop offset="1" style={{ stopColor: "hsl(var(--gold))" }} />
           </linearGradient>
+          {glow && (
+            <radialGradient id={halo}>
+              <stop offset="0" style={{ stopColor: "hsl(var(--gold))", stopOpacity: 0.55 }} />
+              <stop offset="1" style={{ stopColor: "hsl(var(--gold))", stopOpacity: 0 }} />
+            </radialGradient>
+          )}
         </defs>
-        <circle cx="16" cy="16" r="14.5" fill="none" stroke={`url(#${gid})`} strokeWidth="1.5" opacity="0.9" />
-        <path d="M9 22.5c3.8-1.2 9.5-5.4 13.4-12.2" fill="none" stroke={`url(#${gid})`} strokeWidth="2.2" strokeLinecap="round" />
-        <circle cx="22.6" cy="9.6" r="2.3" fill="hsl(var(--gold))" />
-        <circle cx="10.5" cy="11" r="0.9" fill="hsl(var(--foreground))" opacity="0.8" />
-        <circle cx="20.5" cy="21.5" r="0.7" fill="hsl(var(--foreground))" opacity="0.6" />
+        <circle cx="16" cy="16" r="14.5" fill="none" stroke={`url(#${gid})`} strokeWidth="1.5" opacity="0.9" {...draw} />
+        <path d="M9 22.5c3.8-1.2 9.5-5.4 13.4-12.2" fill="none" stroke={`url(#${gid})`} strokeWidth="2.2" strokeLinecap="round" {...draw} style={intro ? { animationDelay: "0.25s" } : undefined} />
+        {glow && <circle cx="22.6" cy="9.6" r="6.5" fill={`url(#${halo})`} className="animate-breathe" />}
+        <circle cx="22.6" cy="9.6" r="2.3" fill="hsl(var(--gold))" className={intro ? "origin-box origin-center animate-pop" : undefined} style={intro ? { animationDelay: "0.85s" } : undefined} />
+        <circle cx="10.5" cy="11" r="0.9" fill="hsl(var(--foreground))" fillOpacity="0.8" className={intro ? "animate-fade" : undefined} style={intro ? { animationDelay: "1.1s" } : undefined} />
+        <circle cx="20.5" cy="21.5" r="0.7" fill="hsl(var(--foreground))" fillOpacity="0.6" className={intro ? "animate-fade" : undefined} style={intro ? { animationDelay: "1.25s" } : undefined} />
       </svg>
       {withText && (
         <span className="font-display text-[1.35rem] leading-none tracking-tight">
