@@ -12,9 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TYPE_GROUPS } from "@/lib/objects";
 import { cn } from "@/lib/utils";
-import { InstrumentBar } from "./InstrumentBar";
+import { InstrumentBar, instrumentPhrase } from "./InstrumentBar";
 import { NoSite } from "./NoSite";
 import { PlanetStrip } from "./PlanetStrip";
+import { CometStrip } from "@/features/comets/CometStrip";
 import { ResultRow, type ExploreItem, type RowContext } from "./ResultRow";
 import { constellationName } from "./constellations";
 import {
@@ -338,6 +339,7 @@ export function ExploreView() {
           <PlanetStrip bodies={shownBodies} ctx={ctx} />
         </section>
       )}
+      {ctx && !q && <CometStrip ctx={ctx} variant="strip" title="Comets tonight" className="mt-6" />}
 
       {/* ------------------------------------------------------------ results */}
       <section className="mt-6" aria-labelledby="results-h">
@@ -439,8 +441,15 @@ export function ExploreView() {
             </ul>
             <div className="mt-4 flex flex-col items-center gap-2 text-sm">
               {count > limit && (
-                <Button variant="outline" onClick={() => setLimit((l) => l + PAGE)}>
-                  Show {Math.min(PAGE, count - limit)} more <span className="num text-muted-foreground">of {(count - limit).toLocaleString()}</span>
+                // The last page takes a small remainder with it, so there's never a lone "Show 1 more".
+                <Button variant="outline" onClick={() => setLimit((l) => (count - l <= PAGE + PAGE / 4 ? count : l + PAGE))}>
+                  {count - limit <= PAGE + PAGE / 4 ? (
+                    <>Show {(count - limit).toLocaleString()} more</>
+                  ) : (
+                    <>
+                      Show {PAGE} more <span className="num text-muted-foreground">of {(count - limit).toLocaleString()}</span>
+                    </>
+                  )}
                 </Button>
               )}
               {hiddenByVisibility > 0 && (
@@ -453,9 +462,10 @@ export function ExploreView() {
         )}
         {ctx && !loading && objects.length > 0 && (
           <p className="mt-6 text-2xs leading-relaxed text-muted-foreground">
-            Observable = above your {minAlt}° minimum altitude during astronomical darkness and within reach of the {scope.scope.name} under a{" "}
-            {ctx.sqm.toFixed(1)} mag/arcsec² sky. Difficulty compares each object's surface brightness with the sky at its best altitude, including
-            moonlight (Krisciunas–Schaefer). {totalVisible.toLocaleString()} of {objects.length.toLocaleString()} catalog objects qualify tonight.
+            Observable = above your {minAlt}° minimum altitude during astronomical darkness and within reach of {instrumentPhrase(scope)} under a{" "}
+            {ctx.sqmSource === "atlas" ? `≈${ctx.sqm.toFixed(1)} mag/arcsec² sky (estimated from the light-pollution atlas)` : `${ctx.sqm.toFixed(1)} mag/arcsec² sky`}.
+            Difficulty compares each object's surface brightness with the sky at its best altitude, including moonlight (Krisciunas–Schaefer).{" "}
+            {totalVisible.toLocaleString()} of {objects.length.toLocaleString()} catalog objects qualify tonight.
           </p>
         )}
       </section>

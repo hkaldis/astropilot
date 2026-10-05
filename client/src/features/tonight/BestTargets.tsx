@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
-import { ChevronRight, Telescope } from "lucide-react";
-import { rankTargets, sqmForBortle, formatTime, formatMag, type NightFrames, type RankedTarget } from "@shared/astro";
+import { ChevronRight, Sun, Telescope } from "lucide-react";
+import { rankTargets, sqmForBortle, sunAltitude, formatDate, formatTime, formatMag, HOUR_MS, type NightFrames, type NightInfo, type RankedTarget, type Site } from "@shared/astro";
 import type { ObservingSite } from "@shared/api";
 import type { CatalogObject } from "@shared/data/types";
 import { useCatalog } from "@/hooks/useCatalog";
@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DIFFICULTY_TONE, TYPE_LABEL, objectDesignation } from "@/lib/objects";
 import { cn } from "@/lib/utils";
+import { moonEvents } from "./useTonight";
+import { altAt } from "@/features/explore/sky";
 
 const CHIPS: { id: string; label: string; types?: string[] }[] = [
   { id: "all", label: "All" },
@@ -59,7 +61,7 @@ export function InstrumentPicker() {
   );
 }
 
-function Sparkline({ r, frames }: { r: RankedTarget; frames: NightFrames }) {
+function Sparkline({ r, frames, minAlt }: { r: RankedTarget; frames: NightFrames; minAlt: number }) {
   const w = 84;
   const h = 26;
   const pts = r.track.points;
@@ -72,30 +74,91 @@ function Sparkline({ r, frames }: { r: RankedTarget; frames: NightFrames }) {
   return (
     <svg width={w} height={h} className="shrink-0" aria-hidden="true">
       {frames.darkStart && frames.darkEnd && <rect x={X(frames.darkStart)} y={0} width={Math.max(0, X(frames.darkEnd) - X(frames.darkStart))} height={h} fill="hsl(var(--primary))" opacity={0.08} rx={3} />}
-      <line x1={0} x2={w} y1={Y(20)} y2={Y(20)} stroke="hsl(var(--border))" strokeDasharray="2 3" />
+      <line x1={0} x2={w} y1={Y(minAlt)} y2={Y(minAlt)} stroke="hsl(var(--border))" strokeDasharray="2 3" />
       <path d={d} fill="none" stroke="hsl(var(--primary))" strokeWidth={1.5} />
     </svg>
   );
 }
 
-export function BestTargets({ site, frames, tz, hour12 }: { site: ObservingSite; frames: NightFrames; tz?: string; hour12?: boolean }) {
-  const { objects, isLoading } = useCatalog();
+/** "the naked eye", "10×50 binoculars", "an 8″ Dobsonian", "your Skymax 127". */
+function instrumentPhrase(s: ReturnType<typeof useActiveScope>) {
+  if (s.kind === "eye") return "the naked eye";
+  if (s.source === "gear") return `your ${s.scope.name}`;
+  if (s.kind === "binoculars") return s.scope.name;
+  return `${/^(8|11|18)(\D|$)|^8\d/.test(s.scope.name) ? "an" : "a"} ${s.scope.name}`;
+}
+
+/** The first evening after `date` whose Sun gets well below −18° (≈ the engine's full darkness), up to a year ahead. */
+function fullDarknessReturns(date: string, site: Site): number | null {
+  const [y, m, d] = date.split("-").map(Number);
+  for (let i = 1; i <= 366; i++) {
+    const midnight = Date.UTC(y, m - 1, d + i + 1) - (site.lon / 15) * HOUR_MS; // local mean solar midnight
+    if (sunAltitude(midnight, site) < -18.5) return Date.UTC(y, m - 1, d + i, 12);
+  }
+  return null;
+}
+
+/** Midnight sun and white nights: there is nothing deep-sky to rank. */
+function NoDarkness({ night, frames, site, isTonight }: { night: NightInfo; frames: NightFrames; site: ObservingSite; isTonight: boolean }) {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const back = useMemo(() => fullDarknessReturns(night.date, site), [night.date, site.lat, site.lon]);
+  const moonUp = !moonEvents(night, frames).downAllNight;
+  return (
+    <div className="panel flex items-start gap-3 p-5">
+      <Sun className="mt-0.5 h-5 w-5 shrink-0 text-q-fair" aria-hidden="true" />
+      <div className="text-sm">
+        <p className="font-medium">The Sun stays too high {isTonight ? "tonight" : "that night"} for deep-sky observing.</p>
+        <p className="mt-1 text-muted-foreground">
+          {night.sunNeverSets
+            ? `It doesn't set at all${moonUp ? ", so the Moon is the one sight" : ""}.`
+            : `The sky never gets darker than twilight, so ${moonUp ? "enjoy the Moon and the bright planets instead" : "only the bright planets are worth a look"}.`}
+          {back !== null && ` Full darkness returns around ${formatDate(back, { tz: "UTC" })}.`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function BestTargets({
+  site,
+  night,
+  frames,
+  tz,
+  hour12,
+  isTonight,
+}: {
+  site: ObservingSite;
+  night: NightInfo;
+  frames: NightFrames;
+  tz?: string;
+  hour12?: boolean;
+  isTonight: boolean;
+}) {
+  const { objects, isLoading, error } = useCatalog();
   const scope = useActiveScope();
   const { prefs } = usePrefs();
   const [chip, setChip] = useState("all");
   const [expanded, setExpanded] = useState(false);
   const sqm = site.sqm ?? sqmForBortle(site.bortle);
+  const noDark = night.darkness === "none";
+  const failed = !!error && !objects.length;
 
   const ranked = useMemo(() => {
-    if (!objects.length) return [] as RankedTarget<CatalogObject>[];
+    if (!objects.length || noDark) return [] as RankedTarget<CatalogObject>[];
     const types = CHIPS.find((c) => c.id === chip)?.types;
     return rankTargets(objects, frames, { sqm, apertureMm: scope.scope.aperture, minAlt: prefs.minAltitude }, { limit: 24, perTypeCap: chip === "all" ? 3 : undefined, types }).filter(
       (r) => r.score >= 25 && r.detect.difficulty !== "out of reach",
     );
-  }, [objects, frames, sqm, scope.scope.aperture, prefs.minAltitude, chip]);
+  }, [objects, frames, sqm, scope.scope.aperture, prefs.minAltitude, chip, noDark]);
+
+  if (noDark) return <NoDarkness night={night} frames={frames} site={site} isTonight={isTonight} />;
 
   const shown = expanded ? ranked : ranked.slice(0, 8);
   const fmt = (t: number | null) => formatTime(t, { tz, hour12 });
+  // The best moment can differ from the highest one on twilight-limited nights.
+  // (Best and peak times can fall between samples, so take the nearest one.)
+  const altAtBest = (r: RankedTarget) => altAt(r.track, r.bestTime);
+  const which = isTonight ? "tonight" : "that night";
 
   return (
     <div className="flex flex-col gap-3">
@@ -125,7 +188,8 @@ export function BestTargets({ site, frames, tz, hour12 }: { site: ObservingSite;
               </div>
             </div>
           ))}
-        {!isLoading && shown.length === 0 && <p className="p-5 text-sm text-muted-foreground">Nothing in this category is well placed tonight from here. Try another category or night.</p>}
+        {failed && <p className="p-5 text-sm text-muted-foreground">Couldn't load the catalog. Reload the page to try again.</p>}
+        {!isLoading && !failed && shown.length === 0 && <p className="p-5 text-sm text-muted-foreground">Nothing in this category is well placed {which} from here. Try another category or night.</p>}
         {shown.map((r) => (
           <Link key={r.object.id} href={`/object/${r.object.id}`} className="group flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-accent/50 sm:px-4">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-primary">
@@ -136,12 +200,19 @@ export function BestTargets({ site, frames, tz, hour12 }: { site: ObservingSite;
                 <span className="truncate font-medium">{r.object.name}</span>
                 {r.object.name !== objectDesignation(r.object) && <span className="num shrink-0 text-xs text-muted-foreground">{objectDesignation(r.object)}</span>}
               </div>
-              <div className="truncate text-xs text-muted-foreground">
-                {TYPE_LABEL[r.object.type]} · mag {formatMag(r.object.mag)} · best {fmt(r.bestTime)} at {Math.round(r.track.maxAlt)}°
+              {/* The best time and altitude never truncate; phones drop the type label (the icon shows it). */}
+              <div className="flex min-w-0 items-baseline gap-1 text-xs text-muted-foreground">
+                <span className="hidden min-w-0 truncate sm:block">
+                  {TYPE_LABEL[r.object.type]} · mag {formatMag(r.object.mag)} ·
+                </span>
+                <span className="shrink-0">
+                  best {fmt(r.bestTime)} at {Math.round(altAtBest(r))}°
+                </span>
+                <span className="min-w-0 truncate sm:hidden">· mag {formatMag(r.object.mag)}</span>
               </div>
             </div>
             <div className="hidden sm:block">
-              <Sparkline r={r} frames={frames} />
+              <Sparkline r={r} frames={frames} minAlt={prefs.minAltitude} />
             </div>
             <Badge variant={DIFFICULTY_TONE[r.detect.difficulty]} className="shrink-0 capitalize">
               {r.detect.difficulty}
@@ -152,7 +223,8 @@ export function BestTargets({ site, frames, tz, hour12 }: { site: ObservingSite;
       </div>
       <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
         <span>
-          Ranked for your {scope.scope.name} under a Bortle {site.bortle} sky ({sqm.toFixed(1)} mag/arcsec²), with tonight's moonlight.
+          Ranked for {instrumentPhrase(scope)} under {site.bortleSource === "atlas" ? `an estimated Bortle ${site.bortle} sky (≈${sqm.toFixed(1)} mag/arcsec² from the light-pollution atlas)` : `a Bortle ${site.bortle} sky (${sqm.toFixed(1)} mag/arcsec²)`}, with{" "}
+          {isTonight ? "tonight's" : "that night's"} moonlight.
         </span>
         {ranked.length > 8 && (
           <Button variant="ghost" size="sm" onClick={() => setExpanded((e) => !e)}>

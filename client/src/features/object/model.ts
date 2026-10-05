@@ -14,7 +14,7 @@ import {
 } from "@shared/astro";
 import type { CatalogObject } from "@shared/data/types";
 import { matchRank, norm, searchKeys } from "@/features/explore/search";
-import { evaluateBody, type BodyTonight, type NightContext } from "@/features/explore/sky";
+import { altAt, bodyWindow, evaluateBody, peakTime, sampleAt, shownBestTime, type BodyTonight, type NightContext } from "@/features/explore/sky";
 import type { QualityKey } from "@/lib/objects";
 
 export type Subject =
@@ -64,7 +64,10 @@ export interface Tonight {
   track: ObjectTrack;
   points: TrackPoint[];
   detect: DetectResult | null;
+  /** The best moment, for display: the refined transit when that's when it's best (as on every other page). */
   bestTime: number | null;
+  /** When it's highest during the observing time (refined transit, else the highest sample). */
+  peakTime: number | null;
   /** Start/end of the time that counts for this subject (astro darkness, or Sun < −6° for bodies). */
   darkStart: number | null;
   darkEnd: number | null;
@@ -74,6 +77,7 @@ export interface Tonight {
   body: BodyTonight | null;
   score: number | null;
   /** Where to look at the best time. */
+  bestAlt: number | null;
   bestAz: number | null;
 }
 
@@ -81,36 +85,41 @@ export function tonightFor(subject: Subject, ctx: NightContext, apertureMm: numb
   const nf = ctx.frames;
   if (subject.kind === "deep") {
     const r = evaluateTarget(subject.obj, nf, { sqm: ctx.sqm, apertureMm, minAlt: ctx.minAlt });
-    const best = r.bestTime !== null ? r.track.points.find((p) => p.t === r.bestTime) : undefined;
+    const best = sampleAt(r.track, r.bestTime);
     const alt = Math.max(r.track.maxAlt, 1);
     return {
       track: r.track,
       points: r.track.points,
       detect: r.detect,
-      bestTime: r.bestTime,
+      bestTime: shownBestTime(r.bestTime, r.track, nf.darkStart, nf.darkEnd),
+      peakTime: peakTime(r.track, nf.darkStart, nf.darkEnd),
       darkStart: nf.darkStart,
       darkEnd: nf.darkEnd,
       skyNoMoon: r.track.maxAlt > 0 ? skyBrightnessAt(ctx.sqm, alt, null) : null,
       skyWithMoon: r.track.maxAlt > 0 ? r.detect.skySB : null,
       body: null,
       score: r.score,
+      bestAlt: best ? altAt(r.track, r.bestTime) : null,
       bestAz: best?.az ?? null,
     };
   }
   const b = evaluateBody(subject.id, ctx, apertureMm);
-  const dark = nf.times.filter((_, i) => nf.sunAlt[i] < -6);
-  const best = b.bestTime !== null ? b.track.points.find((p) => p.t === b.bestTime) : undefined;
+  const [darkStart, darkEnd] = bodyWindow(ctx.night, nf);
+  const best = sampleAt(b.track, b.bestTime);
   return {
     track: b.track,
     points: b.track.points,
     detect: b.detect,
-    bestTime: b.bestTime,
-    darkStart: ctx.night.civilDusk ?? dark[0] ?? null,
-    darkEnd: ctx.night.civilDawn ?? dark[dark.length - 1] ?? null,
+    // A body's best moment is its highest one.
+    bestTime: b.peakTime,
+    peakTime: b.peakTime,
+    darkStart,
+    darkEnd,
     skyNoMoon: b.detect && b.track.maxAlt > 0 ? skyBrightnessAt(ctx.sqm, Math.max(b.track.maxAlt, 1), null) : null,
     skyWithMoon: b.detect && b.track.maxAlt > 0 ? b.detect.skySB : null,
     body: b,
     score: null,
+    bestAlt: best ? altAt(b.track, b.bestTime) : null,
     bestAz: best?.az ?? null,
   };
 }
@@ -158,7 +167,7 @@ export function verdictFor(t: Tonight, ctx: NightContext, opts: { dec?: number; 
         : "At this time of year it's up during the day. Check the year view for its season.",
     };
   }
-  const peakAt = formatTime(t.bestTime, tf);
+  const peakAt = formatTime(t.peakTime, tf);
   if (opts.isBody && opts.elongation !== undefined && opts.elongation < 20 && tr.neverUp) {
     return {
       tone: "bad",
@@ -184,9 +193,9 @@ export function verdictFor(t: Tonight, ctx: NightContext, opts: { dec?: number; 
   const ds = t.darkStart;
   const de = t.darkEnd;
   const peakPhrase =
-    t.bestTime !== null && ds !== null && Math.abs(t.bestTime - ds) <= NEAR
+    t.peakTime !== null && ds !== null && Math.abs(t.peakTime - ds) <= NEAR
       ? `highest (${Math.round(tr.maxAlt)}°) as it gets dark, at ${peakAt}`
-      : t.bestTime !== null && de !== null && Math.abs(t.bestTime - de) <= NEAR
+      : t.peakTime !== null && de !== null && Math.abs(t.peakTime - de) <= NEAR
         ? `highest (${Math.round(tr.maxAlt)}°) just before dawn, at ${peakAt}`
         : `highest (${Math.round(tr.maxAlt)}°) at ${peakAt}`;
 

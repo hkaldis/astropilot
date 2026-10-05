@@ -1,10 +1,12 @@
-import type { NightForecast } from "@shared/forecast";
-import type { NightInfo } from "@shared/astro";
+import type { Confidence, NightForecast } from "@shared/forecast";
+import type { NightFrames, NightInfo } from "@shared/astro";
 import { formatTime, formatDuration, formatNightDate } from "@shared/astro";
 import { ScoreDial, Skel } from "@/components/common/Page";
 import { MoonGlyph } from "@/components/common/Glyphs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { QUALITY_TEXT, qualityOf } from "@/lib/objects";
 import { cn } from "@/lib/utils";
+import { moonEventsText, nightClock } from "./useTonight";
 
 const VERDICT_WORD: Record<string, string> = {
   excellent: "An excellent night",
@@ -14,21 +16,54 @@ const VERDICT_WORD: Record<string, string> = {
   bad: "Not worth setting up",
 };
 
+// Darkness is named after the night's darkest part: a "nautical" night has the Sun between −12° and
+// −18° (astronomical twilight) at best, a "civil" one between −6° and −12° (nautical twilight).
 function darknessLabel(n: NightInfo) {
   switch (n.darkness) {
     case "astronomical":
       return "Full darkness";
     case "nautical":
-      return "No full darkness (nautical twilight all night)";
+      return n.astroDusk && n.astroDawn && n.astroDawn > n.astroDusk ? "Only a brief spell of full darkness" : "No full darkness (astronomical twilight all night)";
     case "civil":
-      return "Bright twilight all night";
+      return "No real darkness (nautical twilight all night)";
     default:
-      return n.sunNeverSets ? "Midnight sun — the Sun doesn't set" : "No darkness";
+      return n.sunNeverSets ? "Midnight sun — the Sun doesn't set" : "Twilight all night — the Sun barely sets";
   }
+}
+
+const TWILIGHT_OF: Record<string, string> = { astronomical: "of full dark", nautical: "of astronomical twilight", civil: "of nautical twilight" };
+
+const CONFIDENCE: Record<Confidence, { label: string; tone: string }> = {
+  high: { label: "Models agree", tone: "text-muted-foreground" },
+  medium: { label: "Some disagreement", tone: "text-q-fair" },
+  low: { label: "Models disagree", tone: "text-q-poor" },
+};
+
+/** How far the independent weather models back up the forecast, with their reason on hover. */
+function ConfidenceChip({ level, reason }: { level: Confidence; reason?: string }) {
+  const c = CONFIDENCE[level];
+  const chip = (
+    <span
+      tabIndex={reason ? 0 : undefined}
+      className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs", reason && "cursor-help", c.tone)}
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" aria-hidden="true" />
+      {c.label}
+      {reason && <span className="sr-only">: {reason}</span>}
+    </span>
+  );
+  if (!reason) return chip;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{chip}</TooltipTrigger>
+      <TooltipContent className="max-w-xs text-xs">{reason}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 export function TonightHero({
   night,
+  frames,
   forecast,
   loading,
   isTonight,
@@ -39,6 +74,7 @@ export function TonightHero({
   southern = false,
 }: {
   night: NightInfo;
+  frames: NightFrames;
   forecast: NightForecast | null;
   loading: boolean;
   isTonight: boolean;
@@ -52,8 +88,11 @@ export function TonightHero({
   const score = forecast?.hasData ? forecast.score : null;
   const q = qualityOf(score ?? 0);
   const inDark = night.darkStart && night.darkEnd && now >= night.darkStart && now <= night.darkEnd;
-  const when = isTonight ? (inDark ? "Right now" : now > (night.darkEnd ?? 0) ? "Last night" : "Tonight") : formatNightDate(night.date, "long");
+  // The current night lasts until sunrise: it is "Tonight" here as in the week strip and the sections below.
+  const when = isTonight ? (inDark ? "Right now" : "Tonight") : formatNightDate(night.date, "long");
   const moon = night.moon;
+  const moonPct = Math.round(moon.illumination * 100);
+  const moonWhen = moonEventsText(night, frames, nightClock(night, isTonight, now, tz, hour12));
 
   return (
     <section className="relative overflow-hidden rounded-2xl border bg-card">
@@ -73,6 +112,11 @@ export function TonightHero({
           <p className="mt-2 max-w-xl text-[0.95rem] text-foreground/90">
             {forecast?.hasData ? forecast.headline : loading ? "" : "No weather forecast for this date yet — here's what the sky itself offers."}
           </p>
+          {forecast?.hasData && forecast.confidence && (
+            <div className="mt-2.5">
+              <ConfidenceChip level={forecast.confidence} reason={forecast.confidenceReason} />
+            </div>
+          )}
           {forecast?.details?.length ? (
             <ul className="mt-3 flex max-w-xl flex-col gap-1 text-sm text-muted-foreground">
               {forecast.details.map((d, i) => (
@@ -101,21 +145,26 @@ export function TonightHero({
         )}
       </div>
       <div className="relative grid grid-cols-2 border-t sm:grid-cols-4">
-        <Fact label="Darkness" value={night.darkStart ? `${fmt(night.darkStart)} – ${fmt(night.darkEnd)}` : "—"} sub={night.darkStart ? `${formatDuration(night.darkHours)} ${night.darkness === "astronomical" ? "of full dark" : night.darkness + " twilight"}` : darknessLabel(night)} />
+        <Fact
+          label="Darkness"
+          value={night.darkStart ? `${fmt(night.darkStart)} – ${fmt(night.darkEnd)}` : "—"}
+          sub={night.darkStart ? `${formatDuration(night.darkHours)} ${TWILIGHT_OF[night.darkness] ?? ""}`.trim() : darknessLabel(night)}
+        />
         <Fact
           label="Moon"
           value={
-            <span className="flex items-center gap-2">
+            <span className="flex items-center gap-2" title={`${moonPct}% lit at ${fmt(night.solarMidnight)}, the middle of the night`}>
               <MoonGlyph elongation={moon.elongation} size={20} southern={southern} />
-              {Math.round(moon.illumination * 100)}%
+              {moonPct}%
+              <span className="font-sans text-2xs font-normal text-muted-foreground">at midnight</span>
             </span>
           }
-          sub={`${moon.phaseName}${moon.rise && moon.rise < night.nextNoon ? ` · rises ${fmt(moon.rise)}` : ""}${moon.set && moon.set < night.nextNoon ? ` · sets ${fmt(moon.set)}` : ""}`}
+          sub={`${moon.phaseName} · ${moonWhen}`}
         />
         <Fact
           label="Moon-free dark"
-          value={formatDuration(night.moonFreeHours)}
-          sub={night.moonFreeWindows.length ? night.moonFreeWindows.map(([a, b]) => `${fmt(a)}–${fmt(b)}`).join(", ") : night.darkHours ? "Moon up all night" : "—"}
+          value={night.darkHours ? formatDuration(night.moonFreeHours) : "—"}
+          sub={night.moonFreeWindows.length ? night.moonFreeWindows.map(([a, b]) => `${fmt(a)}–${fmt(b)}`).join(", ") : night.darkHours ? "Moon up all night" : "No dark sky"}
         />
         <Fact
           label="Best window"

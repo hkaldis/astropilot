@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/common/Glyphs";
 import { SiteSwitcher } from "./SiteSwitcher";
+import { AchievementWatcher } from "@/features/journal/achievements";
 import { useAuth, useLogout, displayName, useFeatures } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { Button } from "@/components/ui/button";
@@ -266,8 +267,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
         <main className="mx-auto w-full max-w-[1240px] flex-1 px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-16 lg:pt-8">{children}</main>
+        <AchievementWatcher />
         <footer className="mx-auto hidden w-full max-w-[1240px] items-center justify-between gap-4 px-8 pb-8 text-xs text-muted-foreground lg:flex">
-          <span>AstroPilot · Ephemerides by astronomy-engine · Weather by Open-Meteo · Catalog by OpenNGC</span>
+          <span>AstroPilot · Ephemerides by astronomy-engine · Weather by Open-Meteo · Catalog by OpenNGC · Light pollution by D. J. Lorenz (2025 atlas)</span>
           <span className="flex gap-4">
             <Link href="/about" className="hover:text-foreground">About</Link>
             <Link href="/privacy" className="hover:text-foreground">Privacy</Link>

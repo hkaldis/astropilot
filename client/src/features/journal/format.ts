@@ -1,6 +1,7 @@
 /** Journal display helpers: time zones, nights, labels for ratings and conditions. */
 import type { ApiLocation, ApiSession } from "@shared/api";
 import { formatDuration, formatNightDate, formatTime } from "@shared/astro/format";
+import { nightDateOf } from "@shared/astro/night";
 import { TYPE_LABEL, TYPE_PLURAL } from "@/lib/objects";
 
 const HOUR = 3_600_000;
@@ -60,7 +61,7 @@ export function fromWallInput(wall: string, tz?: string | null): number | null {
  */
 export function nightKeyOf(ms: number, lon?: number | null, tz?: string | null): string {
   const t = ms - 12 * HOUR;
-  if (lon !== null && lon !== undefined && Number.isFinite(lon)) return new Date(t + (lon / 15) * HOUR).toISOString().slice(0, 10);
+  if (lon !== null && lon !== undefined && Number.isFinite(lon)) return nightDateOf(ms, { lat: 0, lon, timezone: tz });
   const p = wallParts(t, tz);
   return `${p.y}-${String(p.mo).padStart(2, "0")}-${String(p.d).padStart(2, "0")}`;
 }

@@ -1,11 +1,12 @@
 /**
  * "What should I look at tonight?" — rank catalog objects for a site, night, sky and telescope.
  */
-import { clamp, HOUR_MS, Site } from "./core";
+import { clamp, DEG, HOUR_MS, Site, Vec3, eqjVector } from "./core";
 import type { NightInfo } from "./night";
 import {
   NightFrames,
   ObjectTrack,
+  DetectInput,
   DetectResult,
   objectTrack,
   detectability,
@@ -13,6 +14,8 @@ import {
   difficultyScore,
   TargetLike,
 } from "./visibility";
+
+const angleBetween = (a: Vec3, b: Vec3) => Math.acos(clamp(a[0] * b[0] + a[1] * b[1] + a[2] * b[2], -1, 1)) / DEG;
 
 export interface CatalogLike extends TargetLike {
   id: string;
@@ -52,15 +55,45 @@ export function interestOf(o: CatalogLike): number {
   return f;
 }
 
+/** Sky geometry for an object at sample `i` of the night. */
+function sampleInput(v: Vec3, track: ObjectTrack, nf: NightFrames, i: number, ctx: SkyContext): DetectInput {
+  const m = nf.moon[i];
+  return {
+    sqmZenith: ctx.sqm,
+    apertureMm: ctx.apertureMm,
+    alt: Math.max(track.points[i].alt, 1),
+    moon: m ? { alt: m.alt, phaseAngle: nf.moonPhaseAngle, separation: angleBetween(v, eqjVector(m.ra, m.dec)) } : null,
+    sunAlt: nf.sunAlt[i],
+  };
+}
+
 export function evaluateTarget<T extends CatalogLike>(o: T, nf: NightFrames, ctx: SkyContext): RankedTarget<T> {
   const minAlt = ctx.minAlt ?? 20;
   const track = objectTrack(o.ra, o.dec, nf, minAlt);
-  const alt = track.maxAlt;
-  const moon =
-    track.moonAltAtBest !== null && track.moonSepAtBest !== null
-      ? { alt: track.moonAltAtBest, phaseAngle: nf.moonPhaseAngle, separation: track.moonSepAtBest }
-      : null;
-  const detect = detectability(o, { sqmZenith: ctx.sqm, apertureMm: ctx.apertureMm, alt: Math.max(alt, 1), moon });
+  const v = eqjVector(o.ra, o.dec);
+  // The best moment is the highest one, unless twilight brightens the sky then (short summer nights):
+  // weigh altitude against sky darkness over the observable stretch.
+  let idx = track.maxIdx;
+  let input = idx >= 0 ? sampleInput(v, track, nf, idx, ctx) : null;
+  let detect = input ? detectability(o, input) : detectability(o, { sqmZenith: ctx.sqm, apertureMm: ctx.apertureMm, alt: 1, moon: null, sunAlt: 0 });
+  if (idx >= 0 && nf.sunAlt[idx] > -18 && track.window) {
+    const merit = (alt: number, d: DetectResult) => Math.pow(altitudeQuality(alt), 0.6) * (0.12 + 0.88 * difficultyScore(d));
+    let best = merit(track.points[idx].alt, detect);
+    for (let i = 0; i < track.points.length; i += 2) {
+      const p = track.points[i];
+      if (p.t < track.window[0] || p.t > track.window[1] || i === idx) continue;
+      const inp = sampleInput(v, track, nf, i, ctx);
+      const d = detectability(o, inp);
+      const m = merit(p.alt, d);
+      if (m > best) {
+        best = m;
+        idx = i;
+        input = inp;
+        detect = d;
+      }
+    }
+  }
+  const alt = idx >= 0 ? track.points[idx].alt : track.maxAlt;
   const altQ = altitudeQuality(alt);
   const dur = clamp(track.hoursAboveMin / 3, 0, 1);
   const det = difficultyScore(detect);
@@ -74,10 +107,11 @@ export function evaluateTarget<T extends CatalogLike>(o: T, nf: NightFrames, ctx
     } else if ((o.size?.[0] ?? 0) < (eye ? 30 : 4)) raw *= 0.35;
   }
   const reasons: string[] = [];
-  if (track.maxAltTime) reasons.push(`peaks at ${Math.round(alt)}°`);
+  if (track.maxAltTime) reasons.push(`peaks at ${Math.round(track.maxAlt)}°`);
   if (track.hoursAboveMin > 0) reasons.push(`${track.hoursAboveMin.toFixed(1)} h above ${minAlt}°`);
   if (detect.note) reasons.push(detect.note);
-  return { object: o, score: Math.round(Math.min(100, raw * 0.85)), rawScore: raw, track, detect, bestTime: track.maxAltTime, reasons };
+  const bestTime = idx < 0 ? null : idx === track.maxIdx ? track.maxAltTime : track.points[idx].t;
+  return { object: o, score: Math.round(Math.min(100, raw * 0.85)), rawScore: raw, track, detect, bestTime, reasons };
 }
 
 export interface RankOptions {
@@ -108,10 +142,17 @@ export function rankTargets<T extends CatalogLike>(objects: T[], nf: NightFrames
 /**
  * Order targets into an observing run: each is placed as close to its best (highest) moment as the
  * schedule allows, never outside its observable window, with `minutesPerTarget` at the eyepiece.
+ * A first pass walks forward in time; anything that found no room is then fitted into the nearest
+ * free gap of its window (so two targets competing for the last slot before dawn both get one).
  */
-export function planSequence<T extends CatalogLike>(targets: RankedTarget<T>[], night: NightInfo, minutesPerTarget = 20) {
-  const start = night.darkStart ?? night.sunset ?? night.noon;
-  const end = night.darkEnd ?? night.sunrise ?? night.nextNoon;
+export function planSequence<T extends CatalogLike>(
+  targets: RankedTarget<T>[],
+  night: NightInfo,
+  minutesPerTarget = 20,
+  bounds?: { start?: number | null; end?: number | null },
+) {
+  const start = bounds?.start ?? night.darkStart ?? night.sunset ?? night.noon;
+  const end = bounds?.end ?? night.darkEnd ?? night.sunrise ?? night.nextNoon;
   const dur = minutesPerTarget * 60_000;
   const items = targets
     .filter((t) => t.track.window)
@@ -125,14 +166,34 @@ export function planSequence<T extends CatalogLike>(targets: RankedTarget<T>[], 
     .filter((x) => x.hi >= x.lo)
     .sort((a, b) => a.best - b.best || a.hi - b.hi);
   const slots: { target: RankedTarget<T>; at: number }[] = [];
+  const left: typeof items = [];
   let cursor = start;
   for (const it of items) {
     const at = Math.max(cursor, it.best);
-    if (at > it.hi) continue; // no room left before it sets
+    if (at > it.hi) {
+      left.push(it); // no room after the previous target; try a gap below
+      continue;
+    }
     slots.push({ target: it.t, at });
     cursor = at + dur;
   }
-  return slots;
+  for (const it of left) {
+    // Free intervals between booked slots, clipped to this target's window.
+    const booked = slots.map((s) => [s.at, s.at + dur] as const).sort((a, b) => a[0] - b[0]);
+    let best: number | null = null;
+    let prevEnd = start;
+    for (const [a, b] of [...booked, [end + dur, end + dur] as const]) {
+      const g0 = Math.max(prevEnd, it.lo);
+      const g1 = Math.min(a - dur, it.hi);
+      if (g1 >= g0) {
+        const at = Math.min(Math.max(it.best, g0), g1);
+        if (best === null || Math.abs(at - it.best) < Math.abs(best - it.best)) best = at;
+      }
+      prevEnd = Math.max(prevEnd, b);
+    }
+    if (best !== null) slots.push({ target: it.t, at: best });
+  }
+  return slots.sort((a, b) => a.at - b.at);
 }
 
 export function hoursBetween(a: number, b: number) {

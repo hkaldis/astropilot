@@ -1,8 +1,10 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ApiLocation, ObservingSite } from "@shared/api";
 import { store } from "@/lib/storage";
 import { useAuth } from "./useAuth";
+import { fetchSkyBrightness } from "./useSkyBrightness";
+import { bortleForSqm } from "@shared/astro/visibility";
 
 interface SiteState {
   /** The site everything is computed for (saved location or guest location). */
@@ -46,7 +48,11 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const q = useQuery<ApiLocation[]>({ queryKey: ["/api/locations"], enabled: !!user });
   const [selectedKey, setSelectedKey] = useState<string | null>(() => store.get<string | null>("ap.siteKey", null));
-  const [guest, setGuest] = useState<ObservingSite | null>(() => store.get<ObservingSite | null>("ap.guestSite", null));
+  const [guest, setGuest] = useState<ObservingSite | null>(() => {
+    const g = store.get<ObservingSite | null>("ap.guestSite", null);
+    // Atlas estimates keep their SQM; re-derive the class so it always follows the current Bortle table.
+    return g && g.bortleSource === "atlas" && typeof g.sqm === "number" ? { ...g, bortle: bortleForSqm(g.sqm) } : g;
+  });
 
   const locations = user ? (q.data ?? []) : [];
   const saved = useMemo(() => locations.map(locationToSite).filter((s): s is ObservingSite => !!s), [locations]);
@@ -74,6 +80,30 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     setSelectedKey("guest");
     store.set("ap.siteKey", "guest");
   }, []);
+
+  // A new guest place gets its sky darkness from the light-pollution atlas unless the user has set it.
+  useEffect(() => {
+    if (!guest || guest.bortleSource) return; // "default" (atlas unavailable) isn't stored, so a reload retries
+    let cancelled = false;
+    const { lat, lon } = guest;
+    fetchSkyBrightness(lat, lon)
+      .then((est) => {
+        if (cancelled) return;
+        setGuest((cur) => {
+          if (!cur || cur.lat !== lat || cur.lon !== lon || cur.bortleSource === "user") return cur;
+          const next: ObservingSite = { ...cur, bortle: est.bortle, sqm: est.sqm, bortleSource: "atlas" };
+          store.set("ap.guestSite", next);
+          return next;
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setGuest((cur) => (cur && cur.lat === lat && cur.lon === lon && !cur.bortleSource ? { ...cur, bortleSource: "default" } : cur));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [guest]);
 
   const clearGuestSite = useCallback(() => {
     setGuest(null);

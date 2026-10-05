@@ -173,7 +173,7 @@ export function ObservationForm({
       ) : (
         <div className="flex items-center gap-3">
           <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full border bg-surface-2 text-foreground/80">
-            <TypeGlyph type={objectType ?? "galaxy"} className="h-6 w-6" />
+            <TypeGlyph type={objectType ?? "galaxy"} id={v.ref?.toLowerCase()} className="h-6 w-6" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="truncate text-[1.05rem] font-medium">{v.objectName}</div>

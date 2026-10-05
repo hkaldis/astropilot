@@ -3,14 +3,20 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   type HourScoreInput,
+  CONFIDENCE_MODEL,
   bulkRichardson,
+  cloudAgreement,
   cloudFactor,
   dewRisk,
   effectiveCloud,
   estimateSeeing,
   estimateTransparency,
+  fogRisk,
   hourScores,
   nightScore,
+  slotInstant,
+  slotPreceding,
+  slotWind,
   verdictOf,
 } from "./conditions";
 import { sqmForBortle } from "./visibility";
@@ -194,11 +200,94 @@ test("night score rewards a good stretch but not as much as a good night", () =>
   assert.ok(s > 35 && s < 65, `split night ${s}`);
   assert.equal(nightScore(bad), 0);
   assert.equal(nightScore([]), 0);
-  assert.equal(verdictOf(80), "excellent");
-  assert.equal(verdictOf(65), "good");
-  assert.equal(verdictOf(45), "fair");
-  assert.equal(verdictOf(25), "poor");
-  assert.equal(verdictOf(24), "bad");
+});
+
+test("verdict bands match the UI's qualityOf() colours (80 / 62 / 42 / 22)", () => {
+  const cases: [number, string][] = [
+    [100, "excellent"],
+    [80, "excellent"],
+    [79, "good"],
+    [62, "good"],
+    [61, "fair"],
+    [42, "fair"],
+    [41, "poor"],
+    [22, "poor"],
+    [21, "bad"],
+    [0, "bad"],
+  ];
+  for (const [s, v] of cases) assert.equal(verdictOf(s), v, `score ${s}`);
+});
+
+test("7Timer transparency follows its documented mag/airmass scale and never overrides CAMS", () => {
+  // With CAMS AOD the physical estimate stands alone (7Timer sits at class 2 on most clear nights).
+  const cams = estimateTransparency({ humidity: 50, cloudHigh: 0, aod: 0.06, visibility: 40_000 });
+  const camsAnd7t = estimateTransparency({ humidity: 50, cloudHigh: 0, aod: 0.06, visibility: 40_000, sevenTimer: 2 });
+  assert.equal(camsAnd7t.extinction, cams.extinction);
+  // Without CAMS, class 2 (0.3–0.4 mag/airmass) pulls k up, class 8 (>1) much more; class 1 (<0.3) barely.
+  const bg = estimateTransparency({ humidity: 50, cloudHigh: 0, aod: null, visibility: null });
+  const c1 = estimateTransparency({ humidity: 50, cloudHigh: 0, aod: null, visibility: null, sevenTimer: 1 });
+  const c2 = estimateTransparency({ humidity: 50, cloudHigh: 0, aod: null, visibility: null, sevenTimer: 2 });
+  const c8 = estimateTransparency({ humidity: 50, cloudHigh: 0, aod: null, visibility: null, sevenTimer: 8 });
+  assert.ok(Math.abs(c1.extinction - bg.extinction) < 0.01, `class 1 ${c1.extinction} vs ${bg.extinction}`);
+  assert.ok(c2.extinction > bg.extinction + 0.015 && c2.extinction < 0.35);
+  assert.ok(c8.extinction > c2.extinction + 0.15 && c8.value < c2.value);
+});
+
+test("fog risk: near-saturated calm air or model fog → high; a breeze keeps it to mist", () => {
+  assert.equal(fogRisk(8, 7.5, 3), "high", "spread 0.5 °C, calm");
+  assert.equal(fogRisk(8, 7.5, 25), "low", "spread 0.5 °C but 25 km/h of wind mixes the air");
+  assert.equal(fogRisk(8, 7.5, 25, 3000), "moderate", "…unless the model already shows mist");
+  assert.equal(fogRisk(8, 6.5, 6, 800), "high", "model visibility < 1 km");
+  assert.equal(fogRisk(8, 6, 8), "moderate", "spread 2 °C, light wind");
+  assert.equal(fogRisk(12, 4, 2, 30_000), "low", "dry air");
+  // Dry phantom "fog" in the model (spread 10 °C) is ignored.
+  assert.equal(fogRisk(15, 5, 2, 500), "low");
+});
+
+test("hour slots: instants average across the slot, 'preceding hour' values come from its end", () => {
+  assert.equal(slotInstant(20, 60), 40);
+  assert.equal(slotInstant(null, 60), 60);
+  assert.equal(slotInstant(20, undefined), 20);
+  assert.equal(slotInstant(null, null), null);
+  assert.equal(slotPreceding(10, 35), 35, "gust stamped t + 1 h covers [t, t + 1 h]");
+  assert.equal(slotPreceding(10, null), 10);
+  // Wind directions average as vectors: 350° and 10° → 0°, not 180°.
+  const w = slotWind({ speed: 100, dir: 350 }, { speed: 100, dir: 10 });
+  assert.ok(w.dir !== null && (w.dir < 0.5 || w.dir > 359.5), `dir ${w.dir}`);
+  assert.ok(w.speed !== null && Math.abs(w.speed - 98.5) < 0.2);
+  assert.deepEqual(slotWind({ speed: 50, dir: 270 }, { speed: null, dir: null }), { speed: 50, dir: 270 });
+});
+
+test("forecast confidence from model agreement", () => {
+  const night = (main: number[], ...others: (number | null)[][]) =>
+    main.map((m, i) => ({ weight: 1, effCloud: [m, ...others.map((o) => o[i])] }));
+  const clear = [0, 5, 0, 10, 5, 0, 0, 5];
+  // Everyone agrees on a clear night, or on an overcast one → high.
+  assert.equal(cloudAgreement(night(clear, [5, 0, 10, 0, 0, 5, 0, 0], [0, 0, 0, 15, 10, 0, 5, 0]))?.confidence, "high");
+  assert.equal(cloudAgreement(night([100, 95, 100, 100], [90, 100, 100, 98], [100, 100, 85, 100]))?.confidence, "high");
+  // The main forecast is clear, two independent models are overcast → low, and they are the cloudier ones.
+  const split = cloudAgreement(night(clear, clear.map(() => 95), clear.map(() => 85)))!;
+  assert.equal(split.confidence, "low");
+  assert.ok(split.bias[1]! < -CONFIDENCE_MODEL.bias && split.bias[2]! < -CONFIDENCE_MODEL.bias);
+  // Same amount of cloud, different timing → still uncertain, but no model is simply cloudier.
+  const timing = cloudAgreement(night([0, 0, 0, 0, 100, 100, 100, 100], [100, 100, 100, 100, 0, 0, 0, 0]))!;
+  assert.equal(timing.confidence, "low");
+  assert.ok(Math.abs(timing.bias[1]!) < CONFIDENCE_MODEL.bias);
+  // Partial disagreement → medium.
+  assert.equal(cloudAgreement(night(clear, [0, 0, 40, 50, 40, 10, 0, 0]))?.confidence, "medium");
+  // One outlier among three models is "medium"; two dissenters make it "low".
+  const overcast = clear.map(() => 100);
+  assert.equal(cloudAgreement(night(clear, clear, [5, 5, 5, 5, 0, 0, 0, 0], overcast))?.confidence, "medium");
+  assert.equal(cloudAgreement(night(clear, clear, overcast, overcast))?.confidence, "low");
+  // 70 % vs 95 % cloud: neither is worth setting up for, so the models agree.
+  assert.equal(cloudAgreement(night(clear.map(() => 95), clear.map(() => 70)))?.confidence, "high");
+  // More than 4 days ahead a perfect agreement is only "medium".
+  const far = cloudAgreement(night(clear, clear), 120)!;
+  assert.equal(far.confidence, "medium");
+  assert.ok(far.cappedByLead);
+  // No second model, or too little overlap → no verdict.
+  assert.equal(cloudAgreement(night(clear)), null);
+  assert.equal(cloudAgreement(night(clear, [0, 0, null, null, null, null, null, null])), null);
 });
 
 function baseInput(): HourScoreInput {

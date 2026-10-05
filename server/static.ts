@@ -14,6 +14,11 @@ export function serveStatic(app: Express) {
     // A missing hashed asset (an old tab after a redeploy) must 404, not receive index.html as JS.
     (_req, res) => res.status(404).setHeader("Cache-Control", "no-store").end(),
   );
+  // The service worker must be revalidated on every check, or clients can keep an outdated one.
+  app.get("/sw.js", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
+    res.sendFile(path.resolve(distPath, "sw.js"));
+  });
   app.use(express.static(distPath, { maxAge: "1h", index: false }));
   app.use("*", (_req, res) => {
     res.setHeader("Cache-Control", "no-cache");

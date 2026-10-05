@@ -6,8 +6,8 @@ import { MoonGlyph } from "@/components/common/Glyphs";
 import { ToneDot } from "@/components/common/Page";
 import { Badge } from "@/components/ui/badge";
 import { DIFFICULTY_TONE } from "@/lib/objects";
-import type { ActiveScopeState } from "@/features/explore/InstrumentBar";
-import { moonPoints, type NightContext } from "@/features/explore/sky";
+import { instrumentPhrase, type ActiveScopeState } from "@/features/explore/InstrumentBar";
+import { moonPoints, sampleAt, type NightContext } from "@/features/explore/sky";
 import { verdictFor, whereToLook, type Subject, type Tonight } from "./model";
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -61,12 +61,20 @@ export function TonightSection({ subject, tonight, ctx, scope }: { subject: Subj
     return null;
   }, [tr.window, night.moonFreeWindows]);
 
-  const scopeWord = scope.kind === "eye" ? "to the naked eye" : `with ${scope.source === "gear" ? "your" : "an"} ${scope.scope.name}`;
-  const skyWord = ctx.sqmMeasured ? `an SQM ${ctx.sqm.toFixed(1)} sky` : `a Bortle ${ctx.bortle} sky`;
+  const scopeWord = scope.kind === "eye" ? "to the naked eye" : `with ${instrumentPhrase(scope)}`;
+  const skyWord =
+    ctx.sqmSource === "measured"
+      ? `an SQM ${ctx.sqm.toFixed(1)} sky`
+      : ctx.sqmSource === "atlas"
+        ? `an SQM ≈${ctx.sqm.toFixed(1)} sky (estimated from the light-pollution atlas)`
+        : `a Bortle ${ctx.bortle} sky`;
   const sbArcsec = subject.kind === "deep" ? surfaceBrightnessArcsec(subject.obj) : null;
+  // Catalog notes may already end with a full stop.
+  const note = tonight.detect?.note ? (/[.!?]$/.test(tonight.detect.note) ? tonight.detect.note : `${tonight.detect.note}.`) : "";
 
   // Where to look at the best time.
-  const look = tonight.bestTime !== null && tonight.bestAz !== null && tr.maxAlt > 0 ? whereToLook(tr.maxAlt, tonight.bestAz) : null;
+  const bestAlt = tonight.bestAlt ?? tr.maxAlt;
+  const look = tonight.bestTime !== null && tonight.bestAz !== null && tr.maxAlt > 0 ? whereToLook(bestAlt, tonight.bestAz) : null;
   const nextPhase = useMemo(() => (isMoon ? (moonQuarters(ctx.now, 30)[0] ?? null) : null), [isMoon, Math.floor(ctx.now / 3_600_000)]);
   // Moonlight and sky brightness only matter for faint things (deep sky, Uranus, Neptune).
   const faint = subject.kind === "deep" || (tonight.body?.state.mag ?? -5) > 5;
@@ -78,15 +86,21 @@ export function TonightSection({ subject, tonight, ctx, scope }: { subject: Subj
     const a = night.sunset ?? start;
     const b = night.sunrise ?? end;
     const inNight = (x: number | null) => x !== null && x >= a && x <= b;
+    // The highest moment as sampled for the whole page (the chart's peak, "At …" above), not a separate search.
+    const high = tr.transitTime !== null && inNight(tr.transitTime) ? tr.transitTime : ev.transit;
     const list: [number, string][] = [];
     if (inNight(ev.rise)) list.push([ev.rise!, `rises ${formatTime(ev.rise, tf)}`]);
-    if (inNight(ev.transit) && (ev.transitAlt ?? 0) > 0) list.push([ev.transit!, `highest ${formatTime(ev.transit, tf)} (${Math.round(ev.transitAlt!)}°)`]);
+    if (inNight(high) && (ev.transitAlt ?? 0) > 0) list.push([high!, `highest ${formatTime(high, tf)} (${Math.round(ev.transitAlt!)}°)`]);
     if (inNight(ev.set)) list.push([ev.set!, `sets ${formatTime(ev.set, tf)}`]);
     list.sort((x, y) => x[0] - y[0]);
+    const upAt = (t: number) => (sampleAt(tr, t)?.alt ?? -1) > 0;
+    const upAtDusk = !inNight(ev.rise) && upAt(a);
+    const upAtDawn = !inNight(ev.set) && upAt(b);
     let text = list.map((x) => x[1]).join(" · ");
-    if (!list.length) text = tr.maxAlt > 0 ? "up all night" : "not up tonight";
-    else if (!inNight(ev.set) && inNight(ev.rise)) text += " · up until sunrise";
-    else if (!inNight(ev.rise) && inNight(ev.set)) text = "up at sunset · " + text;
+    if (upAtDusk && upAtDawn) text = list.length ? `up all night · ${text}` : "up all night";
+    else if (!list.length) text = "not up tonight";
+    else if (upAtDawn) text += " · up until sunrise";
+    else if (upAtDusk) text = "up at sunset · " + text;
     return text.charAt(0).toUpperCase() + text.slice(1) + ".";
   })();
 
@@ -110,7 +124,7 @@ export function TonightSection({ subject, tonight, ctx, scope }: { subject: Subj
           now={ctx.now}
           highlight={tr.window}
           highlightLabel={subject.kind === "body" ? "observable" : "best window"}
-          peak={tonight.bestTime !== null && tr.maxAlt >= 3 ? { t: tonight.bestTime, alt: tr.maxAlt } : null}
+          peak={tonight.peakTime !== null && tr.maxAlt >= 3 ? { t: tonight.peakTime, alt: tr.maxAlt } : null}
           tz={ctx.tz}
           hour12={ctx.hour12}
           ariaLabel={`Altitude of ${subject.name} through the night of ${formatNightDate(night.date, "long")}. ${verdict.detail}`}
@@ -130,7 +144,7 @@ export function TonightSection({ subject, tonight, ctx, scope }: { subject: Subj
               </span>
             }
           >
-            {tonight.detect.note ? `${tonight.detect.note}.` : subject.kind === "body" ? "Bright enough that only altitude and steady air matter." : ""}{" "}
+            {note || (subject.kind === "body" ? "Bright enough that only altitude and steady air matter." : "")}{" "}
             {faint && (
               <span className="mt-1 block text-2xs">
                 Based on {skyWord}: the sky at the object is <span className="num">{tonight.detect.skySB.toFixed(1)}</span> mag/arcsec² at its best
@@ -150,7 +164,7 @@ export function TonightSection({ subject, tonight, ctx, scope }: { subject: Subj
 
         {/* Moon */}
         {isMoon ? (
-          <Fact icon={<MoonGlyph elongation={night.moon.elongation} size={18} />} title={`${night.moon.phaseName} · ${Math.round(night.moon.illumination * 100)}% lit`}>
+          <Fact icon={<MoonGlyph elongation={night.moon.elongation} size={18} southern={ctx.site.lat < 0} />} title={`${night.moon.phaseName} · ${Math.round(night.moon.illumination * 100)}% lit`}>
             Age <span className="num">{night.moon.ageDays.toFixed(1)}</span> days ({night.moon.waxing ? "waxing" : "waning"}).
             {nextPhase && (
               <>
@@ -198,14 +212,14 @@ export function TonightSection({ subject, tonight, ctx, scope }: { subject: Subj
             {bodyEvents}
             {tonight.bestAz !== null && look && (
               <span className="mt-1 block text-2xs">
-                Azimuth <span className="num">{Math.round(tonight.bestAz)}°</span>, altitude <span className="num">{Math.round(tr.maxAlt)}°</span> at its best.
+                Azimuth <span className="num">{Math.round(tonight.bestAz)}°</span>, altitude <span className="num">{Math.round(bestAlt)}°</span> at its best.
               </span>
             )}
           </Fact>
         ) : (
           look && (
             <Fact icon={<Compass className="h-3.5 w-3.5" />} title={`At ${bestStr}: ${look}`}>
-              Azimuth <span className="num">{Math.round(tonight.bestAz!)}°</span>, altitude <span className="num">{Math.round(tr.maxAlt)}°</span>
+              Azimuth <span className="num">{Math.round(tonight.bestAz!)}°</span>, altitude <span className="num">{Math.round(bestAlt)}°</span>
               {tr.hoursAboveMin > 0 && (
                 <>
                   {" "}

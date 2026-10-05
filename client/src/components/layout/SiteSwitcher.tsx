@@ -8,6 +8,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { PlacePicker, placeLabel } from "@/components/common/PlacePicker";
 import { cn } from "@/lib/utils";
 
+/** "34.05° N, 118.24° W" — the same hemisphere style as Locations. */
+const latLon = (lat: number, lon: number) => `${Math.abs(lat).toFixed(2)}° ${lat >= 0 ? "N" : "S"}, ${Math.abs(lon).toFixed(2)}° ${lon >= 0 ? "E" : "W"}`;
+
 export function SiteSwitcher() {
   const { site, sites, selectSite, setGuestSite } = useSite();
   const { user } = useAuth();
@@ -50,7 +53,7 @@ export function SiteSwitcher() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{s.name}</span>
                   <span className="block text-xs text-muted-foreground">
-                    {s.lat.toFixed(2)}°, {s.lon.toFixed(2)}° · Bortle {s.bortle}
+                    <span className="num">{latLon(s.lat, s.lon)}</span> · Bortle {s.bortle}
                     {s.key === "guest" ? " · not saved" : ""}
                   </span>
                 </span>
@@ -85,7 +88,7 @@ export function SiteSwitcher() {
               }}
             />
             <p className="mt-2 px-1 text-2xs text-muted-foreground">
-              Assumes a suburban sky (Bortle {site?.bortle ?? 5}). {user ? "Save it under Locations to set its real sky darkness." : "Sign up to save locations with their sky darkness."}
+              Sky darkness is estimated from the 2025 light-pollution atlas; you can change it. {user ? "Save it under Locations to keep it." : "Sign up to save your locations."}
             </p>
           </div>
         )}

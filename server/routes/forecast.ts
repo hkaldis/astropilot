@@ -1,10 +1,10 @@
-/** Public observing-conditions endpoints: forecast, space weather (aurora) and ISS passes. */
+/** Public observing-conditions endpoints: forecast, space weather (aurora) and space-station passes. */
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { HttpError, ah, rateLimit } from "../http";
 import { getForecast } from "../services/forecast";
 import { getSpaceWeather } from "../services/spaceWeather";
-import { getIssPasses } from "../services/satellites";
+import { STATIONS, getStationPasses } from "../services/satellites";
 
 /** Like http.parse, but for schemas whose input (query strings) differs from their output. */
 function parseQuery<S extends z.ZodTypeAny>(schema: S, data: unknown): z.output<S> {
@@ -57,6 +57,7 @@ const forecastQuery = z.object({
   lon: qnum("lon", -180, 180),
   bortle: qnumOpt("bortle", 1, 9),
   units: z.enum(["metric", "imperial"], { message: "units must be metric or imperial" }).optional(),
+  timeFormat: z.enum(["24h", "12h"], { message: "timeFormat must be 24h or 12h" }).optional(),
 });
 
 /** lat/lon are optional for space weather, but must come as a pair. */
@@ -64,11 +65,26 @@ const spaceWeatherQuery = z
   .object({ lat: qnumOpt("lat", -90, 90), lon: qnumOpt("lon", -180, 180) })
   .refine((q) => (q.lat === undefined) === (q.lon === undefined), { message: "Pass both lat and lon, or neither" });
 
-const issQuery = z.object({
-  lat: qnum("lat", -90, 90),
-  lon: qnum("lon", -180, 180),
-  elev: qnumOpt("elev", -500, 9000),
-});
+const stationIds = Object.keys(STATIONS) as [keyof typeof STATIONS, ...(keyof typeof STATIONS)[]];
+/** "iss", "tiangong", "all" or a comma list ("iss,tiangong"). */
+const satParam = (fallback: "iss" | "all") =>
+  z
+    .string({ invalid_type_error: "sat must be a single value" })
+    .trim()
+    .optional()
+    .transform((s) => (!s ? fallback : s.toLowerCase()))
+    .transform((s) => (s === "all" ? [...stationIds] : [...new Set(s.split(",").map((x) => x.trim()))]))
+    .pipe(z.array(z.enum(stationIds, { message: `sat must be one of ${stationIds.join(", ")} or all` })).min(1));
+
+const passesQuery = (fallback: "iss" | "all") =>
+  z.object({
+    lat: qnum("lat", -90, 90),
+    lon: qnum("lon", -180, 180),
+    elev: qnumOpt("elev", -500, 9000),
+    sat: satParam(fallback),
+  });
+const issQuery = passesQuery("iss");
+const stationsQuery = passesQuery("all");
 
 export function registerForecast(app: Express) {
   const limit = (max: number) => rateLimit({ windowMs: 60_000, max, message: "Too many requests — please wait a moment." });
@@ -95,12 +111,25 @@ export function registerForecast(app: Express) {
     }),
   );
 
+  // ISS by default (unchanged behaviour); ?sat=tiangong or ?sat=all for the Chinese station too.
   app.get(
     "/api/iss/passes",
     limit(30),
     handle(async (req, res) => {
       const q = parseQuery(issQuery, req.query);
-      const data = await getIssPasses(q);
+      const data = await getStationPasses(q.sat, q);
+      res.setHeader("Cache-Control", "public, max-age=600");
+      res.json(data);
+    }),
+  );
+
+  // All crewed stations by default, merged and sorted by start time; each pass names its station.
+  app.get(
+    "/api/satellites/passes",
+    limit(30),
+    handle(async (req, res) => {
+      const q = parseQuery(stationsQuery, req.query);
+      const data = await getStationPasses(q.sat, q);
       res.setHeader("Cache-Control", "public, max-age=600");
       res.json(data);
     }),

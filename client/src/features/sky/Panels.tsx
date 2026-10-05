@@ -20,31 +20,38 @@ import {
   X,
 } from "lucide-react";
 import {
+  A,
+  HOUR_MS,
   PLANET_BY_ID,
-  bodyEvents,
   compassPoint,
   formatAngleSize,
+  formatDate,
   formatMag,
+  formatNightDate,
   formatTime,
   moonPhaseName,
   objectTrack,
+  observerOf,
   type NightFrames,
   type NightInfo,
+  type ObjectTrack,
   type Site,
-  type SolarSystemId,
 } from "@shared/astro";
 import { TypeGlyph } from "@/components/common/Glyphs";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { bodyTrack } from "@/features/explore/sky";
+import { horizonClass } from "@/features/object/model";
 import type { Scene } from "./engine";
 import { conName, positionOf, type SkyObject } from "./objects";
 import type { Layers } from "./render";
+import { nightSpan } from "./TimeBar";
 
 // ---------------------------------------------------------------------------------------------
 // Glyphs for kinds TypeGlyph doesn't cover
 // ---------------------------------------------------------------------------------------------
 
-export function SkyGlyph({ glyph, className }: { glyph: string; className?: string }) {
+export function SkyGlyph({ glyph, className, id }: { glyph: string; className?: string; id?: string }) {
   const c = cn("h-5 w-5 shrink-0", className);
   if (glyph === "star")
     return (
@@ -71,7 +78,7 @@ export function SkyGlyph({ glyph, className }: { glyph: string; className?: stri
         ))}
       </svg>
     );
-  return <TypeGlyph type={glyph} className={className} />;
+  return <TypeGlyph type={glyph} id={id} className={className} />;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -96,36 +103,123 @@ interface InfoProps {
   className?: string;
 }
 
-function Fact({ label, value }: { label: ReactNode; value: ReactNode }) {
+function Fact({ label, value, sub }: { label: ReactNode; value: ReactNode; sub?: ReactNode }) {
   return (
     <div className="min-w-0">
       <div className="eyebrow">{label}</div>
       <div className="num mt-0.5 truncate text-sm">{value}</div>
+      {sub && <div className="num truncate text-2xs text-muted-foreground">{sub}</div>}
     </div>
   );
+}
+
+const ms = (x: A.AstroTime | null | undefined) => (x ? x.date.getTime() : null);
+
+/**
+ * The rise and set that frame the night being viewed (`start`–`end`, sunset to sunrise): the rise before or
+ * during it and the set after that — not simply the first of each after noon, which can be that afternoon's set.
+ * Null when the body neither rises nor sets around then (circumpolar, or never up).
+ */
+function riseSetAround(body: A.Body, obs: A.Observer, start: number, end: number) {
+  const from = new Date(start);
+  const prevRise = ms(A.SearchRiseSet(body, obs, +1, from, -1.1));
+  const prevSet = ms(A.SearchRiseSet(body, obs, -1, from, -1.1));
+  const nextRise = ms(A.SearchRiseSet(body, obs, +1, from, 1.1));
+  if (prevRise === null && prevSet === null && nextRise === null) return null;
+  const upAtStart = prevRise !== null && (prevSet === null || prevRise > prevSet);
+  const rise = upAtStart ? prevRise : nextRise;
+  const set = rise === null ? null : ms(A.SearchRiseSet(body, obs, -1, new Date(Math.max(start, rise)), 1.1));
+  return { rise, set, upTonight: upAtStart || (rise !== null && rise < end) };
+}
+
+interface SkyEvents {
+  note: string | null;
+  /** False: the note says it all (never rises, not up tonight). */
+  grid: boolean;
+  rise: number | null;
+  set: number | null;
+  high: number | null;
+  highAlt: number | null;
+  /** Lower culmination, for circumpolar objects. */
+  low: { t: number; alt: number } | null;
+}
+
+/** A catalog object's or star's position as a user-defined astronomy-engine body, for rise/set searches. */
+const FIXED_STAR = A.Body.Star1;
+
+/** Rise, highest point and set of a chart object around the night being viewed. */
+function chartEvents(obj: SkyObject, night: NightInfo, nf: NightFrames, site: Site): SkyEvents | null {
+  if (obj.bodyId === "sun" || obj.kind === "con") return null;
+  const [start, end] = nightSpan(night);
+  const none = { rise: null, set: null, high: null, highAlt: null, low: null };
+  let body: A.Body;
+  let track: ObjectTrack;
+  let cls: ReturnType<typeof horizonClass> = "normal";
+  if (obj.bodyId) {
+    body = PLANET_BY_ID[obj.bodyId].body;
+    track = bodyTrack(obj.bodyId, nf, site, 0);
+  } else {
+    if (obj.ra === undefined || obj.dec === undefined) return null;
+    cls = horizonClass(site.lat, obj.dec);
+    if (cls === "never-rises") return { note: "Never rises from here", grid: false, ...none };
+    A.DefineStar(FIXED_STAR, ((obj.ra % 24) + 24) % 24, obj.dec, 1000);
+    body = FIXED_STAR;
+    track = objectTrack(obj.ra, obj.dec, nf, 0);
+  }
+  const obs = observerOf(site);
+  const rs = cls === "circumpolar" ? null : riseSetAround(body, obs, start, end);
+  const upAtStart = (track.points.find((x) => x.t >= start) ?? track.points[0])?.alt > 0;
+  if (!rs && !upAtStart && cls !== "circumpolar") return { note: "Doesn't rise tonight", grid: false, ...none };
+  if (rs && !rs.upTonight) return { note: "Not up tonight — it's only above the horizon in daylight", grid: false, ...none };
+
+  // Highest: the transit as every page samples it when that falls in the night (so times agree), else the exact one.
+  const from = new Date(rs?.rise ?? night.solarMidnight - 12 * HOUR_MS);
+  const exact = A.SearchHourAngle(body, obs, 0, from, +1);
+  const exactT = exact.time.date.getTime();
+  const sampled = track.transitTime;
+  const high = sampled !== null && sampled >= start && sampled <= end && Math.abs(sampled - exactT) < 30 * 60_000 ? sampled : exactT;
+
+  if (!rs) {
+    // Circumpolar (or, near the poles, a body that doesn't set today): highest and lowest instead of rise and set.
+    const lower = A.SearchHourAngle(body, obs, 12, new Date(night.solarMidnight - 12 * HOUR_MS), +1);
+    return {
+      note: obj.bodyId ? "Above the horizon all day" : "Circumpolar from here — it never sets",
+      grid: true,
+      rise: null,
+      set: null,
+      high,
+      highAlt: exact.hor.altitude,
+      low: { t: lower.time.date.getTime(), alt: lower.hor.altitude },
+    };
+  }
+  const allNight = rs.rise !== null && rs.rise <= start && (rs.set === null || rs.set >= end);
+  return { note: allNight ? "Up all night" : null, grid: true, rise: rs.rise, set: rs.set, high, highAlt: exact.hor.altitude, low: null };
 }
 
 export function InfoPanel(p: InfoProps) {
   const { obj, scene, night, site, tz, hour12 } = p;
   // On phones the card floats over the chart, so the extra detail is one tap away.
   const [more, setMore] = useState(false);
-  const fmt = (ms: number | null | undefined) => formatTime(ms ?? null, { tz, hour12 });
+  const fmt = (t: number | null | undefined) => formatTime(t ?? null, { tz, hour12 });
   const pos = positionOf(obj, scene);
   const body = obj.bodyId && obj.bodyId !== "sun" ? scene.bodies.find((b) => b.id === obj.bodyId) : undefined;
 
-  // Rise / highest / set tonight.
-  const events = useMemo(() => {
-    if (obj.bodyId === "sun") return null;
-    if (obj.bodyId) {
-      const ev = bodyEvents(obj.bodyId as SolarSystemId, night.noon, site);
-      return { rise: ev.rise, set: ev.set, high: ev.transit, highAlt: ev.transitAlt, note: null };
-    }
-    if (obj.ra === undefined || obj.dec === undefined) return null;
-    const tr = objectTrack(obj.ra, obj.dec, p.frames(), 0);
-    const note = tr.maxAlt < 0 && tr.points.every((x) => x.alt < 0) ? "Doesn't rise tonight" : tr.points.every((x) => x.alt > 0) ? "Up all night — never sets" : null;
-    return { rise: tr.riseTime, set: tr.setTime, high: tr.transitTime ?? tr.maxAltTime, highAlt: tr.transitTime ? Math.max(...tr.points.map((x) => x.alt)) : tr.maxAlt, note };
+  // Rise / highest / set around tonight.
+  const events = useMemo(
+    () => chartEvents(obj, night, p.frames(), site),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [obj.ref, night, site.lat, site.lon]);
+    [obj.ref, night, site.lat, site.lon],
+  );
+  // Times outside the night (sunset → sunrise) on another day get their weekday underneath ("10:04", "Tue").
+  const [nightStart, nightEnd] = nightSpan(night);
+  const evening = formatNightDate(night.date, "weekday");
+  const inNight = (t: number | null) => t !== null && t >= nightStart && t <= nightEnd;
+  const dayHint = (t: number | null) => {
+    if (t === null || inNight(t)) return null;
+    const wd = formatDate(t, { tz, style: "weekday" });
+    return wd === evening ? null : wd;
+  };
+  const daylight = (t: number | null) => [dayHint(t), "in daylight"].filter(Boolean).join(" · ");
 
   const up = pos ? pos.alt > 0 : false;
   const desc = obj.dso?.desc ?? (obj.bodyId && obj.bodyId !== "sun" ? PLANET_BY_ID[obj.bodyId].blurb : null);
@@ -147,7 +241,7 @@ export function InfoPanel(p: InfoProps) {
     <section className={cn("panel flex flex-col gap-4 p-4 shadow-lg lg:shadow-none", p.className)} aria-label={`${obj.name} details`}>
       <div className="flex items-start gap-3">
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gold/10 text-gold">
-          <SkyGlyph glyph={obj.glyph} />
+          <SkyGlyph glyph={obj.glyph} id={obj.bodyId} />
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-semibold leading-tight">{obj.name}</h2>
@@ -176,7 +270,12 @@ export function InfoPanel(p: InfoProps) {
               <>
                 <span className="font-semibold">Below the horizon</span>
                 <span className="text-muted-foreground"> · under the {compassPoint(pos.az)}</span>
-                {events?.rise && events.rise > scene.t && <div className="text-xs text-muted-foreground">Rises at {fmt(events.rise)}</div>}
+                {events?.rise && events.rise > scene.t && (
+                  <div className="text-xs text-muted-foreground">
+                    Rises at {fmt(events.rise)}
+                    {dayHint(events.rise) ? ` (${dayHint(events.rise)})` : ""}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -189,27 +288,25 @@ export function InfoPanel(p: InfoProps) {
           <Fact label="Dark from" value={night.darkStart ? fmt(night.darkStart) : "—"} />
           <Fact label="Sunrise" value={fmt(night.sunrise)} />
         </div>
-      ) : events && obj.kind !== "con" && (
-        events.note ? (
-          <p className="text-sm text-muted-foreground">{events.note}</p>
-        ) : (
-          <div className="grid grid-cols-3 gap-3">
-            <Fact label="Rises" value={fmt(events.rise)} />
-            <Fact
-              label="Highest"
-              value={
-                events.high
-                  ? `${fmt(events.high)}${
-                      night.sunset && night.sunrise && (events.high < night.sunset || events.high > night.sunrise)
-                        ? " · daylight"
-                        : events.highAlt !== null && events.highAlt !== undefined
-                          ? ` · ${Math.round(events.highAlt)}°`
-                          : ""
-                    }`
-                  : "—"
-              }
-            />
-            <Fact label="Sets" value={fmt(events.set)} />
+      ) : (
+        events && (
+          <div className="flex flex-col gap-2">
+            {events.note && <p className="text-sm text-muted-foreground">{events.note}</p>}
+            {events.grid && (
+              <div className="grid grid-cols-3 gap-3">
+                {events.low ? null : <Fact label="Rises" value={fmt(events.rise)} sub={dayHint(events.rise)} />}
+                <Fact
+                  label="Highest"
+                  value={fmt(events.high)}
+                  sub={events.high === null ? null : inNight(events.high) ? `${Math.round(events.highAlt ?? 0)}°` : daylight(events.high)}
+                />
+                {events.low ? (
+                  <Fact label="Lowest" value={fmt(events.low.t)} sub={[`${Math.round(events.low.alt)}°`, dayHint(events.low.t)].filter(Boolean).join(" · ")} />
+                ) : (
+                  <Fact label="Sets" value={fmt(events.set)} sub={dayHint(events.set)} />
+                )}
+              </div>
+            )}
           </div>
         )
       )}
@@ -308,14 +405,15 @@ export function UpNow({
   selected: string | null;
   onPick: (ref: string) => void;
 }) {
+  const [nightStart, nightEnd] = nightSpan(night);
+  // The rise and set that frame this night (a set that afternoon, before dark, doesn't count).
   const events = useMemo(() => {
-    const m = new Map<string, { rise: number | null; set: number | null }>();
-    for (const b of scene.bodies) m.set(b.id, bodyEvents(b.id, night.noon, site));
+    const obs = observerOf(site);
+    const m = new Map<string, { rise: number | null; set: number | null } | null>();
+    for (const b of scene.bodies) m.set(b.id, riseSetAround(PLANET_BY_ID[b.id].body, obs, nightStart, nightEnd));
     return m;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [night.noon, site.lat, site.lon]);
-  const nightEnd = night.sunrise ?? night.nextNoon;
-  const nightStart = night.sunset ?? night.noon;
   const belowText = (id: string) => {
     const ev = events.get(id);
     if (ev?.rise && ev.rise > scene.t && ev.rise < nightEnd) return `rises ${formatTime(ev.rise, { tz, hour12 })}`;

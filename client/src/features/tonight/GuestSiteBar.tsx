@@ -37,11 +37,23 @@ export function GuestSiteBar({ site }: { site: ObservingSite }) {
     <div className="flex flex-col gap-3 rounded-xl border bg-surface-2/40 px-4 py-3 text-sm sm:flex-row sm:items-center">
       <MapPinned className="hidden h-5 w-5 shrink-0 text-primary sm:block" />
       <div className="min-w-0 flex-1">
-        <span className="font-medium">How dark is the sky at {site.name}?</span>{" "}
-        <span className="text-muted-foreground">It changes what you can see. Not sure? Suburbs are ~5, rural ~3–4, dark sites 1–2.</span>
+        {site.bortleSource === "atlas" && site.sqm !== null ? (
+          <>
+            <span className="font-medium">Sky darkness at {site.name}: about Bortle {site.bortle}.</span>{" "}
+            <span className="text-muted-foreground">
+              Estimated zenith brightness <span className="num">{site.sqm.toFixed(2)}</span> mag/arcsec² from the{" "}
+              <a href="https://djlorenz.github.io/astronomy/lp/" target="_blank" rel="noreferrer" className="link">2025 light-pollution atlas</a>. Change it if you know your sky better.
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="font-medium">How dark is the sky at {site.name}?</span>{" "}
+            <span className="text-muted-foreground">It changes what you can see. Not sure? Suburbs are ~5, rural ~3–4, dark sites 1–2.</span>
+          </>
+        )}
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <Select value={String(site.bortle)} onValueChange={(v) => setGuestSite({ ...site, bortle: Number(v) })}>
+        <Select value={String(site.bortle)} onValueChange={(v) => setGuestSite({ ...site, bortle: Number(v), sqm: null, bortleSource: "user" })}>
           <SelectTrigger className="h-9 w-[12.5rem]" aria-label="Sky darkness (Bortle class)">
             <SelectValue />
           </SelectTrigger>

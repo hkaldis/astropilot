@@ -23,7 +23,7 @@
  */
 import { DEG, clamp } from "./core";
 import { EXTINCTION_V, moonSkyNL, skyBrightnessAt, sqmForBortle } from "./visibility";
-import type { DewRisk, Verdict } from "../forecast";
+import type { Confidence, DewRisk, FogRisk, Verdict } from "../forecast";
 
 const num =(x: number | null | undefined, fallback: number) => (x === null || x === undefined || !Number.isFinite(x) ? fallback : x);
 
@@ -62,6 +62,9 @@ export const CONDITIONS_EXPLAINED = {
   moon: "Moonlight brightens the whole sky (Krisciunas–Schaefer model): it hurts faint galaxies and nebulae, not planets, the Moon itself or double stars. The darker your site, the more it costs.",
   twilight: "Deep-sky needs astronomical darkness (Sun 18° below the horizon); planets are fine once the Sun is 8° down.",
   dew: "Dew forms when optics cool below the dew point — likeliest on clear, calm, humid nights.",
+  fog: "Fog and low cloud can form on calm, humid nights even when the models show a clear sky — likeliest once the air is within 1–2 °C of its dew point.",
+  confidence:
+    "The main forecast is compared with three independent global models (ECMWF, GFS and ICON). When they disagree about the cloud, the forecast is less certain — check again closer to the time.",
   scores:
     "Each score multiplies cloud, rain chance, wind shake and darkness by a quality term from transparency and seeing. Deep-sky also counts the Moon and light pollution; planets mostly care about seeing.",
 } as const;
@@ -274,7 +277,11 @@ export const TRANSPARENCY_MODEL = {
   fogMag: 1.0,
   /** Visibility only counts at or above this humidity (%) unless CAMS AOD is missing. */
   fogMinRh: 93,
-  /** Weight of 7Timer's transparency class (mapped to 1..5) when available. */
+  /**
+   * Weight of 7Timer's transparency (as extinction) — only when CAMS AOD is missing. 7Timer is a
+   * humidity-based GFS index that sits at class 2 (0.3–0.4 mag/airmass) on most clear nights even
+   * where CAMS measures a clean sky (k ≈ 0.2), so it would drag a physical estimate down by a class.
+   */
   sevenTimerWeight: 0.25,
 } as const;
 
@@ -288,8 +295,12 @@ export const TRANSPARENCY_SCALE_KNOTS = [
   [0.85, 1],
 ] as const;
 
-/** 7Timer ASTRO transparency classes 1..8 (<0.3 … >1 mag/airmass) → this 1..5 scale. */
-export const SEVEN_TIMER_TRANSPARENCY_VALUE = [NaN, 5, 4.5, 3.8, 3.2, 2.6, 2.0, 1.5, 1.0] as const;
+/**
+ * 7Timer ASTRO transparency classes 1..8 → representative V extinction (mag/airmass), from the
+ * documented bins 1: <0.3, 2: 0.3–0.4, 3: 0.4–0.5, 4: 0.5–0.6, 5: 0.6–0.7, 6: 0.7–0.85,
+ * 7: 0.85–1, 8: >1 (www.7timer.info/doc.php). They go through the same k → 1..5 scale as ours.
+ */
+export const SEVEN_TIMER_TRANSPARENCY_K = [NaN, 0.24, 0.35, 0.45, 0.55, 0.65, 0.775, 0.925, 1.1] as const;
 
 export interface TransparencyInput {
   humidity: number; // % at 2 m
@@ -297,7 +308,7 @@ export interface TransparencyInput {
   aod: number | null; // aerosol optical depth at 550 nm
   visibility: number | null; // m
   elevation?: number | null; // site elevation, m
-  sevenTimer?: number | null; // 7Timer ASTRO transparency class 1..8
+  sevenTimer?: number | null; // 7Timer ASTRO transparency class 1..8 (only used when aod is missing)
 }
 
 export interface TransparencyEstimate {
@@ -328,12 +339,12 @@ export function estimateTransparency(i: TransparencyInput): TransparencyEstimate
         ? T.hazeVisibilityMag + (T.fogMag - T.hazeVisibilityMag) * (1 - v / 1000)
         : T.hazeVisibilityMag * clamp(Math.log10(T.hazeVisibility / v) / Math.log10(T.hazeVisibility / 1000), 0, 1);
   }
-  const extinction = rayleigh + T.ozone + T.aodToMag * aod + mist + cirrus + haze;
-  let value = interpKnots(extinction, TRANSPARENCY_SCALE_KNOTS);
+  let extinction = rayleigh + T.ozone + T.aodToMag * aod + mist + cirrus + haze;
   const cls = i.sevenTimer;
-  if (cls !== null && cls !== undefined && Number.isInteger(cls) && cls >= 1 && cls <= 8) {
-    value = (1 - T.sevenTimerWeight) * value + T.sevenTimerWeight * SEVEN_TIMER_TRANSPARENCY_VALUE[cls];
+  if (!hasAod && cls !== null && cls !== undefined && Number.isInteger(cls) && cls >= 1 && cls <= 8) {
+    extinction = (1 - T.sevenTimerWeight) * extinction + T.sevenTimerWeight * SEVEN_TIMER_TRANSPARENCY_K[cls];
   }
+  const value = interpKnots(extinction, TRANSPARENCY_SCALE_KNOTS);
   return { extinction, value, scale: clamp(Math.round(value), 1, 5), aodUsed: aod };
 }
 
@@ -359,6 +370,158 @@ export function dewRisk(temp: number, dewPoint: number, wind: number, cloud?: nu
   if (spread <= D.high) return "high";
   if (spread <= D.moderate) return "moderate";
   return "low";
+}
+
+// =====================================================================================
+// Fog and low cloud
+// =====================================================================================
+
+/**
+ * Radiation fog and low stratus form on clear, calm, humid nights — exactly the nights observers
+ * want — and model cloud fields often miss them (shallow fog lives below the model's resolution).
+ * Risk from the 2 m dew-point spread (T − Td) and 10 m wind, or the model's own visibility:
+ *   high:     visibility < 1 km with spread ≤ 2 °C, or spread ≤ 1 °C with wind ≤ 10 km/h
+ *   moderate: visibility < 5 km with spread ≤ 3 °C, or spread ≤ 2.5 °C with wind ≤ 15 km/h
+ * Wind keeps the air mixed (and fog off the ground), so a breezy saturated night counts as mist
+ * at most.
+ */
+export const FOG_MODEL = {
+  highSpread: 1,
+  moderateSpread: 2.5,
+  calmWind: 10,
+  lightWind: 15,
+  fogVisibility: 1000,
+  fogVisibilitySpread: 2,
+  mistVisibility: 5000,
+  mistVisibilitySpread: 3,
+} as const;
+
+export function fogRisk(temp: number, dewPoint: number, wind: number, visibility?: number | null): FogRisk {
+  const F = FOG_MODEL;
+  const spread = Math.max(0, num(temp, 10) - num(dewPoint, 0));
+  const w = Math.max(0, num(wind, 10));
+  const vis = visibility === null || visibility === undefined || !Number.isFinite(visibility) ? Infinity : visibility;
+  if ((vis < F.fogVisibility && spread <= F.fogVisibilitySpread) || (spread <= F.highSpread && w <= F.calmWind)) return "high";
+  if ((vis < F.mistVisibility && spread <= F.mistVisibilitySpread) || (spread <= F.moderateSpread && w <= F.lightWind)) return "moderate";
+  return "low";
+}
+
+// =====================================================================================
+// Hour slots from hourly model output
+// =====================================================================================
+
+/**
+ * Open-Meteo's hourly values are either instantaneous at the hour mark (cloud, temperature,
+ * humidity, wind, visibility, upper air) or aggregates over the *preceding* hour (gusts,
+ * precipitation probability). An hour slot [t, t + 1 h] is described by the mean of the instants
+ * at t and t + 1 h (the value at mid-slot) and by the aggregate stamped t + 1 h.
+ */
+export function slotInstant(atStart: number | null | undefined, atEnd: number | null | undefined): number | null {
+  const a = atStart === null || atStart === undefined || !Number.isFinite(atStart) ? null : atStart;
+  const b = atEnd === null || atEnd === undefined || !Number.isFinite(atEnd) ? null : atEnd;
+  if (a === null) return b;
+  if (b === null) return a;
+  return (a + b) / 2;
+}
+
+export function slotPreceding(atStart: number | null | undefined, atEnd: number | null | undefined): number | null {
+  if (atEnd !== null && atEnd !== undefined && Number.isFinite(atEnd)) return atEnd;
+  return atStart !== null && atStart !== undefined && Number.isFinite(atStart) ? atStart : null;
+}
+
+/** Mid-slot wind as the mean of the two wind vectors (directions in degrees, "blowing from"). */
+export function slotWind(
+  a: { speed: number | null; dir: number | null },
+  b: { speed: number | null; dir: number | null },
+): { speed: number | null; dir: number | null } {
+  const ok = (w: { speed: number | null; dir: number | null }) => w.speed !== null && w.dir !== null && Number.isFinite(w.speed) && Number.isFinite(w.dir);
+  if (!ok(a)) return ok(b) ? b : { speed: a.speed ?? b.speed, dir: a.dir ?? b.dir };
+  if (!ok(b)) return a;
+  const vec = (w: { speed: number | null; dir: number | null }) => [(w.speed as number) * Math.sin((w.dir as number) * DEG), (w.speed as number) * Math.cos((w.dir as number) * DEG)];
+  const [ua, va] = vec(a);
+  const [ub, vb] = vec(b);
+  const u = (ua + ub) / 2;
+  const v = (va + vb) / 2;
+  const speed = Math.hypot(u, v);
+  return { speed, dir: speed < 1e-9 ? (a.dir as number) : ((Math.atan2(u, v) / DEG) % 360 + 360) % 360 };
+}
+
+// =====================================================================================
+// Forecast confidence from model agreement
+// =====================================================================================
+
+/**
+ * Deterministic models that disagree about cloud are the clearest warning that a forecast may
+ * not hold. Per hour, each model's effective cloud is turned into how usable the hour is,
+ *   u = clamp((cloudFactor(eff) − usableFloor) / (1 − usableFloor), 0, 1),
+ * so that 70 % and 95 % cloud — both not worth setting up for — count as agreement. Each
+ * independent model's disagreement with the main forecast is the window-weighted mean of
+ * |u_model − u_main| hour by hour, so it catches timing as well as amount:
+ *   every model ≤ agree → "high";
+ *   at least two models (or the only one) > dissent → "low" (one outlier among several is "medium");
+ *   otherwise "medium".
+ * More than longLeadHours ahead the answer is never "high" (cloud skill fades after ~4 days).
+ * A model is "cloudier"/"clearer" than the main forecast when its mean u differs by more than
+ * `bias`.
+ */
+export const CONFIDENCE_MODEL = { usableFloor: 0.2, agree: 0.15, dissent: 0.35, longLeadHours: 96, bias: 0.15, minCoverage: 0.5 } as const;
+
+/** 0..1: how usable an hour with this effective cloud (%) is, for model comparison. */
+export function usableSky(effCloudPct: number): number {
+  const floor = CONFIDENCE_MODEL.usableFloor;
+  return clamp((cloudFactor(effCloudPct) - floor) / (1 - floor), 0, 1);
+}
+
+export interface AgreementHour {
+  weight: number; // fraction of the hour inside the window (0..1)
+  effCloud: (number | null | undefined)[]; // effective cloud % per model; index 0 = the main forecast
+}
+
+export interface Agreement {
+  confidence: Confidence;
+  spread: number; // 0..1, window mean of the per-hour range of usableSky across all models
+  disagreement: (number | null)[]; // per model: window mean of |u − u_main| (index 0 = main = 0); null if missing
+  bias: (number | null)[]; // per model: mean usableSky − the main forecast's (positive = clearer); null if missing
+  cappedByLead: boolean; // would have been "high" but the night is too far ahead
+  models: number; // models with data (incl. the main forecast)
+}
+
+export function cloudAgreement(hours: AgreementHour[], leadHours = 0): Agreement | null {
+  const C = CONFIDENCE_MODEL;
+  const nModels = Math.max(0, ...hours.map((h) => h.effCloud.length));
+  const valid = (x: number | null | undefined): x is number => x !== null && x !== undefined && Number.isFinite(x);
+  let wSum = 0;
+  let wAll = 0;
+  let spreadSum = 0;
+  const uSum = new Array<number>(nModels).fill(0);
+  const dSum = new Array<number>(nModels).fill(0);
+  const uW = new Array<number>(nModels).fill(0);
+  for (const h of hours) {
+    if (!(h.weight > 0)) continue;
+    wAll += h.weight;
+    const u = h.effCloud.map((e) => (valid(e) ? usableSky(e) : null));
+    const present = u.filter((x): x is number => x !== null);
+    if (u[0] === null || present.length < 2) continue;
+    wSum += h.weight;
+    spreadSum += h.weight * (Math.max(...present) - Math.min(...present));
+    u.forEach((x, i) => {
+      if (x !== null) {
+        uSum[i] += h.weight * x;
+        dSum[i] += h.weight * Math.abs(x - (u[0] as number));
+        uW[i] += h.weight;
+      }
+    });
+  }
+  if (wAll <= 0 || wSum < C.minCoverage * wAll) return null;
+  const mean = uSum.map((s, i) => (uW[i] > 0 ? s / uW[i] : null));
+  const disagreement = dSum.map((s, i) => (uW[i] > 0 ? s / uW[i] : null));
+  const bias = mean.map((m) => (m === null || mean[0] === null ? null : m - (mean[0] as number)));
+  const others = disagreement.slice(1).filter((d): d is number => d !== null);
+  const dissenters = others.filter((d) => d > C.dissent).length;
+  let confidence: Confidence = others.every((d) => d <= C.agree) ? "high" : dissenters >= Math.min(2, others.length) ? "low" : "medium";
+  const cappedByLead = confidence === "high" && leadHours > C.longLeadHours;
+  if (cappedByLead) confidence = "medium";
+  return { confidence, spread: spreadSum / wSum, disagreement, bias, cappedByLead, models: mean.filter((m) => m !== null).length };
 }
 
 // =====================================================================================
@@ -542,8 +705,11 @@ export function nightScore(hours: WeightedScore[]): number {
   return Math.round(NIGHT_MODEL.meanWeight * mean + NIGHT_MODEL.bestWeight * best);
 }
 
-/** Minimum score for each verdict. */
-export const VERDICT_THRESHOLDS = { excellent: 80, good: 65, fair: 45, poor: 25 } as const;
+/**
+ * Minimum score for each verdict — the same bands as the UI's qualityOf() and score colours
+ * (client/src/lib/objects.ts), so a night's words and its colour always agree.
+ */
+export const VERDICT_THRESHOLDS = { excellent: 80, good: 62, fair: 42, poor: 22 } as const;
 
 export function verdictOf(score: number): Verdict {
   const v = VERDICT_THRESHOLDS;

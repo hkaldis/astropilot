@@ -167,8 +167,11 @@ export async function getSpaceWeather(q: { lat?: number; lon?: number } = {}): P
   const next = pts.filter((p) => p.t + 3 * HOUR_MS > now && p.t < now + 24 * HOUR_MS);
   const kpMax24h = next.length ? Math.max(...next.map((p) => p.kp)) : kpNow;
   const gm = q.lat !== undefined && q.lon !== undefined ? geomagneticLatitude(q.lat, q.lon) : null;
-  const { likely, note } = auroraNote(kpMax24h, gm);
-  const edge = ovalEdge(kpMax24h);
+  // "Tonight" includes right now: judge by the larger of the current and the forecast Kp, so the note
+  // never calls an active Kp 4 "quiet".
+  const kpTonight = Math.max(kpNow, kpMax24h);
+  const { likely, note } = auroraNote(kpTonight, gm);
+  const edge = ovalEdge(kpTonight);
   return {
     kpNow,
     kpMax24h,

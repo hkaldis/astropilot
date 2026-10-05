@@ -54,7 +54,7 @@ export function ScopePrompt() {
             )}
           </div>
         </div>
-        <Button variant="ghost" size="icon-sm" aria-label="Keep the 8-inch Dobsonian" onClick={finish}>
+        <Button variant="ghost" size="icon-sm" aria-label={`Dismiss and keep ${scope.scope.name}`} onClick={finish}>
           <X />
         </Button>
       </div>

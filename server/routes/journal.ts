@@ -26,8 +26,9 @@ import {
   type ObservationSession,
 } from "@shared/schema";
 import type { ApiObservation, ApiSession, JournalStats, SessionConditions } from "@shared/api";
+import { evaluateAchievements, type AchievementEvent } from "@shared/achievements";
 import { SOLAR_SYSTEM } from "@shared/astro/planets";
-import { solarDateOf } from "@shared/astro/night";
+import { nightDateOf } from "@shared/astro/night";
 import { A } from "@shared/astro/core";
 import { ah, parse, requireAuth, userId, idParam, HttpError, rateLimit } from "../http";
 import { catalog, resolveRef, ensureObjectRow, legacyRef, type CatalogEntry } from "../catalog";
@@ -217,7 +218,7 @@ function formatterFor(tz: string, withTime: boolean): Intl.DateTimeFormat | null
 
 function nightKey(ms: number, lon: number | null | undefined, tz: string | null | undefined): string {
   const t = ms - 12 * HOUR;
-  if (lon !== null && lon !== undefined && Number.isFinite(lon)) return solarDateOf(t, lon);
+  if (lon !== null && lon !== undefined && Number.isFinite(lon)) return nightDateOf(ms, { lat: 0, lon, timezone: tz });
   const f = tz ? formatterFor(tz, false) : null; // invalid zone: fall through to UTC
   if (f) return f.format(t);
   return new Date(t).toISOString().slice(0, 10);
@@ -488,22 +489,35 @@ async function computeStats(uid: string): Promise<JournalStats> {
   const span = new Map<number, { min: number; max: number }>();
   const seen = new Map<string, ObjectInfo>();
   const months = new Map<string, number>();
+  const events: AchievementEvent[] = [];
   for (const o of obsRows) {
     const s = sessionsById.get(o.sessionId);
     const t = (o.observedAt ?? s?.date)?.getTime();
-    if (t !== undefined) {
-      const sp = span.get(o.sessionId);
-      if (!sp) span.set(o.sessionId, { min: t, max: t });
-      else {
-        sp.min = Math.min(sp.min, t);
-        sp.max = Math.max(sp.max, t);
-      }
-      const month = nightKey(t, s?.lon, s?.tz).slice(0, 7);
-      months.set(month, (months.get(month) ?? 0) + 1);
-    }
     const info = describeObject(o.catalogRef, { catalogId: o.catalogId, name: o.name, category: o.category });
     const key = objectKey(info, o.objectId);
     if (!seen.has(key)) seen.set(key, info);
+    if (t === undefined) continue;
+    const sp = span.get(o.sessionId);
+    if (!sp) span.set(o.sessionId, { min: t, max: t });
+    else {
+      sp.min = Math.min(sp.min, t);
+      sp.max = Math.max(sp.max, t);
+    }
+    const night = nightKey(t, s?.lon, s?.tz);
+    months.set(night.slice(0, 7), (months.get(night.slice(0, 7)) ?? 0) + 1);
+    const e = info.ref && !SOLAR_IDS.has(info.ref.toLowerCase()) ? catalogEntry(info.ref) : undefined;
+    events.push({
+      t,
+      sessionId: o.sessionId,
+      night,
+      key,
+      ref: info.ref,
+      type: info.type,
+      m: e?.m,
+      c: e?.c,
+      showpiece: e?.showpiece === true,
+      dec: e?.dec,
+    });
   }
 
   let hours = 0;
@@ -572,6 +586,7 @@ async function computeStats(uid: string): Promise<JournalStats> {
     caldwellSeen: Array.from(caldwell).sort((a, b) => a - b),
     planetsSeen: planets.sort((a, b) => planetOrder.indexOf(a) - planetOrder.indexOf(b)),
     perMonth,
+    achievements: evaluateAchievements(events),
   };
 }
 

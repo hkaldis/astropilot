@@ -1,4 +1,6 @@
 /** API contracts shared by server and client (AstroPilot 2). */
+import type { Achievement } from "./achievements";
+export type { Achievement, Tier as AchievementTier } from "./achievements";
 
 export interface Preferences {
   units?: "metric" | "imperial";
@@ -188,6 +190,17 @@ export interface JournalStats {
   caldwellSeen: number[];
   planetsSeen: string[];
   perMonth: { month: string; observations: number }[]; // last 12 months, "YYYY-MM"
+  achievements: Achievement[];
+}
+
+/** Light-pollution estimate for a point (GET /api/geo/sky-brightness). */
+export interface SkyBrightnessEstimate {
+  sqm: number; // estimated zenith sky brightness, mag/arcsec²
+  ratio: number; // artificial / natural zenith brightness
+  bortle: number; // approximate Bortle class derived from the zenith brightness
+  source: string;
+  attribution: string;
+  url: string;
 }
 
 /** An observing site resolved on the client (saved location or a guest location). */
@@ -201,4 +214,6 @@ export interface ObservingSite {
   timezone: string | null;
   bortle: number;
   sqm: number | null;
+  /** Where the sky darkness came from (guest sites): the light-pollution atlas, the user, or a default. */
+  bortleSource?: "atlas" | "user" | "default";
 }

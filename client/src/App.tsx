@@ -1,5 +1,5 @@
 import { lazy, Suspense, Component, type ReactNode } from "react";
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/api";
 import { Toaster } from "@/components/ui/toaster";
@@ -34,7 +34,12 @@ function PageFallback() {
   );
 }
 
-class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+/**
+ * Catches render errors below it. `fullPage` is the last line of defence around the whole app (top bar,
+ * navigation, providers); the one inside the shell keeps a broken page from taking the navigation with it,
+ * and clears itself when you navigate elsewhere (`resetKey`).
+ */
+class ErrorBoundary extends Component<{ children: ReactNode; fullPage?: boolean; resetKey?: string }, { error: Error | null }> {
   state = { error: null as Error | null };
   static getDerivedStateFromError(error: Error) {
     return { error };
@@ -42,22 +47,33 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   componentDidCatch(error: Error) {
     console.error(error);
   }
+  componentDidUpdate(prev: { resetKey?: string }) {
+    if (this.state.error && prev.resetKey !== this.props.resetKey) this.setState({ error: null });
+  }
   render() {
-    if (this.state.error)
-      return (
-        <div className="mx-auto max-w-md py-24 text-center">
-          <h1 className="font-display text-3xl">Something went sideways</h1>
-          <p className="mt-2 text-sm text-muted-foreground">An unexpected error stopped this page. Reloading usually fixes it.</p>
-          <Button className="mt-6" onClick={() => location.reload()}>
-            Reload
-          </Button>
+    if (!this.state.error) return this.props.children;
+    const message = (
+      <div className="mx-auto max-w-md px-4 py-24 text-center">
+        <h1 className="font-display text-3xl">Something went sideways</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {this.props.fullPage ? "An unexpected error stopped AstroPilot." : "An unexpected error stopped this page."} Reloading usually fixes it.
+        </p>
+        <div className="mt-6 flex justify-center gap-2">
+          <Button onClick={() => location.reload()}>Reload</Button>
+          {this.props.fullPage && (
+            <Button asChild variant="outline">
+              <a href="/">Go to Tonight</a>
+            </Button>
+          )}
         </div>
-      );
-    return this.props.children;
+      </div>
+    );
+    return this.props.fullPage ? <main className="min-h-dvh bg-background text-foreground">{message}</main> : message;
   }
 }
 
 function Routes() {
+  const [path] = useLocation();
   return (
     <Switch>
       <Route path="/login">{() => <Auth mode="login" />}</Route>
@@ -65,7 +81,7 @@ function Routes() {
       <Route>
         {() => (
           <AppShell>
-            <ErrorBoundary>
+            <ErrorBoundary resetKey={path}>
               <Suspense fallback={<PageFallback />}>
                 <Switch>
                   <Route path="/" component={Tonight} />
@@ -109,15 +125,17 @@ function Routes() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider delayDuration={250}>
-        <SiteProvider>
-          <Suspense fallback={null}>
-            <Routes />
-          </Suspense>
-          <Toaster />
-        </SiteProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary fullPage>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={250}>
+          <SiteProvider>
+            <Suspense fallback={null}>
+              <Routes />
+            </Suspense>
+            <Toaster />
+          </SiteProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

@@ -24,6 +24,11 @@ async function loadJson(name: string): Promise<unknown | null> {
   return mod && typeof mod === "object" && "default" in mod ? mod.default : mod;
 }
 
+/** Fetch every chart data chunk (so the service worker has them for offline use). */
+export function preloadSkyData() {
+  return Promise.allSettled(Object.values(FILES).map((load) => load()));
+}
+
 const num = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
 
 // ---------------------------------------------------------------------------------------------

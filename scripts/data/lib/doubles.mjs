@@ -4,7 +4,7 @@
 // d3-celestial stars/starnames (HIP number, proper names, Bayer & Flamsteed designations), matched
 // by position to each WDS primary and to each companion's position computed from (sep, PA).
 import { cached, separationDeg, round, SUPERSCRIPT } from './common.mjs';
-import { DOUBLE_STARS, DOUBLE_EPOCH, M40_PAIR, TRAPEZIUM } from '../curation.mjs';
+import { DOUBLE_STARS, DOUBLE_EPOCH, M40_PAIR } from '../curation.mjs';
 
 const WDS_URL = 'https://www.astro.gsu.edu/wds/Webtextfiles/wdsweb_summ2.txt';
 const ORB6_EPHEM_URL = 'https://www.astro.gsu.edu/wds/orb6/orb6ephem.txt';
@@ -62,7 +62,7 @@ const fmtSep = (s) => (s < 10 ? String(round(s, 2)) : String(round(s, 1)));
 export async function buildDoubleStars({ findCon, CON_NAME, CON_GEN }) {
   const notes = [];
   // ---- WDS summary (only the systems we need)
-  const wanted = new Set([...DOUBLE_STARS.map((d) => d.wds), M40_PAIR.wds, TRAPEZIUM.wds]);
+  const wanted = new Set([...DOUBLE_STARS.map((d) => d.wds), M40_PAIR.wds]);
   const wdsLines = new Map();
   for (const l of (await cached('wds-wdsweb_summ2.txt', WDS_URL)).split(/\r?\n/)) {
     const id = l.slice(0, 10);
@@ -75,6 +75,18 @@ export async function buildDoubleStars({ findCon, CON_NAME, CON_GEN }) {
     if (!hit) throw new Error(`WDS ${wds} ${disc} ${comp} not found`);
     if (hit.sepLast == null || hit.paLast == null || hit.m1 == null || hit.m2 == null) throw new Error(`WDS ${wds} ${disc} ${comp} incomplete`);
     return hit;
+  };
+
+  /** Component letters of a WDS pair: "AB" -> [A, B], "A,BC" -> [A, BC], "" -> [A, B]. */
+  const compLetters = (comp) => (comp.includes(',') ? comp.split(',') : comp.length === 2 ? [comp[0], comp[1]] : ['A', 'B']);
+  /** The pair with SIMBAD V magnitudes substituted for components listed in `starMags` (see curation.mjs). */
+  const withStarMags = (d, p) => {
+    if (!d.starMags) return p;
+    const [c1, c2] = compLetters(p.comp);
+    const out = { ...p };
+    if (d.starMags[c1]) { notes.push(`  MAG ${d.id} ${c1}: WDS ${p.m1} -> ${d.starMags[c1][0]} (SIMBAD V, ${d.starMags[c1][1]})`); out.m1 = d.starMags[c1][0]; }
+    if (d.starMags[c2]) { notes.push(`  MAG ${d.id} ${c2}: WDS ${p.m2} -> ${d.starMags[c2][0]} (SIMBAD V, ${d.starMags[c2][1]})`); out.m2 = d.starMags[c2][0]; }
+    return out;
   };
 
   // ---- ORB6 ephemerides (θ, ρ tabulated for 5 years) and orbits (period, grade)
@@ -168,7 +180,7 @@ export async function buildDoubleStars({ findCon, CON_NAME, CON_GEN }) {
   // ---- Build the double-star entries
   const objects = [];
   for (const d of DOUBLE_STARS) {
-    const p = pair(d.wds, d.pair[0], d.pair[1]);
+    const p = withStarMags(d, pair(d.wds, d.pair[0], d.pair[1]));
     const pos = parsePreciseCoords(p.coords);
     if (!pos) throw new Error(`${d.id}: no WDS precise coordinates`);
     const con = findCon(pos.ra, pos.dec);
@@ -193,7 +205,8 @@ export async function buildDoubleStars({ findCon, CON_NAME, CON_GEN }) {
     const add = (x) => { if (x && !desig.some((y) => y.toLowerCase() === x.toLowerCase())) desig.push(x); };
     add(d.name);
     (d.aliases || []).forEach(add);
-    ids.names.forEach(add);
+    // d3-celestial attaches a few wrong or obscure names to these stars (curation.mjs `dropNames`).
+    ids.names.filter((n) => !(d.dropNames || []).includes(n)).forEach(add);
     ids.bayer.forEach(add);
     ids.flam.forEach(add);
     add(displayCode(p.disc));
@@ -203,7 +216,7 @@ export async function buildDoubleStars({ findCon, CON_NAME, CON_GEN }) {
 
     const ps = pairSentence(p, { subject: d.subject || (d.pairLabel ? `${d.pairLabel}'s components` : 'Its components') });
     let desc = `${d.note} ${ps.text}`;
-    for (const e of d.extras || []) desc += ` ${e.text(...e.pairs.map(([disc, comp]) => extraVals(pair(d.wds, disc, comp))))}`;
+    for (const e of d.extras || []) desc += ` ${e.text(...e.pairs.map(([disc, comp]) => extraVals(withStarMags(d, pair(d.wds, disc, comp)))))}`;
 
     objects.push({
       id: d.id, name: d.name, designations: desig, type: 'double_star',
@@ -218,13 +231,6 @@ export async function buildDoubleStars({ findCon, CON_NAME, CON_GEN }) {
   const m40s = pairSentence(m40);
   const fields = { M40: { mag: round(m40.m1, 2), sep: m40s.sep, mag2: round(m40.m2, 2), pa: m40s.pa } };
   const descExtras = { M40: m40s.text };
-
-  // ---- M42: the Trapezium (θ¹ Orionis)
-  const tp = TRAPEZIUM.pairs.map((c) => pair(TRAPEZIUM.wds, TRAPEZIUM.disc, c));
-  const starMag = { A: tp[0].m1, B: tp[0].m2, C: tp[1].m2, D: tp[2].m2 };
-  const mags = Object.values(starMag);
-  const maxSep = Math.max(...tp.map((x) => x.sepLast));
-  descExtras.M42 = `At its heart lies the Trapezium (θ¹ Orionis): four stars of magnitude ${fmtMag(Math.min(...mags))}–${fmtMag(Math.max(...mags))} within about ${Math.round(maxSep)}″ of one another, easily split in small telescopes.`;
 
   notes.unshift(`Double stars (${objects.length}; orbit epoch ${DOUBLE_EPOCH}):`);
   return { objects, fields, descExtras, notes };

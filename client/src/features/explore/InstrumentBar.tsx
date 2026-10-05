@@ -18,8 +18,37 @@ export function scopeLabel(s: ActiveScopeState): string {
   return s.scope.name;
 }
 
-export function skyLabel(ctx: NightContext): string {
-  return ctx.sqmMeasured ? `SQM ${ctx.sqm.toFixed(2)}` : `Bortle ${ctx.bortle}`;
+/** "a" or "an" by how the next word sounds, numbers included: an 8″, an 80 mm, an 11×80, a 12″, a 10×50, an SCT. */
+export function article(word: string): "a" | "an" {
+  const w = word.trim();
+  const digits = /^\d+/.exec(w)?.[0];
+  // Spoken "eight…", "eleven…", "eighteen…" (also eleven/eighteen hundred or thousand).
+  if (digits) return digits[0] === "8" || ((digits.length % 3 === 2 || digits.length === 4) && /^1[18]/.test(digits)) ? "an" : "a";
+  if (/^[A-Z]{2,}/.test(w)) return /^[AEFHILMNORSX]/.test(w) ? "an" : "a"; // acronyms are spelled out
+  if (/^(uni|use|usu|uti|eu|one|once)/i.test(w)) return "a";
+  return /^([aeiou]|hour|honou?r|honest)/i.test(w) ? "an" : "a";
+}
+
+/** The instrument as a noun phrase: "the naked eye", "10×50 binoculars", "a 12″ Dobsonian", "your Skywatcher 200P". */
+export function instrumentPhrase(s: Pick<ActiveScopeState, "kind" | "source" | "scope">): string {
+  if (s.kind === "eye") return "the naked eye";
+  if (s.source === "gear") return `your ${s.scope.name}`;
+  if (s.kind === "binoculars") return s.scope.name;
+  return `${article(s.scope.name)} ${s.scope.name}`;
+}
+
+/** "SQM 21.30" (a meter reading), "SQM ≈17.0" (the light-pollution atlas's estimate) or "Bortle 5" (typical for the class). */
+export function skyLabel(ctx: Pick<NightContext, "sqm" | "sqmSource" | "bortle">): string {
+  if (ctx.sqmSource === "measured") return `SQM ${ctx.sqm.toFixed(2)}`;
+  if (ctx.sqmSource === "atlas") return `SQM ≈${ctx.sqm.toFixed(1)}`;
+  return `Bortle ${ctx.bortle}`;
+}
+
+/** Where the sky brightness comes from, for footnotes: "your measured SQM 21.30", "the light-pollution atlas (SQM ≈17.0)", "the Bortle 5 class". */
+export function skySourcePhrase(ctx: Pick<NightContext, "sqm" | "sqmSource" | "bortle">): string {
+  if (ctx.sqmSource === "measured") return `your measured SQM of ${ctx.sqm.toFixed(2)}`;
+  if (ctx.sqmSource === "atlas") return `the light-pollution atlas's estimate for this place (SQM ≈${ctx.sqm.toFixed(1)}, about Bortle ${ctx.bortle})`;
+  return `the Bortle ${ctx.bortle} class of this location`;
 }
 
 /** Popover to switch the instrument everything is ranked for. */
@@ -139,9 +168,18 @@ export function InstrumentBar({ scope, ctx, className }: { scope: ActiveScopeSta
                 </span>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
-                <div className="font-medium">{b.label}</div>
+                <div className="font-medium">
+                  {ctx.sqmSource === "atlas" ? `About Bortle ${ctx.bortle} · ` : ""}
+                  {b.label}
+                </div>
                 <div className="text-muted-foreground">{b.description}</div>
-                <div className="num mt-1 text-muted-foreground">Zenith sky {ctx.sqm.toFixed(2)} mag/arcsec²{ctx.sqmMeasured ? " (measured)" : " (typical for this Bortle class)"}</div>
+                <div className="num mt-1 text-muted-foreground">
+                  {ctx.sqmSource === "measured"
+                    ? `Zenith sky ${ctx.sqm.toFixed(2)} mag/arcsec² (measured)`
+                    : ctx.sqmSource === "atlas"
+                      ? `Zenith sky ≈${ctx.sqm.toFixed(1)} mag/arcsec², estimated from the light-pollution atlas`
+                      : `Zenith sky ${ctx.sqm.toFixed(2)} mag/arcsec² (typical for this Bortle class)`}
+                </div>
               </TooltipContent>
             </Tooltip>
             <span className="hidden text-muted-foreground sm:inline" aria-hidden="true">

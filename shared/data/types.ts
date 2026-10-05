@@ -34,7 +34,16 @@ export interface CatalogObject {
   mag?: number;
   /** true when `mag` is a B (blue) magnitude */
   magB?: boolean;
-  /** Major (and minor) axis in arcminutes */
+  /**
+   * Set when `mag` is not the brightness of the nebulosity itself: "star" = the illuminating star's magnitude
+   * (e.g. IC 4604, NGC 7023), "cluster" = the embedded star cluster's (every cluster_nebula except M42, e.g. M16).
+   * The nebula is much fainter than such a magnitude suggests.
+   */
+  magOf?: 'star' | 'cluster';
+  /**
+   * Major (and minor) axis in arcminutes: the commonly quoted visual dimensions (SEDS for Messier objects,
+   * Wikipedia / NGC 2000.0 / OpenNGC otherwise; galaxies use isophotal D25 diameters — see README).
+   */
   size?: [number, number] | [number];
   /**
    * Surface brightness in mag/arcmin² (galaxies only). Derived from OpenNGC SurfBr — the mean
@@ -50,7 +59,11 @@ export interface CatalogObject {
   sep?: number;
   /** Double stars: companion magnitude */
   mag2?: number;
-  /** Double stars: position angle (degrees, north through east) */
+  /**
+   * Position angle in whole degrees, measured from north through east. Double stars: direction of the companion
+   * from the primary (0–359). Extended objects: orientation of the major axis (0–179; only for elongated objects
+   * with both axes in `size`, from OpenNGC).
+   */
   pa?: number;
   /** 1-3 sentence plain-language description */
   desc?: string;

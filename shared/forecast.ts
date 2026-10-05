@@ -1,15 +1,23 @@
 /**
  * Observing-forecast API contracts (server ⇄ client).
- *   GET /api/forecast?lat=&lon=&bortle=      → ForecastResponse
+ *   GET /api/forecast?lat=&lon=&bortle=&units=metric|imperial&timeFormat=24h|12h → ForecastResponse
+ *       (units / timeFormat only change the wording of headline and details)
  *   GET /api/space-weather?lat=&lon=         → SpaceWeather
- *   GET /api/iss/passes?lat=&lon=&elev=      → IssPass[]
+ *   GET /api/iss/passes?lat=&lon=&elev=[&sat=iss|tiangong|all] → IssPass[] (default: ISS only)
+ *   GET /api/satellites/passes?lat=&lon=&elev=[&sat=…]        → IssPass[] (default: all stations)
  * The scoring model behind the numbers lives in shared/astro/conditions.ts.
  */
 
 export type DewRisk = "low" | "moderate" | "high";
+export type FogRisk = "low" | "moderate" | "high";
 export type Verdict = "excellent" | "good" | "fair" | "poor" | "bad";
+export type Confidence = "high" | "medium" | "low";
+/** Independent global models used to cross-check the main (best-match) cloud forecast. */
+export type CloudModelId = "ecmwf" | "gfs" | "icon";
 
 export interface ForecastHour {
+  // Every hour describes the slot [t, t + 1 h]: instantaneous model fields are averaged between
+  // the two hour marks; gusts and rain chance are the model's values for that hour.
   t: number; // epoch ms (hour start)
   cloud: number; // total cloud cover, %
   cloudLow: number; // %
@@ -34,6 +42,18 @@ export interface ForecastHour {
   score: number; // 0..100 overall observing quality this hour (weather + sky darkness; Moon NOT included)
   dsoScore: number; // 0..100 for faint deep-sky (includes Moon & twilight penalty)
   planetScore: number; // 0..100 for planets/Moon/doubles (seeing-weighted, Moon irrelevant)
+  fogRisk?: FogRisk; // radiation fog / low stratus risk (air near saturation, light wind, low visibility)
+  cloudModels?: Partial<Record<CloudModelId, number>>; // total cloud %, same slot, from each cross-check model
+  cloudSpread?: number; // range (max − min) of total cloud across the main forecast and cloudModels, % points
+}
+
+/** One model's view of a night's dark window (the main forecast first). */
+export interface ModelView {
+  id: "main" | CloudModelId;
+  label: string; // "Main forecast", "ECMWF", "GFS", "ICON"
+  clearDarkHours: number; // dark hours with effective cloud < 30 % in this model
+  cloud: number; // mean total cloud over the window, %
+  sameAsMain?: boolean; // this model *is* the main forecast here (e.g. ICON over Europe) — not counted twice
 }
 
 export interface NightForecast {
@@ -61,8 +81,14 @@ export interface NightForecast {
   clearDarkHours: number; // dark hours with effective cloud < 30%
   bestWindow: { start: number; end: number; score: number } | null; // best continuous stretch of dark, clear-ish hours
   headline: string; // e.g. "Clear and steady after 22:00"
-  details: string[]; // 2–4 short bullets: cloud timing, seeing/transparency, Moon timing, dew/wind warnings
+  details: string[]; // 2–4 short bullets: cloud timing, model disagreement, Moon timing, seeing/transparency, dew/fog/wind warnings
   hasData: boolean; // false if beyond forecast range
+  // Forecast confidence from the agreement of independent models (ECMWF, GFS, ICON) with the main
+  // forecast over the same window; absent when the cross-check models are unavailable.
+  confidence?: Confidence;
+  confidenceReason?: string; // e.g. "ECMWF and ICON expect more cloud than the main forecast"
+  modelViews?: ModelView[];
+  fogRisk?: FogRisk; // highest fog risk during the usable (not overcast) dark hours
 }
 
 export interface ForecastResponse {
@@ -71,6 +97,7 @@ export interface ForecastResponse {
   sources: string[]; // e.g. ["Open-Meteo (best-match NWP)", "Open-Meteo Air Quality (CAMS)", "7Timer ASTRO"]
   hours: ForecastHour[]; // hourly, from local solar noon of the current night's date through the forecast end (~8 days)
   nights: NightForecast[]; // tonight + next 6
+  attribution?: { text: string; url: string }[]; // credits the data licences require (show with links)
 }
 
 // ---------------------------------------------------------------------------------------
@@ -98,16 +125,20 @@ export interface SpaceWeather {
 }
 
 // ---------------------------------------------------------------------------------------
-// ISS passes
+// Space-station passes (ISS, Tiangong)
 // ---------------------------------------------------------------------------------------
 
+export type StationId = "iss" | "tiangong";
+
 /**
- * One ISS pass above 10°. For a visible pass, start/max/end describe the *visible* part (as
- * Heavens-Above and NASA's Spot the Station do): from when it is ≥ 10° up, sunlit and the sky is
- * dark, until it drops below 10° or vanishes into Earth's shadow. For other passes they describe
- * the whole pass above 10°.
+ * One space-station pass above 10°. For a visible pass, start/max/end describe the *visible* part
+ * (as Heavens-Above and NASA's Spot the Station do): from when it is ≥ 10° up, sunlit and the sky
+ * is dark, until it drops below 10° or vanishes into Earth's shadow. For other passes they
+ * describe the whole pass above 10°.
  */
 export interface IssPass {
+  sat?: StationId; // which station (absent in old responses = "iss")
+  name?: string; // "ISS" | "Tiangong"
   start: number; // epoch ms
   max: number; // epoch ms of the highest (visible) point
   end: number; // epoch ms

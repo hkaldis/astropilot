@@ -2,6 +2,9 @@
 // Every entry states its source/justification; nothing here is invented data.
 //
 // Ids are the FINAL catalog ids (e.g. "M42", "NGC7000", "C14").
+import { DESCRIPTIONS } from './descriptions.mjs';
+
+export { DESCRIPTIONS };
 
 /** Wikipedia revisions used (pinned for reproducible builds). */
 export const WIKI_REVISIONS = {
@@ -54,6 +57,8 @@ export const EXTRA_MESSIER = { NGC5866: 102 };
  * well-established nature of the object.
  */
 export const TYPE_OVERRIDES = {
+  M16: ['cluster_nebula', 'OpenNGC Neb; M16 is the open cluster NGC 6611 inside the Eagle Nebula (IC 4703) — SEDS M16: "Open Star Cluster" with "an emission nebula"'],
+  NGC2244: ['open_cluster', 'OpenNGC Cl+N; C50 is the cluster itself (Wikipedia Caldwell table: open cluster); the Rosette Nebula around it is C49'],
   M24: ['star_cloud', 'OpenNGC *Ass; M24 is the Small Sagittarius Star Cloud'],
   M40: ['double_star', 'OpenNGC **; Winnecke 4'],
   M73: ['asterism', 'OpenNGC Other; four-star asterism (Wikipedia M73)'],
@@ -73,10 +78,141 @@ export const TYPE_OVERRIDES = {
  * references. (Globular clusters are handled globally via Harris 2010.)
  */
 export const MAG_OVERRIDES = {
-  M17: [6.0, 'OpenNGC V=7.0 (HEASARC messier table) vs 6.0 in SEDS / Wikipedia Messier table'],
-  M20: [6.3, 'OpenNGC V=8.5 (HEASARC messier table) vs 6.3 in SEDS / Wikipedia Messier table'],
   NGC6885: [6, 'OpenNGC V=14.1 for C37 is not an integrated magnitude; Wikipedia Caldwell table gives 6'],
 };
+
+/**
+ * SEDS Messier catalogue (messier.seds.org, Hartmut Frommert; accessed 2026-10-05), per Messier number:
+ * [visual magnitude — "Visual Brightness" on the object's page, dimensions in arcmin — the SEDS data table
+ * messier.seds.org/data.html]. The per-object pages quote globular-cluster extents "seen on deep photographs" (M4
+ * page: 36′ photographic vs 26.3′ in the table), so the table's dimensions are used; for every other type the page
+ * and the table agree. These are the values amateurs see quoted (the Wikipedia Messier articles cite them).
+ *
+ * The build uses the magnitude for every Messier object except globular clusters (Harris 2010 V_t, which matches
+ * SEDS to ≤ 0.05 mag) and M40 (WDS component magnitudes), and the dimensions for every Messier object except
+ * galaxies (OpenNGC/LEDA isophotal diameters, which also give the minor axis and position angle) and SIZE_OVERRIDES.
+ */
+export const SEDS_MESSIER = {
+  1: [8.4, [6, 4]], 2: [6.5, [12.9]], 3: [6.2, [16.2]], 4: [5.6, [26.3]], 5: [5.6, [17.4]],
+  6: [4.2, [25]], 7: [3.3, [80]], 8: [4.6, [90, 40]], 9: [7.7, [9.3]], 10: [6.6, [15.1]],
+  11: [5.8, [14]], 12: [6.7, [14.5]], 13: [5.8, [16.6]], 14: [7.6, [11.7]], 15: [6.2, [12.3]],
+  16: [6.4, [7]], 17: [6.0, [11]], 18: [7.5, [9]], 19: [6.8, [13.5]], 20: [6.3, [28]],
+  21: [6.5, [13]], 22: [5.1, [24]], 23: [5.5, [27]], 24: [2.5, [90]], 25: [4.6, [32]],
+  26: [8.0, [15]], 27: [7.4, [8, 5.7]], 28: [6.8, [11.2]], 29: [7.1, [7]], 30: [7.2, [11]],
+  31: [3.4, [178, 63]], 32: [8.1, [8, 6]], 33: [5.7, [73, 45]], 34: [5.5, [35]], 35: [5.3, [28]],
+  36: [6.3, [12]], 37: [6.2, [24]], 38: [7.4, [21]], 39: [4.6, [32]], 40: [8.4, [0.8]],
+  41: [4.5, [38]], 42: [4.0, [85, 60]], 43: [9.0, [20, 15]], 44: [3.7, [95]], 45: [1.6, [110]],
+  46: [6.0, [27]], 47: [4.4, [30]], 48: [5.5, [54]], 49: [8.4, [9, 7.5]], 50: [5.9, [16]],
+  51: [8.4, [11, 7]], 52: [7.3, [13]], 53: [7.6, [12.6]], 54: [7.6, [9.1]], 55: [6.3, [19]],
+  56: [8.3, [7.1]], 57: [8.8, [1.4, 1]], 58: [9.7, [5.5, 4.5]], 59: [9.6, [5, 3.5]], 60: [8.8, [7, 6]],
+  61: [9.7, [6, 5.5]], 62: [6.5, [14.1]], 63: [8.6, [10, 6]], 64: [8.5, [9.3, 5.4]], 65: [9.3, [8, 1.5]],
+  66: [8.9, [8, 2.5]], 67: [6.1, [30]], 68: [7.8, [12]], 69: [7.6, [7.1]], 70: [7.9, [7.8]],
+  71: [8.2, [7.2]], 72: [9.3, [5.9]], 73: [9.0, [2.8]], 74: [9.4, [10.2, 9.5]], 75: [8.5, [6]],
+  76: [10.1, [2.7, 1.8]], 77: [8.9, [7, 6]], 78: [8.3, [8, 6]], 79: [7.7, [8.7]], 80: [7.3, [8.9]],
+  81: [6.9, [21, 10]], 82: [8.4, [9, 4]], 83: [7.6, [11, 10]], 84: [9.1, [5]], 85: [9.1, [7.1, 5.2]],
+  86: [8.9, [7.5, 5.5]], 87: [8.6, [7]], 88: [9.6, [7, 4]], 89: [9.8, [4]], 90: [9.5, [9.5, 4.5]],
+  91: [10.2, [5.4, 4.4]], 92: [6.4, [11.2]], 93: [6.0, [22]], 94: [8.2, [7, 3]], 95: [9.7, [4.4, 3.3]],
+  96: [9.2, [6, 4]], 97: [9.9, [3.4, 3.3]], 98: [10.1, [9.5, 3.2]], 99: [9.9, [5.4, 4.8]], 100: [9.3, [7, 6]],
+  101: [7.9, [22]], 102: [9.9, [5.2, 2.3]], 103: [7.4, [6]], 104: [8.0, [9, 4]], 105: [9.3, [4.8, 5.4]],
+  106: [8.4, [19, 8]], 107: [7.9, [10]], 108: [10.0, [8, 1]], 109: [9.8, [7, 4]], 110: [8.5, [17, 10]],
+};
+
+const wiki = (title, revid) => `Wikipedia "${title}" infobox (rev ${revid})`;
+const NGC2000 = 'NGC 2000.0 (Sinnott 1988) via the SEDS NGC/IC database, spider.seds.org/ngc (accessed 2026-10-05)';
+
+/**
+ * Sizes (arcmin) replacing OpenNGC/SEDS values that are not the commonly quoted visual dimensions. OpenNGC star-cluster
+ * diameters are often core sizes from cluster catalogues, well below the visual extents in NGC 2000.0 / Wikipedia;
+ * those are replaced where the reference is > 20% larger. [size, source].
+ */
+export const SIZE_OVERRIDES = {
+  // Messier
+  M16: [[33, 27], 'SEDS M16: its 7′ is the cluster; "the nebula extends much farther out, to a diameter of over 30′, corresponding to a linear size of about 55x45 light years" at 5,700 ly = 33′ × 27′ (OpenNGC 120′ × 25′)'],
+  M24: [[120, 60], `${wiki('Small Sagittarius Star Cloud', 1373100846)}: 2° × 1° (SEDS gives a single 90′)`],
+  M108: [[8.7, 2.2], `${wiki('Messier 108', 1377881649)}: 8′.7 × 2′.2 (SEDS 8′ × 1′); OpenNGC/LEDA 3.98′ × 1.66′ is under half the visual length`],
+  // Caldwell star clusters (OpenNGC value in the comment)
+  NGC663: [[15], wiki('NGC 663', 1370785828)], // C10; 6
+  NGC457: [[20], wiki('NGC 457', 1373102082)], // C13; 7.8
+  NGC7243: [[21], NGC2000], // C16; 15 (the Wikipedia infobox says 30.6″, a unit slip)
+  NGC752: [[75], wiki('NGC 752', 1373206456)], // C28; 39
+  NGC2244: [[24], wiki('NGC 2244', 1378064796)], // C50; 9.3
+  NGC2360: [[14], wiki('NGC 2360', 1373101775)], // C58; 9
+  NGC1851: [[11], wiki('NGC 1851', 1378537111)], // C73; 9
+  NGC6124: [[29], wiki('NGC 6124', 1373100517)], // C75; 13.5
+  NGC6541: [[15], wiki('NGC 6541', 1373118180)], // C78; 7.5
+  NGC3201: [[20], wiki('NGC 3201', 1373294872)], // C79; 9.6
+  NGC5139: [[36.3], wiki('Omega Centauri', 1375779961)], // C80; 27
+  NGC6193: [[15], wiki('NGC 6193', 1378219013)], // C82; 8.1
+  NGC5286: [[9.1], wiki('NGC 5286', 1373124594)], // C84; 6.6
+  IC2391: [[50], wiki('IC 2391', 1370780151)], // C85; 29.1
+  NGC6397: [[32], wiki('NGC 6397', 1373125068)], // C86; 15.3
+  NGC1261: [[6.9], wiki('NGC 1261', 1373118125)], // C87; 5.1
+  NGC5823: [[10], NGC2000], // C88; 3.9
+  NGC3532: [[50], wiki('NGC 3532', 1375390482)], // C91; 12
+  NGC6752: [[20.4], wiki('NGC 6752', 1373205568)], // C93; 13.2
+  NGC4755: [[10], NGC2000], // C94; 7.8
+  NGC6025: [[15], wiki('NGC 6025', 1373100486)], // C95; 11.4
+  NGC3766: [[15], wiki('NGC 3766', 1377051344)], // C97; 6.9
+  NGC4609: [[6.5], wiki('NGC 4609', 1373205444)], // C98; 5.4
+  NGC362: [[14], wiki('NGC 362', 1373118242)], // C104; 8.7
+  NGC4833: [[13.5], wiki('NGC 4833', 1347782360)], // C105; 8.4
+  NGC104: [[43.8], wiki('47 Tucanae', 1376164626)], // C106; 31.8
+  NGC6101: [[10.7], wiki('NGC 6101', 1241758718)], // C107; 4.5
+  NGC4372: [[18], wiki('NGC 4372', 1328026127)], // C108; 12
+  IC5146: [[12], wiki('IC 5146', 1368193183)], // C19; 10 × 10
+  IC2944: [[75], wiki('IC 2944', 1322458341)], // C100; 7.2 (the cluster alone)
+  NGC869: [[18], wiki('NGC 869', 1368523493)], // half of C14; 14.4
+  NGC884: [[18], wiki('NGC 884', 1368524119)], // half of C14; 10.5
+  // Caldwell nebulae
+  NGC7000: [[120, 100], `${wiki('North America Nebula', 1370786467)}: 120 × 100 arcmin (NGC 2000.0: 120′); OpenNGC 120′ × 30′ is far too narrow`],
+  NGC6960: [[70], `${NGC2000}: 70′; OpenNGC 210′ × 160′ is the whole Cygnus Loop, not the Western Veil`],
+  NGC2070: [[40, 25], `${wiki('Tarantula Nebula', 1372343305)}: 40′ × 25′ (NGC 2000.0: 40′); OpenNGC 16′`],
+  NGC6729: [[2.5, 2], `${wiki('NGC 6729', 1196860015)}: 2′.5 × 2′.0; OpenNGC 25′ × 20′ is ten times too large`],
+  NGC7023: [[18], `${wiki('Iris Nebula', 1375893839)}: 18′ × 18′ (NGC 2000.0: 18′); OpenNGC 10′ × 8′`],
+  NGC7662: [[0.53, 0.47], `${wiki('NGC 7662', 1375039733)}: 32″ × 28″; OpenNGC 17″ is only the bright inner shell`],
+  NGC6543: [[0.33], `${wiki("Cat's Eye Nebula", 1369249613)}: core 20″; OpenNGC 0.9′`],
+  // other popular objects
+  NGC6334: [[35, 20], `${wiki('NGC 6334', 1370785670)}: 35 × 20 arcmin; OpenNGC 8.4′`],
+  NGC2264: [[40], `${wiki('NGC 2264', 1370784441)}: 40′ for the cluster and its nebulosity; OpenNGC 11.4′`],
+  IC1805: [[150], `${wiki('Heart Nebula', 1369573216)}: 150′ × 150′; OpenNGC 60′ is the brighter core`],
+  NGC6357: [[50], `${NGC2000}: 50′ for the War and Peace Nebula; OpenNGC 3.9′ is only its central cluster`],
+  NGC1977: [[20], `${NGC2000}: 20′ for the Running Man Nebula; OpenNGC 10.2′`],
+  'ESO351-30': [[39.8, 30.9], `${wiki('Sculptor Dwarf Galaxy', 1373037672)}: 39′.8 × 30′.9 (NED); OpenNGC 15.26′`],
+};
+
+/**
+ * Galaxy surface brightnesses dropped because they contradict the object's magnitude and size (the app then
+ * estimates SB from mag and size). For galaxies resized above, sb is recomputed from the OpenNGC B magnitude.
+ */
+export const SB_REMOVE = {
+  'ESO351-30': 'OpenNGC SurfBr 19.51 mag/arcsec² cannot hold for V = 8.6 spread over 40′ × 31′ (≈ 25 mag/arcsec²)',
+};
+
+/**
+ * `magOf: "star"` — nebulae whose catalogue magnitude is that of the illuminating star, not the nebulosity
+ * (checked against SIMBAD, accessed 2026-10-05). Every cluster_nebula entry except M42 gets `magOf: "cluster"`:
+ * OpenNGC Cl+N magnitudes (and SEDS's 6.4 for M16) come from cluster photometry.
+ */
+export const MAG_OF_STAR = {
+  NGC7023: 'HD 200775 (SIMBAD V 7.43) at its centre; the 7.2 (B) is dominated by the star',
+  IC4592: 'ν Scorpii (SIMBAD B 4.05) ↔ OpenNGC B 3.9',
+  IC4604: 'ρ Ophiuchi (SIMBAD B 4.85) ↔ OpenNGC B 5.1',
+  IC4605: '22 Scorpii (SIMBAD B 4.72) ↔ OpenNGC B 4.7',
+  NGC6164: 'HD 148937 (SIMBAD V 6.71) ↔ OpenNGC V 6.71',
+  NGC6165: 'HD 148937 (SIMBAD V 6.71) ↔ OpenNGC V 6.71',
+};
+export const MAG_OF_CLUSTER_EXCEPT = new Set(['M42']);
+
+/** OpenNGC position angles that are placeholders rather than measurements (dropped; the app then shows no orientation). */
+export const PA_REMOVE = {
+  M24: 'OpenNGC PosAng 90 (E–W) for IC 4715; the star cloud is elongated along the Milky Way, roughly NE–SW',
+  B33: 'OpenNGC addendum PosAng 90 with a rough 6′ × 4′ size; the Horsehead is taller (N–S) than wide',
+};
+
+/** OpenNGC rows outside the selection rules that are included anyway (asterisms people look for). */
+export const INCLUDE_ROWS = [
+  'Cl399', // Brocchi's Cluster / the Coathanger (Cr 399), a favourite binocular asterism
+];
 
 /** Display-name choices where a source lists several names (all names stay in `designations`). */
 export const NAME_PREFERENCES = {
@@ -97,6 +233,8 @@ export const NAME_PREFERENCES = {
   IC443: 'Jellyfish Nebula', // OpenNGC only has the radio-source label "Gem A"
   NGC1555: "Hind's Variable Nebula",
   NGC2537: 'Bear Paw Galaxy',
+  NGC3372: 'Carina Nebula', // the Wikipedia article title; "Eta Carinae Nebula" (Caldwell table) stays an alias
+  NGC3132: 'Southern Ring Nebula', // the name used since the JWST images; "Eight-Burst Nebula" stays an alias
   'ESO56-115': 'Large Magellanic Cloud',
   PGC143: 'Wolf-Lundmark-Melotte',
 };
@@ -125,6 +263,11 @@ export const CURATED_ALIASES = [
   { id: 'NGC4656', name: 'Hockey Stick Galaxy', designation: 'NGC 4656', wiki: { title: 'NGC 4656 and NGC 4657', revid: 1378218932 } },
   { id: 'NGC2264', name: 'Cone Nebula', designation: 'NGC 2264', wiki: { title: 'NGC 2264', revid: 1370784441 }, aliasOnly: true },
   { id: 'NGC6334', name: "Cat's Paw Nebula", designation: 'NGC 6334', wiki: { title: 'NGC 6334', revid: 1370785670 } },
+  { id: 'NGC3132', name: 'Southern Ring Nebula', designation: 'NGC 3132', wiki: { title: 'NGC 3132', revid: 1372045901 } },
+  { id: 'IC2944', name: 'Running Chicken Nebula', designation: 'IC 2944', wiki: { title: 'IC 2944', revid: 1322458341 }, aliasOnly: true },
+  { id: 'NGC2070', name: '30 Doradus', designation: 'NGC 2070', wiki: { title: 'Tarantula Nebula', revid: 1372343305 }, aliasOnly: true },
+  { id: 'NGC6960', name: "Witch's Broom Nebula", designation: 'NGC 6960', wiki: { title: 'Veil Nebula', revid: 1321875694 }, aliasOnly: true },
+  { id: 'NGC3628', name: 'Leo Triplet', designation: 'NGC 3628', wiki: { title: 'NGC 3628', revid: 1378214233 }, aliasOnly: true },
 ];
 
 /** OpenNGC common names that are mis-attributed and are removed. */
@@ -153,22 +296,28 @@ export const CALDWELL_EXTRA = {
 /** Well-established relationships appended to generated descriptions. */
 export const DESC_APPEND = {
   IC434: 'The dark Horsehead Nebula (Barnard 33) is silhouetted against its glow.',
-  NGC2244: 'It is the young open cluster at the heart of the Rosette Nebula (C 49).',
   NGC6530: 'It is the open cluster embedded in the Lagoon Nebula (M8).',
 };
 
-/** Showpieces (~45 classic "wow" objects). */
+/**
+ * Showpieces: classic "wow" objects for beginners and outreach (bright, striking in binoculars or a small
+ * telescope). Southern-sky highlights are included; visibility from the user's site is handled by the app.
+ */
 export const SHOWPIECES = [
   'M31', 'M42', 'M13', 'M45', 'M57', 'M27', 'M51', 'M81', 'M82', 'M8', 'M17', 'M20', 'M11', 'M22', 'M44',
   'C14', 'NGC6960', 'NGC6992', 'albireo', 'mizar', 'epsilon-lyrae',
   'NGC5139', 'NGC104', 'NGC3372', 'M104', 'M97', 'M3', 'M5', 'M92', 'M15', 'M35', 'M37', 'M33',
   'NGC7000', 'NGC457', 'NGC7662', 'NGC6543', 'NGC2392', 'M65', 'M66', 'M64',
   'NGC4755', 'NGC5128', 'NGC253', 'M7',
+  // added in the 2026-10 review
+  'M6', 'M41', 'NGC3532', 'IC2602', 'ESO56-115', 'NGC292', 'NGC2070', 'NGC7009', 'NGC3242',
+  'almach', 'beta-monocerotis', 'alpha-centauri',
 ];
 
 /**
  * Descriptions reused from server/seed.ts (hand-written for the original app), lightly edited for
- * clarity; factual slips in the originals were corrected (noted inline).
+ * clarity; factual slips in the originals were corrected (noted inline). Messier and Caldwell objects now
+ * use the curated texts in descriptions.mjs (DESCRIPTIONS, which take precedence); these remain for history.
  */
 export const SEED_DESCRIPTIONS = {
   M1: 'The remnant of a supernova observed in 1054 AD, with a pulsar at its center.',
@@ -304,11 +453,13 @@ export const SEED_DESCRIPTIONS = {
 // Double stars. Numbers (magnitudes, separation, PA, positions, spectral types, periods) are NOT
 // typed here: they are read from the WDS summary / ORB6 at build time. `pair` = [WDS discoverer
 // code, components] of the pair reported in sep/pa/mag2. `note` is a short well-established fact.
+// `starMags` replaces a WDS component magnitude by SIMBAD's V (accessed 2026-10-05) where the WDS
+// summary value is off by ≥ 0.3 mag from the star's measured V (component letter -> [V, identifier]).
 /** Epoch for orbit-based separations (ORB6 ephemeris column). */
 export const DOUBLE_EPOCH = 2027.0;
 
 export const DOUBLE_STARS = [
-  { id: 'albireo', name: 'Albireo', wds: '19307+2758', pair: ['STFA 43', 'AB'],
+  { id: 'albireo', name: 'Albireo', wds: '19307+2758', pair: ['STFA 43', 'AB'], starMags: { B: [5.11, 'HD 183914 = β² Cyg'] },
     note: 'A stunning gold-and-blue double marking the head of Cygnus, the Swan.' },
   { id: 'mizar', name: 'Mizar and Alcor', wds: '13239+5456', pair: ['STF1744', 'AB'], subject: 'Mizar A and B',
     note: 'The famous double in the handle of the Big Dipper; together with Alcor it forms a sextuple star system.',
@@ -335,8 +486,8 @@ export const DOUBLE_STARS = [
     note: 'An easy pair of near-twin white stars, one of the first doubles discovered with a telescope (Robert Hooke, 1664).' },
   { id: 'eta-cassiopeiae', name: 'Eta Cassiopeiae', wds: '00491+5749', pair: ['STF  60', 'AB'],
     note: 'A Sun-like star with a fainter, reddish companion.' },
-  { id: 'iota-cancri', name: 'Iota Cancri', wds: '08467+2846', pair: ['STF1268', ''],
-    note: 'A wide, easy color-contrast pair in Cancer.' },
+  { id: 'iota-cancri', name: 'Iota Cancri', wds: '08467+2846', pair: ['STF1268', ''], dropNames: ['Zubanah'], starMags: { B: [6.57, 'HD 74738 = ι Cnc B'] },
+    note: 'A wide, easy color-contrast pair in Cancer, often compared to Albireo.' },
   { id: 'beta-monocerotis', name: 'Beta Monocerotis', wds: '06288-0702', pair: ['STF 919', 'AB'],
     note: 'A superb triple of blue-white stars, described by William Herschel as one of the most beautiful sights in the heavens.',
     extras: [{ pairs: [['STF 919', 'BC']], text: (p) => `B and C (magnitudes ${p.m1} and ${p.m2}) are themselves ${p.sep}″ apart.` }] },
@@ -393,15 +544,37 @@ export const DOUBLE_STARS = [
     note: 'The prototype of the Beta Cephei variable stars, with a faint companion.' },
   { id: '95-herculis', name: '95 Herculis', wds: '18015+2136', pair: ['STF2264', ''],
     note: 'A near-equal pair whose stars appear in contrasting tints to many observers.' },
-  { id: 'acrab', name: 'Acrab', wds: '16054-1948', pair: ['H 3   7', 'AC'],
+  { id: 'acrab', name: 'Acrab', wds: '16054-1948', pair: ['H 3   7', 'AC'], starMags: { C: [4.89, 'HD 144218 = β² Sco'] },
     note: 'A bright, easy pair of blue-white stars in Scorpius.' },
   { id: 'eta-persei', name: 'Eta Persei', wds: '02507+5554', pair: ['STF 307', 'AB'],
     note: 'A cool supergiant with a faint bluish companion.' },
-  { id: '145-canis-majoris', name: '145 Canis Majoris', wds: '07166-2319', pair: ['HJ 3945', 'AB'],
-    note: 'A wide, colorful pair: an orange supergiant and a yellow-white companion.' },
+  { id: '145-canis-majoris', name: '145 Canis Majoris', wds: '07166-2319', pair: ['HJ 3945', 'AB'], aliases: ['Winter Albireo'],
+    note: 'A wide, colorful pair: an orange supergiant and a yellow-white companion, nicknamed the Winter Albireo.' },
+  // Added in the 2026-10 review.
+  // θ¹ Ori: the entry reports C (the brightest) and D; WDS magnitudes of all four stars are 0.1–0.5 mag too bright.
+  { id: 'trapezium', name: 'Trapezium', noSystemBayer: true, wds: '05353-0523', pair: ['STF 748', 'CD'], subject: 'θ¹ Ori C and D',
+    aliases: ['Theta¹ Orionis', 'θ¹ Ori', 'Trapezium Cluster'], dropNames: ["Becklin's Star"], // the Becklin–Neugebauer infrared object, not θ¹ Ori
+    starMags: { A: [6.73, 'HD 37020 = θ¹ Ori A'], B: [7.96, 'HD 37021 = θ¹ Ori B'], C: [5.13, 'HD 37022 = θ¹ Ori C'], D: [6.70, 'HD 37023 = θ¹ Ori D'] },
+    note: 'The four bright young stars at the heart of the Orion Nebula (M42); the brightest, θ¹ Ori C, provides most of the ultraviolet light that makes the nebula glow.',
+    extras: [{ pairs: [['STF 748', 'AB'], ['STF 748', 'AD']],
+      text: (ab, ad) => `A (magnitude ${ab.m1}) and B (${ab.m2}), both eclipsing binaries, complete the trapezoid, whose widest pair (A–D) spans ${ad.sep}″; the fainter E and F, near magnitude 11, need more aperture and steady air.` }] },
+  { id: 'struve-747', name: 'Struve 747', wds: '05350-0600', pair: ['STF 747', 'AB'], aliases: ['Σ747', 'Σ 747'],
+    note: 'A wide, easy pair of blue-white stars in Orion’s sword, about half a degree south of the Orion Nebula and 8′ southwest of Iota Orionis.' },
+  { id: 'iota-orionis', name: 'Iota Orionis', wds: '05354-0555', pair: ['STF 752', 'AB'], aliases: ['Hatysa', 'Nair al Saif'],
+    note: 'The brightest star of Orion’s sword, at its southern tip below the Orion Nebula: a brilliant primary with a much fainter companion.',
+    extras: [{ pairs: [['STF 752', 'AC']], text: (p) => `A third star, C (magnitude ${p.m2}), lies ${p.sep}″ away.` }] },
+  { id: 'zeta-lyrae', name: 'Zeta Lyrae', wds: '18448+3736', pair: ['STFA 38', 'AD'], dropNames: ['Nasr Alwaki'],
+    note: 'A wide, easy pair at the corner of Lyra’s parallelogram, a fine stop on the way from Vega to the Double Double (ε Lyr).' },
 ];
 
 /** Messier 40 (Winnecke 4) uses the same WDS machinery. */
 export const M40_PAIR = { wds: '12222+5805', pair: ['WNC   4', ''] };
-/** The Trapezium (θ¹ Orionis) at the heart of M42 — mentioned in M42's description, not a separate entry. */
-export const TRAPEZIUM = { wds: '05353-0523', disc: 'STF 748', pairs: ['AB', 'AC', 'AD', 'BC', 'BD', 'CD'] };
+
+/**
+ * Star magnitudes (stars.json / starnames.json) where the Hipparcos catalogue V used by d3-celestial differs from the
+ * standard Johnson V by ≥ 0.1 mag for a non-variable star among the ~75 brightest named stars (checked against
+ * SIMBAD, accessed 2026-10-05): HIP -> [V, reason].
+ */
+export const STAR_MAG_OVERRIDES = {
+  30438: [-0.74, 'Canopus: SIMBAD / Wikipedia V −0.74; Hipparcos lists −0.62'],
+};

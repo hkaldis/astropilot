@@ -55,6 +55,8 @@ import {
 } from "@/features/journal/format";
 
 const HOUR = 3_600_000;
+/** How long the journal's totals count a session without an end time (server/routes/journal.ts). */
+const ESTIMATED_SESSION_H = 1.5;
 
 export default function JournalSessionPage({ id }: { id: number }) {
   const { user, isLoading } = useAuth();
@@ -125,7 +127,13 @@ function SessionView({ id }: { id: number }) {
   const c = s.conditions ?? {};
   const imperial = prefs.units === "imperial";
   const lastTime = observations.reduce((m, o) => Math.max(m, o.observedAt ? Date.parse(o.observedAt) : 0), 0);
-  const span = !s.endDate && observations.length > 1 && lastTime > Date.parse(s.date) ? lastTime - Date.parse(s.date) : null;
+  // Without an end time the journal counts the session as 1.5 h, or the span of its observations if that's longer.
+  const span = !s.endDate && observations.length > 1 && lastTime - Date.parse(s.date) >= 60_000 ? lastTime - Date.parse(s.date) : null;
+  const timeSub = range.hours
+    ? formatDuration(range.hours)
+    : span
+      ? `Logged over ${formatDuration(span / HOUR)}${span < ESTIMATED_SESSION_H * HOUR ? ` · counts as ≈${ESTIMATED_SESSION_H} h` : ""}`
+      : `No end time · counts as ≈${ESTIMATED_SESSION_H} h`;
 
   return (
     <div className="flex flex-col gap-8">
@@ -171,7 +179,7 @@ function SessionView({ id }: { id: number }) {
       />
 
       <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border lg:grid-cols-4">
-        <Fact label="Time" value={range.text} sub={range.hours ? formatDuration(range.hours) : span ? `Logged over ${formatDuration(span / HOUR)}` : tz ? tz.replace(/_/g, " ") : null} />
+        <Fact label="Time" value={range.text} sub={timeSub} />
         <Fact
           label="Place"
           value={s.locationName ?? "No location"}
@@ -297,7 +305,7 @@ function ObservationItem({
   return (
     <li className="flex gap-3 py-4 sm:gap-4">
       <div className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full border bg-surface-2 text-foreground/80" aria-hidden="true">
-        <TypeGlyph type={o.objectType ?? "galaxy"} />
+        <TypeGlyph type={o.objectType ?? "galaxy"} id={o.ref ?? undefined} />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex items-start gap-2">

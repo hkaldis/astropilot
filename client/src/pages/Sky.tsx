@@ -84,9 +84,10 @@ function SkyChart({ site: obsSite }: { site: ObservingSite }) {
   const { hour12 } = usePrefs();
   const { theme } = useTheme();
   const { isAuthenticated } = useAuth();
-  const siteKey = `${obsSite.lat.toFixed(5)},${obsSite.lon.toFixed(5)},${obsSite.elevation ?? 0}`;
+  const siteKey = `${obsSite.lat.toFixed(5)},${obsSite.lon.toFixed(5)},${obsSite.elevation ?? 0},${obsSite.timezone ?? ""}`;
+  // The time zone labels nights with the local calendar date near the date line (Samoa, Tonga, Kiribati).
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const site: Site = useMemo(() => ({ lat: obsSite.lat, lon: obsSite.lon, elevation: obsSite.elevation ?? 0 }), [siteKey]);
+  const site: Site = useMemo(() => ({ lat: obsSite.lat, lon: obsSite.lon, elevation: obsSite.elevation ?? 0, timezone: obsSite.timezone }), [siteKey]);
 
   // ---- Time --------------------------------------------------------------------------------------
   const now = useNow(60_000);

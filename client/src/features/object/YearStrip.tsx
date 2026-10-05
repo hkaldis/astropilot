@@ -63,9 +63,15 @@ export function bestMonths(months: YearMonth[], minAlt: number): string | null {
     .join(", ");
 }
 
+/** Colour bands above the user's minimum altitude, always three distinct ones: min+, min + 10°+ and 50°+ (min + 20°+ for high minimums). */
+export function altitudeBands(minAlt: number): { good: number; excellent: number } {
+  return { good: minAlt + 10, excellent: Math.max(50, minAlt + 20) };
+}
+
 function tone(alt: number, minAlt: number) {
-  if (alt >= 50) return "bg-q-excellent";
-  if (alt >= 30) return "bg-q-good";
+  const b = altitudeBands(minAlt);
+  if (alt >= b.excellent) return "bg-q-excellent";
+  if (alt >= b.good) return "bg-q-good";
   if (alt >= minAlt) return "bg-q-fair";
   if (alt > 0) return "bg-muted-foreground/40";
   return "bg-transparent";
@@ -73,6 +79,7 @@ function tone(alt: number, minAlt: number) {
 
 export function YearStrip({ months, minAlt, className }: { months: YearMonth[]; minAlt: number; className?: string }) {
   const best = useMemo(() => bestMonths(months, minAlt), [months, minAlt]);
+  const bands = altitudeBands(minAlt);
   const H = 64;
   return (
     <div className={cn("flex flex-col gap-3", className)}>
@@ -112,10 +119,10 @@ export function YearStrip({ months, minAlt, className }: { months: YearMonth[]; 
         </p>
         <span className="flex items-center gap-2 text-2xs text-muted-foreground">
           <span className="inline-flex items-center gap-1">
-            <span className="h-2 w-2 rounded-sm bg-q-excellent" /> 50°+
+            <span className="h-2 w-2 rounded-sm bg-q-excellent" /> {bands.excellent}°+
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="h-2 w-2 rounded-sm bg-q-good" /> 30°+
+            <span className="h-2 w-2 rounded-sm bg-q-good" /> {bands.good}°+
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="h-2 w-2 rounded-sm bg-q-fair" /> {minAlt}°+

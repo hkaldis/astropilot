@@ -15,6 +15,7 @@ import {
   moonQuarters,
   formatDec,
   formatRA,
+  planSequence,
 } from "./index";
 
 const athens = { lat: 37.98, lon: 23.73, elevation: 100 };
@@ -81,17 +82,47 @@ test("Saturn is near opposition in early October 2026 (bright, ~20″)", () => {
   assert.ok(s.elongation > 170);
 });
 
-test("detectability: M31 easy and M101 very hard from a Bortle 5 suburb with an 8-inch", () => {
+// OpenNGC values (SurfBr is B-band, mean inside D25).
+const M31 = { type: "galaxy", mag: 3.44, size: [177.8, 69.7], sb: 14.74, hubble: "Sb", m: 31 };
+const M101 = { type: "galaxy", mag: 7.9, size: [24, 23.1], sb: 15.08, hubble: "SABc", m: 101 };
+const M42 = { type: "cluster_nebula", mag: 4, size: [85, 60], m: 42 };
+const M13 = { type: "globular_cluster", mag: 5.78, size: [16.6], m: 13 };
+const M33 = { type: "galaxy", mag: 5.7, size: [62.1, 36.7], sb: 14.72, hubble: "Sc", m: 33 };
+const M45 = { type: "open_cluster", mag: 1.6, size: [110], m: 45 };
+const rank = ["out of reach", "very hard", "challenging", "moderate", "easy"];
+const atLeast = (d: string, min: string) => rank.indexOf(d) >= rank.indexOf(min);
+
+test("detectability: M31 easy and M101 hard from a Bortle 5 suburb with an 8-inch", () => {
   const sqm = sqmForBortle(5);
-  // OpenNGC values (SurfBr is B-band, mean inside D25).
-  const M31 = { type: "galaxy", mag: 3.44, size: [177.8, 69.7], sb: 14.74, hubble: "Sb" };
   const m31 = detectability(M31, { sqmZenith: sqm, apertureMm: 203, alt: 60 });
-  const m101 = detectability({ type: "galaxy", mag: 7.9, size: [24, 23.1], sb: 15.08, hubble: "SABc" }, { sqmZenith: sqm, apertureMm: 203, alt: 60 });
+  const m101 = detectability(M101, { sqmZenith: sqm, apertureMm: 203, alt: 60 });
   assert.equal(m31.difficulty, "easy");
-  assert.ok(["very hard", "out of reach"].includes(m101.difficulty));
+  assert.ok(["challenging", "very hard", "out of reach"].includes(m101.difficulty));
+  assert.ok(m31.index - m101.index > 1.5);
   // A full Moon 20° away makes M31 harder.
   const m31Moon = detectability(M31, { sqmZenith: sqm, apertureMm: 203, alt: 60, moon: { alt: 50, phaseAngle: 5, separation: 20 } });
   assert.ok(m31Moon.index < m31.index - 0.5);
+});
+
+test("detectability: showpieces stay visible from a city with a telescope", () => {
+  const sqm = sqmForBortle(8);
+  assert.equal(detectability(M42, { sqmZenith: sqm, apertureMm: 203, alt: 50 }).difficulty, "easy");
+  assert.ok(atLeast(detectability(M13, { sqmZenith: sqm, apertureMm: 203, alt: 60 }).difficulty, "challenging"));
+  assert.ok(atLeast(detectability(M13, { sqmZenith: sqm, apertureMm: 305, alt: 60 }).difficulty, "moderate"));
+  assert.ok(atLeast(detectability(M31, { sqmZenith: sqm, apertureMm: 203, alt: 60 }).difficulty, "challenging"));
+  assert.ok(!atLeast(detectability(M101, { sqmZenith: sqm, apertureMm: 203, alt: 60 }).difficulty, "challenging"));
+});
+
+test("detectability: naked eye and binoculars under a rural sky", () => {
+  const sqm = sqmForBortle(3);
+  assert.ok(atLeast(detectability(M31, { sqmZenith: sqm, apertureMm: 7, alt: 60 }).difficulty, "moderate"));
+  assert.ok(atLeast(detectability(M42, { sqmZenith: sqm, apertureMm: 7, alt: 45 }).difficulty, "moderate"));
+  assert.equal(detectability(M45, { sqmZenith: sqm, apertureMm: 7, alt: 60 }).difficulty, "easy");
+  assert.ok(!atLeast(detectability(M33, { sqmZenith: sqm, apertureMm: 7, alt: 60 }).difficulty, "challenging"));
+  assert.equal(detectability(M31, { sqmZenith: sqm, apertureMm: 50, alt: 60 }).difficulty, "easy");
+  // Bigger aperture never makes a galaxy harder.
+  const ap = [102, 203, 305].map((D) => detectability(M101, { sqmZenith: sqm, apertureMm: D, alt: 60 }).index);
+  assert.ok(ap[0] <= ap[1] && ap[1] <= ap[2]);
 });
 
 test("eyepiece choice: high power for Jupiter, lowest power for a wide double like Albireo", () => {
@@ -107,4 +138,16 @@ test("coordinate formatting handles negative declinations and rounding", () => {
   assert.equal(formatDec(-5.3), "−05° 18′ 00″");
   assert.equal(formatDec(-0.4), "−00° 24′ 00″");
   assert.equal(formatRA(13.99999), "14h 00m 00s");
+});
+
+test("planSequence: two targets wanting the last slot before dawn both get one", () => {
+  const H = 3_600_000;
+  const t0 = Date.UTC(2026, 0, 1, 18);
+  const night = { darkStart: t0, darkEnd: t0 + 10 * H, sunset: t0 - H, sunrise: t0 + 11 * H, noon: t0 - 6 * H, nextNoon: t0 + 18 * H } as any;
+  const mk = (id: string, w0: number, w1: number, best: number) => ({ object: { id, name: id, type: "planet", ra: 0, dec: 0 }, score: 50, rawScore: 50, track: { window: [w0, w1] } as any, detect: {} as any, bestTime: best, reasons: [] }) as any;
+  // Both are only up in the last two hours and want the very end.
+  const plan = planSequence([mk("jupiter", t0 + 8 * H, t0 + 10 * H, t0 + 10 * H), mk("moon", t0 + 8 * H, t0 + 10 * H, t0 + 10 * H), mk("m31", t0, t0 + 10 * H, t0 + 3 * H)], night, 25);
+  assert.equal(plan.length, 3);
+  for (let i = 1; i < plan.length; i++) assert.ok(plan[i].at >= plan[i - 1].at + 25 * 60_000 - 1);
+  for (const s of plan) assert.ok(s.at >= s.target.track.window[0] && s.at + 25 * 60_000 <= s.target.track.window[1] + 1);
 });

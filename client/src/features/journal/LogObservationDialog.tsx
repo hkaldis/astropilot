@@ -29,7 +29,10 @@ import { shortName } from "./format";
 export interface LogObservationButtonProps {
   refId: string;
   name: string;
-  /** Pre-fill the eyepiece/magnification AstroPilot recommended. */
+  /**
+   * Pre-fill the eyepiece AstroPilot recommended for that telescope; the power is then worked out from the optics
+   * (`magnification` is informational and never logged on its own).
+   */
   suggestion?: { telescopeId?: number | null; eyepieceId?: number | null; barlowId?: number | null; magnification?: number | null };
   label?: string;
   variant?: ButtonProps["variant"];
@@ -168,17 +171,20 @@ function SignedInModal({
     if (gear.isLoading) return null;
     const g = gear.data;
     const own = <T extends { id: number }>(list: T[] | undefined, id: number | null | undefined) => (id && list?.some((x) => x.id === id) ? id : null);
-    const telescopeId = own(g?.telescopes, suggestion?.telescopeId) ?? (active.source === "gear" ? active.telescopeId : null) ?? g?.telescopes[0]?.id ?? null;
-    const eyepieceId = own(g?.eyepieces, suggestion?.eyepieceId);
+    const suggestedScope = own(g?.telescopes, suggestion?.telescopeId);
+    const telescopeId = suggestedScope ?? (active.source === "gear" ? active.telescopeId : null) ?? g?.telescopes[0]?.id ?? null;
+    // The recommended eyepiece only fits the telescope it was worked out for — never a preset's kit on a real scope.
+    const sameScope = suggestedScope !== null && suggestedScope === telescopeId;
+    const eyepieceId = sameScope ? own(g?.eyepieces, suggestion?.eyepieceId) : null;
     return blankValues({
       ref: refId,
       objectName: name,
       objectType: null,
       telescopeId,
       eyepieceId,
-      barlowId: own(g?.barlows, suggestion?.barlowId),
-      // A recommended magnification without a matching eyepiece (e.g. preset scopes) is kept as-is.
-      magnification: !eyepieceId && suggestion?.magnification ? Math.round(suggestion.magnification) : null,
+      barlowId: eyepieceId ? own(g?.barlows, suggestion?.barlowId) : null,
+      // The power is worked out from the chosen telescope, eyepiece and Barlow; without an eyepiece there's no power to assume.
+      magnification: null,
     });
     // Only once gear is known; later changes must not reset what the user typed.
     // eslint-disable-next-line react-hooks/exhaustive-deps

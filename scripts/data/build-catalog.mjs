@@ -12,6 +12,7 @@ import {
 } from './lib/common.mjs';
 import * as CUR from './curation.mjs';
 import { buildDoubleStars } from './lib/doubles.mjs';
+import { MEL_CR } from './melotte-collinder.mjs';
 
 const OPENNGC_COMMIT = '75ca7ff090e1d0081a5b08be70eb3bc45ccd9e06'; // 2026-09-27 (after release v20260501)
 const OPENNGC_RAW = `https://raw.githubusercontent.com/mattiaverga/OpenNGC/${OPENNGC_COMMIT}/database_files`;
@@ -323,7 +324,7 @@ for (const r of allRows) {
   if (mergedAway.has(r.Name)) continue;
   const isM = messierOf.has(r.Name);
   const isC = caldwellOf.has(r.Name);
-  if (!isM && !isC) {
+  if (!isM && !isC && !CUR.INCLUDE_ROWS.includes(r.Name)) {
     if (!DSO_TYPES.has(r.Type)) continue;
     const em = effectiveMag(r);
     const bright = em.mag != null && (em.magB ? em.mag <= 11.0 : em.mag <= 10.5);
@@ -389,7 +390,8 @@ function lightYears(kpc) {
 function generatedDescription(o, row, extra = {}) {
   const kind = o.type === 'galaxy' ? galaxyKind(o.hubble) : o.type === 'galaxy_group' ? KIND.galaxy_group[row?.Type] || 'group of galaxies' : KIND[o.type];
   const kindText = o.type === 'galaxy' && o.hubble && kind !== 'galaxy' ? `${kind} (${o.hubble})` : kind;
-  const magText = o.mag != null ? `${o.mag.toFixed(1)}-magnitude${o.magB ? ' (B-band)' : ''} ` : '';
+  // When the catalogued magnitude belongs to the illuminating star or the embedded cluster, say so instead.
+  const magText = o.mag != null && !o.magOf ? `${o.mag.toFixed(1)}-magnitude${o.magB ? ' (B-band)' : ''} ` : '';
   const head = magText || kindText;
   let s = `${article(head)} ${magText}${kindText} in ${CON_NAME[o.con]}`;
   const sp = sizePhrase(o.size);
@@ -401,11 +403,17 @@ function generatedDescription(o, row, extra = {}) {
     else if (cb != null) s += ` Its central star is magnitude ${round(cb, 1)} (B-band).`;
   }
   if (extra.harris?.rSunKpc) s += ` It lies about ${lightYears(extra.harris.rSunKpc)} light-years away.`;
+  const m = o.mag != null ? `${o.mag.toFixed(1)}${o.magB ? ' (B-band)' : ''}` : '';
+  if (o.magOf === 'star') s += ` Its catalogued magnitude, ${m}, is that of the star lighting it; the nebula itself is much fainter.`;
+  if (o.magOf === 'cluster') s += ` Its catalogued magnitude, ${m}, is that of the star cluster; the nebulosity is much fainter.`;
   return s;
 }
 
 const objects = [];
 const idSeen = new Map();
+const sedsMagNotes = [];
+const sizeNotes = [];
+const sbNotes = [];
 const reports = { conMismatch: [], magVsWiki: [], caldwellMag: [] };
 
 for (const r of selected) {
@@ -422,6 +430,12 @@ for (const r of selected) {
     mag = caldwellTable.get(c).mag; magB = false;
     magNotes.push(`${id}: no OpenNGC magnitude; ${mag} from Wikipedia Caldwell table`);
   }
+  const type = typeFor(r, id);
+  const seds = m ? CUR.SEDS_MESSIER[m] : null;
+  if (seds && type !== 'globular_cluster' && type !== 'double_star') {
+    if (mag == null || Math.abs(seds[0] - mag) >= 0.05 || magB) sedsMagNotes.push(`${id} ${mag == null ? '–' : round(mag, 2)}${magB ? 'B' : ''}→${seds[0]}`);
+    mag = seds[0]; magB = false;
+  }
 
   let ra = hmsToHours(r.RA), dec = dmsToDeg(r.Dec);
   if (extra?.ra != null) { ra = extra.ra; dec = extra.dec; }
@@ -433,6 +447,17 @@ for (const r of selected) {
   const maj = num(r.MajAx), min = num(r.MinAx);
   let size = maj != null ? (min != null ? [round(maj, 2), round(min, 2)] : [round(maj, 2)]) : undefined;
   if (extra?.size) size = extra.size;
+  let sizeChanged = false;
+  if (seds && type !== 'galaxy' && type !== 'double_star') {
+    if (JSON.stringify(size) !== JSON.stringify(seds[1])) sizeNotes.push(`${id} ${JSON.stringify(size ?? null)}→${JSON.stringify(seds[1])} (SEDS)`);
+    size = seds[1];
+  }
+  if (CUR.SIZE_OVERRIDES[id]) {
+    sizeNotes.push(`${id} ${JSON.stringify(size ?? null)}→${JSON.stringify(CUR.SIZE_OVERRIDES[id][0])} (${CUR.SIZE_OVERRIDES[id][1].split(':')[0]})`);
+    size = CUR.SIZE_OVERRIDES[id][0];
+    sizeChanged = true;
+  }
+  if (type === 'double_star') size = undefined;
 
   // --- designations
   const desig = [];
@@ -441,7 +466,7 @@ for (const r of selected) {
   const canonical = displayDesignation(r.Name);
   const overriddenId = CUR.ID_OVERRIDES[r.Name];
   if (overriddenId && /^(NGC|IC)\d/.test(overriddenId)) add(overriddenId.replace(/^(NGC|IC)/, '$1 '));
-  if (!r.Name.startsWith('C') && !r.Name.startsWith('M0')) add(canonical.replace(/ NED\d+$/, ''));
+  if (!/^C\d/.test(r.Name) && !r.Name.startsWith('M0')) add(canonical.replace(/ NED\d+$/, ''));
   for (const n of r.NGC.split(',').filter(Boolean)) add(`NGC ${+n.replace(/[A-Z]$/, '')}${n.match(/[A-Z]$/)?.[0] ?? ''}`);
   for (const n of r.IC.split(',').filter(Boolean)) add(`IC ${+n.replace(/[A-Z]$/, '')}${n.match(/[A-Z]$/)?.[0] ?? ''}`);
   for (const d of dupsOf.get(r.Name) || []) add(displayDesignation(d).replace(/ NED\d+$/, ''));
@@ -469,15 +494,29 @@ for (const r of selected) {
   displayCandidates.push(...caldwellNames, ...openNames, ...(curatedAliasById.get(id) || []).filter((a) => !a.aliasOnly).map((a) => a.name));
   const name = displayCandidates[0] || (m ? `M ${m}` : desig[0] || canonical);
 
-  const o = { id, name, designations: [], type: typeFor(r, id), ra: round(ra, 4), dec: round(dec, 3), con };
+  const o = { id, name, designations: [], type, ra: round(ra, 4), dec: round(dec, 3), con };
   if (m) o.m = m;
   if (c) o.c = c;
   if (mag != null) o.mag = round(mag, 2);
   if (mag != null && magB) o.magB = true;
+  if (mag != null && CUR.MAG_OF_STAR[id]) o.magOf = 'star';
+  else if (mag != null && type === 'cluster_nebula' && !CUR.MAG_OF_CLUSTER_EXCEPT.has(id)) o.magOf = 'cluster';
   if (size) o.size = size;
   const sbRaw = num(r.SurfBr);
-  if (sbRaw != null && o.type === 'galaxy') o.sb = round(sbRaw - SB_ARCSEC2_TO_ARCMIN2, 2);
+  if (sbRaw != null && o.type === 'galaxy' && !CUR.SB_REMOVE[id]) {
+    o.sb = round(sbRaw - SB_ARCSEC2_TO_ARCMIN2, 2);
+    // LEDA's mean SB belongs to LEDA's diameter; for a corrected size, recompute it from the total B magnitude.
+    const B = num(r['B-Mag']);
+    if (sizeChanged && B != null && size.length === 2) {
+      const sb2 = round(B + 2.5 * Math.log10((Math.PI / 4) * size[0] * size[1]), 2);
+      sbNotes.push(`${id} sb ${o.sb}→${sb2} (B ${B} over the corrected ${size[0]}′ × ${size[1]}′)`);
+      o.sb = sb2;
+    }
+  } else if (sbRaw != null && CUR.SB_REMOVE[id]) sbNotes.push(`${id} sb dropped: ${CUR.SB_REMOVE[id]}`);
   if (o.type === 'galaxy' && r.Hubble) o.hubble = r.Hubble;
+  // Orientation of the major axis (OpenNGC PosAng, north through east), for elongated objects only.
+  const posAng = num(r.PosAng);
+  if (posAng != null && type !== 'double_star' && size?.length === 2 && size[1] < size[0] && !CUR.PA_REMOVE[id]) o.pa = Math.round(posAng) % 180;
 
   o._names = [name, ...openNames, ...caldwellNames, ...aliasNames, ...messierNames];
   o._desigs = desig;
@@ -510,14 +549,17 @@ for (const o of objects) {
   const ds = [];
   const addD = (d) => { if (d && !ds.some((x) => x.toLowerCase() === d.toLowerCase())) ds.push(d); };
   o._desigs.forEach(addD);
+  (MEL_CR[o.id] || []).forEach(addD);
   o._names.forEach(addD);
+  // Long forms of Melotte / Collinder numbers, as people often type them ("Melotte 111", "Collinder 399").
+  for (const d of [...ds]) {
+    const mc = d.match(/^(Mel|Cr) (\d+)$/);
+    if (mc) addD(`${mc[1] === 'Mel' ? 'Melotte' : 'Collinder'} ${mc[2]}`);
+  }
   o.designations = ds;
-  if (CUR.SEED_DESCRIPTIONS[o.id]) o.desc = CUR.SEED_DESCRIPTIONS[o.id];
-  else if (o.id === 'C14') {
-    const a = rowByName.get('NGC0869'), b = rowByName.get('NGC0884');
-    const sep = separationDeg(hmsToHours(a.RA), dmsToDeg(a.Dec), hmsToHours(b.RA), dmsToDeg(b.Dec)) * 60;
-    o.desc = `Two bright open clusters, NGC 869 (h Persei, magnitude ${num(a['V-Mag'])}) and NGC 884 (χ Persei, magnitude ${num(b['V-Mag'])}), whose centers lie ${Math.round(sep)}′ apart in Perseus — a superb low-power sight.`;
-  } else o.desc = generatedDescription(o, o._row, { harris: o.type === 'globular_cluster' ? o._harris : null });
+  if (CUR.DESCRIPTIONS[o.id]) o.desc = CUR.DESCRIPTIONS[o.id];
+  else if (CUR.SEED_DESCRIPTIONS[o.id]) o.desc = CUR.SEED_DESCRIPTIONS[o.id];
+  else o.desc = generatedDescription(o, o._row, { harris: o.type === 'globular_cluster' ? o._harris : null });
   if (CUR.DESC_APPEND[o.id]) o.desc = `${o.desc} ${CUR.DESC_APPEND[o.id]}`;
   if (doubles.descExtras[o.id]) o.desc = `${o.desc} ${doubles.descExtras[o.id]}`;
   if (doubles.fields[o.id]) Object.assign(o, doubles.fields[o.id]);
@@ -531,7 +573,7 @@ for (const id of CUR.SHOWPIECES) {
 
 // ---------------------------------------------------------------------------
 // 8. Order, strip internals, validate, write
-const KEY_ORDER = ['id', 'name', 'designations', 'm', 'c', 'type', 'ra', 'dec', 'mag', 'magB', 'size', 'sb', 'con', 'hubble', 'sep', 'mag2', 'pa', 'desc', 'showpiece'];
+const KEY_ORDER = ['id', 'name', 'designations', 'm', 'c', 'type', 'ra', 'dec', 'mag', 'magB', 'magOf', 'size', 'sb', 'con', 'hubble', 'sep', 'mag2', 'pa', 'desc', 'showpiece'];
 function rank(o) {
   if (o.m) return [0, o.m, ''];
   if (o.c && /^C\d/.test(o.id)) return [1, o.c, ''];
@@ -563,7 +605,15 @@ for (const o of out) {
   if (!VALID_TYPES.has(o.type)) errors.push(`${o.id}: bad type ${o.type}`);
   if (!o.name || !o.designations.length) errors.push(`${o.id}: missing name/designations`);
   if (o.type === 'double_star' && (o.sep == null || o.pa == null || o.mag2 == null)) (doubles.stub ? stubWarnings : errors).push(`${o.id}: double star without sep/pa/mag2`);
+  if (o.size && (!o.size.every((x) => x > 0) || (o.size[1] != null && o.size[1] > o.size[0]))) errors.push(`${o.id}: bad size ${JSON.stringify(o.size)}`);
+  if (o.pa != null && !(Number.isInteger(o.pa) && o.pa >= 0 && o.pa < (o.type === 'double_star' ? 360 : 180))) errors.push(`${o.id}: bad pa ${o.pa}`);
+  if (o.pa != null && o.type !== 'double_star' && !(o.size?.length === 2 && o.size[1] < o.size[0])) errors.push(`${o.id}: pa on a round object`);
+  if (o.magOf && (o.mag == null || !/nebula|remnant/.test(o.type))) errors.push(`${o.id}: magOf ${o.magOf} on ${o.type}${o.mag == null ? ' without mag' : ''}`);
+  if ((o.m || o.c) && !CUR.DESCRIPTIONS[o.id]) errors.push(`${o.id}: Messier/Caldwell object without a curated description`);
+  if (o.desc && (o.desc.length > (o.type === 'double_star' ? 650 : 420) || /\s{2}|\.\.|undefined|NaN/.test(o.desc))) errors.push(`${o.id}: suspicious description: ${o.desc}`);
 }
+for (const [table, keys] of [['DESCRIPTIONS', Object.keys(CUR.DESCRIPTIONS)], ['SIZE_OVERRIDES', Object.keys(CUR.SIZE_OVERRIDES)], ['MAG_OF_STAR', Object.keys(CUR.MAG_OF_STAR)], ['SB_REMOVE', Object.keys(CUR.SB_REMOVE)], ['PA_REMOVE', Object.keys(CUR.PA_REMOVE)], ['SHOWPIECES', CUR.SHOWPIECES]])
+  for (const k of keys) if (!ids.has(k)) errors.push(`curation ${table}: unknown id ${k}`);
 const messierCount = out.filter((o) => o.m).length;
 const caldwellCount = out.filter((o) => o.c).length;
 const mSet = new Set(out.filter((o) => o.m).map((o) => o.m));
@@ -618,6 +668,10 @@ log(`Constellations: OpenNGC 'Const' vs IAU boundaries (Roman 1987) — ${report
 if (reports.magVsWiki.length) log(`Messier mags differing >1.0 from Wikipedia table:\n  ${reports.magVsWiki.join('\n  ')}`);
 if (reports.caldwellMag.length) log(`Caldwell mags differing >1.5 from Wikipedia table:\n  ${reports.caldwellMag.join('\n  ')}`);
 log(`Magnitude adjustments (${magNotes.length}):\n  ${magNotes.join('\n  ')}`);
+log(`Messier magnitudes set to SEDS (${sedsMagNotes.length} changed): ${sedsMagNotes.join(', ')}`);
+log(`Sizes replaced (${sizeNotes.length}):\n  ${sizeNotes.join('\n  ')}`);
+if (sbNotes.length) log(`Surface brightness:\n  ${sbNotes.join('\n  ')}`);
+log(`Position angles (major axis): ${out.filter((o) => o.pa != null && o.type !== 'double_star').length} extended objects; magOf: ${out.filter((o) => o.magOf === 'star').length} star, ${out.filter((o) => o.magOf === 'cluster').length} cluster`);
 if (clusterColourWarnings.size) log(`Clusters with impossible B−V (V kept, as OpenNGC gives it): ${[...clusterColourWarnings].join('; ')}`);
 for (const n of doubles.notes) log(n);
 

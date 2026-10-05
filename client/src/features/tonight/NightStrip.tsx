@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ForecastHour } from "@shared/forecast";
+import type { CloudModelId, ForecastHour } from "@shared/forecast";
 import type { NightInfo, NightFrames } from "@shared/astro";
 import { formatTime, HOUR_MS } from "@shared/astro";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,10 @@ const TONE_VAR: Record<Tone, string> = {
 const scaleTone = (v: number): Tone => (v >= 4.5 ? "excellent" : v >= 3.5 ? "good" : v >= 2.5 ? "fair" : v >= 1.5 ? "poor" : "bad");
 const cloudTone = (c: number): Tone => (c < 10 ? "excellent" : c < 30 ? "good" : c < 55 ? "fair" : c < 80 ? "poor" : "bad");
 const scoreTone = (s: number): Tone => (s >= 80 ? "excellent" : s >= 62 ? "good" : s >= 42 ? "fair" : s >= 22 ? "poor" : "bad");
+
+const MODEL_LABEL: Record<CloudModelId, string> = { ecmwf: "ECMWF", gfs: "GFS", icon: "ICON" };
+/** Cloud cells fade when the models are this far apart (percentage points of total cloud). */
+const SPREAD_UNSURE = 50;
 
 function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null);
@@ -96,6 +100,12 @@ export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestW
   const speed = (k: number) => (units === "imperial" ? `${Math.round(k * 0.621)} mph` : `${Math.round(k)} km/h`);
   const gradId = `sky-${night.date}`;
   const hasWeather = hours.length > 0;
+  const unsure = (h: ForecastHour) => (h.cloudSpread ?? 0) >= SPREAD_UNSURE;
+  const anyUnsure = colTimes.some((t) => {
+    const h = byHour.get(t);
+    return !!h && unsure(h);
+  });
+  const models = hovered?.cloudModels ? (Object.keys(MODEL_LABEL) as CloudModelId[]).filter((k) => hovered.cloudModels?.[k] !== undefined) : [];
 
   return (
     <div ref={wrapRef} className="relative w-full">
@@ -146,7 +156,7 @@ export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestW
             {colTimes.map((t, i) => {
               const h = byHour.get(t);
               const cx = i * colW;
-              const cell = (row: number, tone: Tone | null, label: string | null, strength = 1) => (
+              const cell = (row: number, tone: Tone | null, label: string | null, strength = 1, faded = false) => (
                 <g key={row}>
                   <rect
                     x={cx + 1.5}
@@ -155,10 +165,13 @@ export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestW
                     height={ROWS[row].h}
                     rx={4}
                     fill={tone ? `hsl(var(${TONE_VAR[tone]}))` : "hsl(var(--muted))"}
-                    opacity={tone ? 0.18 + 0.62 * strength : 0.5}
+                    opacity={tone ? (0.18 + 0.62 * strength) * (faded ? 0.45 : 1) : 0.5}
                   />
+                  {faded && tone && (
+                    <rect x={cx + 2} y={rowY[row] + 0.5} width={colW - 4} height={ROWS[row].h - 1} rx={3.5} fill="none" stroke={`hsl(var(${TONE_VAR[tone]}))`} strokeOpacity={0.7} strokeDasharray="2 2" />
+                  )}
                   {label && colW >= 30 && (
-                    <text x={cx + colW / 2} y={rowY[row] + ROWS[row].h / 2 + 3.5} textAnchor="middle" className="num fill-foreground text-[10px]">
+                    <text x={cx + colW / 2} y={rowY[row] + ROWS[row].h / 2 + 3.5} textAnchor="middle" className={cn("num text-[10px]", faded ? "fill-muted-foreground" : "fill-foreground")}>
                       {label}
                     </text>
                   )}
@@ -169,7 +182,7 @@ export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestW
                   <rect x={cx} y={0} width={colW} height={H} fill="transparent" />
                   {h ? (
                     <>
-                      {cell(1, cloudTone(h.cloud), `${Math.round(h.cloud)}`, 0.35 + (h.cloud / 100) * 0.65)}
+                      {cell(1, cloudTone(h.cloud), `${Math.round(h.cloud)}`, 0.35 + (h.cloud / 100) * 0.65, unsure(h))}
                       {cell(2, scaleTone(h.seeing), null, 0.7)}
                       {cell(3, scaleTone(h.transparency), null, 0.7)}
                       {cell(5, h.dark ? scoreTone(h.dsoScore) : null, h.dark ? `${Math.round(h.dsoScore)}` : null, 0.8)}
@@ -208,6 +221,11 @@ export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestW
               Clouds <b className="num font-medium text-foreground">{Math.round(hovered.cloud)}%</b>
               <span className="num text-muted-foreground"> (low {Math.round(hovered.cloudLow)} · mid {Math.round(hovered.cloudMid)} · high {Math.round(hovered.cloudHigh)})</span>
             </span>
+            {models.length > 0 && (
+              <span className={cn(unsure(hovered) && "text-q-fair")}>
+                Models: <span className="num">{models.map((k) => `${MODEL_LABEL[k]} ${Math.round(hovered.cloudModels![k]!)}%`).join(" · ")}</span>
+              </span>
+            )}
             <span>
               Seeing <b className="num font-medium text-foreground">~{hovered.seeingArcsec.toFixed(1)}″</b>
             </span>
@@ -224,12 +242,16 @@ export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestW
               Temp <b className="num font-medium text-foreground">{temp(hovered.temp)}</b>
             </span>
             {hovered.dewRisk !== "low" && <span className="text-q-fair">Dew risk {hovered.dewRisk}</span>}
+            {hovered.fogRisk && hovered.fogRisk !== "low" && <span className="text-q-fair">Fog risk {hovered.fogRisk}</span>}
             <span>
               Moon <b className="num font-medium text-foreground">{hovered.moonAlt > 0 ? `${Math.round(hovered.moonAlt)}° up` : "below horizon"}</b>
             </span>
           </div>
         ) : (
-          <span>Tap or hover an hour for details. Green is good, red is poor; numbers are cloud cover % and deep-sky score.</span>
+          <span>
+            Tap or hover an hour for details. Green is good, red is poor; numbers are cloud cover % and deep-sky score.
+            {anyUnsure && " Faded, dashed cloud cells: the weather models disagree there."}
+          </span>
         )}
       </div>
     </div>

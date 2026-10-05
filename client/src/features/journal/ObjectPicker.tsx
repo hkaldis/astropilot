@@ -81,7 +81,7 @@ export function ObjectPicker({ onPick, autoFocus }: { onPick: (o: PickedObject) 
 
   const item = (c: Candidate) => (
     <CommandItem key={c.ref} value={c.ref} onSelect={() => onPick({ ref: c.ref, name: c.name, type: c.type })} className="min-h-11 gap-3 py-2">
-      <TypeGlyph type={c.type} className="text-muted-foreground" />
+      <TypeGlyph type={c.type} id={c.ref} className="text-muted-foreground" />
       <div className="min-w-0 flex-1">
         <div className="truncate font-medium">{c.name}</div>
         <div className="truncate text-xs text-muted-foreground">{c.sub}</div>

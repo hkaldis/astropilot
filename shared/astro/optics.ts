@@ -4,7 +4,7 @@
  * (exit-pupil targets per object class, framing, seeing- and aperture-limited power).
  */
 import { clamp } from "./core";
-import type { TargetLike } from "./visibility";
+import { telescopeLimitingMag, type TargetLike } from "./visibility";
 
 export interface ScopeSpec {
   aperture: number; // mm
@@ -71,7 +71,7 @@ export function scopeLimits(s: ScopeSpec): ScopeLimits {
     dawes: 116 / D,
     rayleigh: 138 / D,
     lightGrasp: (D / 7) ** 2,
-    limitingMag: 6.5 + 5 * Math.log10(D / 7) - 0.5,
+    limitingMag: telescopeLimitingMag(6.5, D),
     fRatio: s.focalLength / D,
   };
 }
@@ -169,6 +169,38 @@ function gaussLog(x: number, ideal: number, width: number) {
   return Math.exp(-d * d);
 }
 
+/** A zoom eyepiece's focal-length range, read from its name ("8–24 mm zoom"); null for fixed eyepieces. */
+function zoomOf(e: EyepieceSpec): [number, number] | null {
+  if (!e.name || !/zoom/i.test(e.name)) return null;
+  const m = e.name.match(/(\d+(?:[.,]\d+)?)\s*(?:mm)?\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*mm/i);
+  if (!m) return null;
+  const a = parseFloat(m[1].replace(",", "."));
+  const b = parseFloat(m[2].replace(",", "."));
+  return a > 0 && b > a && b <= 60 ? [a, b] : null;
+}
+
+/**
+ * Zooms are stored at their short end; offer the whole range as click stops (the apparent field narrows
+ * towards the long end, e.g. 60° at 8 mm to ~40° at 24 mm).
+ */
+function expandZooms(eyepieces: EyepieceSpec[]): EyepieceSpec[] {
+  const out: EyepieceSpec[] = [];
+  for (const e of eyepieces) {
+    if (!(e.focalLength > 0)) continue; // legacy rows without a focal length
+    const z = zoomOf(e);
+    if (!z) {
+      out.push(e);
+      continue;
+    }
+    const steps = 5;
+    for (let k = 0; k < steps; k++) {
+      const f = Math.round(z[0] * Math.pow(z[1] / z[0], k / (steps - 1)) * 2) / 2;
+      out.push({ ...e, focalLength: f, afov: (e.afov ?? DEFAULT_AFOV) * Math.pow(z[0] / f, 0.37) });
+    }
+  }
+  return out;
+}
+
 export function rankEyepieces(
   scope: ScopeSpec,
   eyepieces: EyepieceSpec[],
@@ -176,14 +208,17 @@ export function rankEyepieces(
   target: TargetLike & { id?: string },
   opts: RecommendOptions = {},
 ): EyepieceChoice[] {
-  if (!eyepieces.length) return [];
+  if (!eyepieces.some((e) => e.focalLength > 0)) return [];
   const kind = viewKind(target);
   const rule = PUPIL[kind];
   const lim = scopeLimits(scope);
   const seeingCap = Math.min(lim.maxUsefulMag, opts.seeingLimit ?? 250);
   const size = opts.sizeArcmin ?? target.size?.[0] ?? 0; // arcmin
+  // Score against the same ideal power the page quotes (exit-pupil target, capped so the object fits).
+  const idealMag = idealMagnification(scope, target, opts).magnification;
+  const width = Math.max(rule.max / rule.ideal, rule.ideal / rule.min) * 1.15;
   const combos: { e: EyepieceSpec; b: BarlowSpec | null }[] = [];
-  for (const e of eyepieces) {
+  for (const e of expandZooms(eyepieces)) {
     combos.push({ e, b: null });
     for (const b of barlows) combos.push({ e, b });
   }
@@ -198,7 +233,7 @@ export function rankEyepieces(
     let score =
       doubleIdealMag !== null
         ? 100 * gaussLog(s.magnification, doubleIdealMag, 2.2)
-        : 100 * gaussLog(s.exitPupil, rule.ideal, Math.max(rule.max / rule.ideal, rule.ideal / rule.min) * 1.15);
+        : 100 * gaussLog(s.magnification, idealMag, width);
 
     // Framing: extended objects should fit with some margin.
     if (size > 0 && kind !== "planet" && kind !== "double") {

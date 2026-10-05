@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api, queryClient } from "@/lib/api";
+import { clearOfflineApiCache, noteAccount } from "@/lib/offline";
 import type { ApiFeatures, ApiUser } from "@shared/api";
 
 export const AUTH_KEY = ["/api/auth/user"] as const;
@@ -7,6 +9,10 @@ export const AUTH_KEY = ["/api/auth/user"] as const;
 export function useAuth() {
   const q = useQuery<{ user: ApiUser | null }>({ queryKey: AUTH_KEY, staleTime: 5 * 60_000, retry: 1 });
   const user = q.data?.user ?? null;
+  const known = q.data !== undefined;
+  useEffect(() => {
+    if (known) noteAccount(user?.id ?? null);
+  }, [known, user?.id]);
   return { user, isLoading: q.isLoading, isAuthenticated: !!user };
 }
 
@@ -16,6 +22,7 @@ export function useFeatures(): ApiFeatures {
 }
 
 function onSignedIn(user: ApiUser) {
+  clearOfflineApiCache();
   queryClient.clear();
   queryClient.setQueryData(AUTH_KEY, { user });
 }
@@ -38,6 +45,7 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => api("POST", "/api/auth/logout"),
     onSettled: () => {
+      clearOfflineApiCache();
       queryClient.clear();
       queryClient.setQueryData(AUTH_KEY, { user: null });
     },

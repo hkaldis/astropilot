@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { X } from "lucide-react";
-import { HOUR_MS } from "@shared/astro";
+import { HOUR_MS, formatTime, sqmForBortle, type NightFrames, type NightInfo } from "@shared/astro";
+import type { ObservingSite } from "@shared/api";
 import { useSite, siteTz } from "@/hooks/useSite";
 import { useAuth } from "@/hooks/useAuth";
 import { usePrefs } from "@/hooks/usePrefs";
@@ -19,6 +20,14 @@ import { EventsList, IssPasses, AuroraNote } from "@/features/tonight/Extras";
 import { Welcome } from "@/features/tonight/Welcome";
 import { GuestSiteBar } from "@/features/tonight/GuestSiteBar";
 import { ScopePrompt } from "@/features/tonight/ScopePrompt";
+import { CometStrip } from "@/features/comets/CometStrip";
+
+/** Comets in reach that night (renders nothing when there are none). */
+function TonightComets({ site, night, frames, minAlt, tz, hour12 }: { site: ObservingSite; night: NightInfo; frames: NightFrames; minAlt: number; tz?: string; hour12: boolean }) {
+  const sqm = site.sqm ?? sqmForBortle(site.bortle);
+  const ctx = useMemo(() => ({ night, frames, sqm, minAlt, tz, hour12 }), [night, frames, sqm, minAlt, tz, hour12]);
+  return <CometStrip ctx={ctx} />;
+}
 
 function GuestBanner() {
   const [hidden, setHidden] = useState(() => store.get("ap.hideGuestBanner", false));
@@ -53,9 +62,10 @@ export default function TonightPage() {
   const { user } = useAuth();
   const { prefs, hour12 } = usePrefs();
   const now = useNow();
-  const [offset, setOffset] = useState(0);
-  const fq = useForecast(site);
-  const ctx = useNightContext(site, offset, now, fq.data);
+  // The night picked in the week strip (null: the current night).
+  const [picked, setPicked] = useState<string | null>(null);
+  const fq = useForecast(site, prefs);
+  const ctx = useNightContext(site, picked, now, fq.data);
   const tz = siteTz(site);
 
   const hours = useMemo(() => {
@@ -70,16 +80,28 @@ export default function TonightPage() {
   if (!ctx) return <Skel className="h-72 w-full" />;
 
   const nights = fq.data?.nights ?? [];
+  const noDark = ctx.night.darkness === "none";
 
   return (
     <div className="flex flex-col gap-8">
       {!user && <GuestBanner />}
       {site.key === "guest" && <GuestSiteBar site={site} />}
-      <TonightHero night={ctx.night} forecast={ctx.forecast} loading={fq.isLoading} isTonight={ctx.isTonight} siteName={site.name} tz={tz} hour12={hour12} now={now} southern={site.lat < 0} />
+      <TonightHero
+        night={ctx.night}
+        frames={ctx.frames}
+        forecast={ctx.forecast}
+        loading={fq.isLoading}
+        isTonight={ctx.isTonight}
+        siteName={site.name}
+        tz={tz}
+        hour12={hour12}
+        now={now}
+        southern={site.lat < 0}
+      />
 
       {nights.length > 0 && (
         <Section title="This week" description="Tap a night to plan it.">
-          <Outlook nights={nights} selected={offset} onSelect={setOffset} southern={site.lat < 0} />
+          <Outlook nights={nights} tonight={ctx.tonight} selected={ctx.date} onSelect={(d) => setPicked(d === ctx.tonight ? null : d)} southern={site.lat < 0} />
         </Section>
       )}
       {fq.isError && <p className="text-sm text-muted-foreground">The weather forecast is unavailable right now — sky and Moon times below are still exact.</p>}
@@ -99,20 +121,21 @@ export default function TonightPage() {
             </Link>
           }
         >
-          <ScopePrompt />
-          <BestTargets site={site} frames={ctx.frames} tz={tz} hour12={hour12} />
+          {!noDark && <ScopePrompt />}
+          <BestTargets site={site} night={ctx.night} frames={ctx.frames} tz={tz} hour12={hour12} isTonight={ctx.isTonight} />
         </Section>
         <div className="flex flex-col gap-8">
           <Section title="Moon">
-            <MoonPanel night={ctx.night} site={site} tz={tz} hour12={hour12} now={now} />
+            <MoonPanel night={ctx.night} frames={ctx.frames} site={site} tz={tz} hour12={hour12} now={now} isTonight={ctx.isTonight} />
           </Section>
           <Section title="Planets">
-            <PlanetsTonight night={ctx.night} site={site} tz={tz} hour12={hour12} />
+            <PlanetsTonight night={ctx.night} site={site} tz={tz} hour12={hour12} isTonight={ctx.isTonight} now={now} />
           </Section>
+          {!noDark && <TonightComets site={site} night={ctx.night} frames={ctx.frames} minAlt={prefs.minAltitude ?? 20} tz={tz} hour12={hour12} />}
           <Section title="Coming up">
             <EventsList site={site} now={now} tz={tz} hour12={hour12} />
           </Section>
-          <Section title="Space station">
+          <Section title="Space stations">
             <IssPasses site={site} tz={tz} hour12={hour12} until={ctx.night.nextNoon} />
           </Section>
           <Section title="Aurora">
@@ -121,9 +144,23 @@ export default function TonightPage() {
         </div>
       </div>
       {fq.data && (
-        <p className="text-2xs text-muted-foreground">
-          Forecast: {fq.data.sources.join(" · ")}. Sky positions: astronomy-engine (VSOP87/ELP). Updated {new Date(fq.data.generatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.
-        </p>
+        <div className="flex flex-col gap-1 text-2xs text-muted-foreground">
+          <p>
+            Forecast: {fq.data.sources.join(" · ")}. Sky positions: astronomy-engine (VSOP87/ELP). Updated {formatTime(fq.data.generatedAt, { tz, hour12 })}.
+          </p>
+          {fq.data.attribution && fq.data.attribution.length > 0 && (
+            <p>
+              {fq.data.attribution.map((a, i) => (
+                <span key={a.url}>
+                  {i > 0 && " · "}
+                  <a href={a.url} target="_blank" rel="noreferrer" className="link">
+                    {a.text}
+                  </a>
+                </span>
+              ))}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );

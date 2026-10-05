@@ -13,6 +13,8 @@ export interface Site {
   lat: number;
   lon: number;
   elevation?: number | null;
+  /** IANA time zone. Only used to label nights with the local calendar date near the date line. */
+  timezone?: string | null;
 }
 
 export type Vec3 = [number, number, number];

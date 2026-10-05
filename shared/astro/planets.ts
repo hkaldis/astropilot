@@ -103,12 +103,13 @@ export function planetaryEvents(fromMs: number, days: number) {
   const limit = fromMs + days * 86_400_000;
   const from = new Date(fromMs);
   for (const id of ["mars", "jupiter", "saturn", "uranus", "neptune"] as PlanetId[]) {
-    const ev = A.SearchRelativeLongitude(PLANET_BY_ID[id].body, 0, from);
-    if (ev.date.getTime() < limit) out.push({ time: ev.date.getTime(), kind: "opposition", body: id, detail: "Biggest and brightest of the year, opposite the Sun and up all night." });
+    // Every opposition in the window (a long window can hold more than one for the slow outer planets).
+    for (let ev = A.SearchRelativeLongitude(PLANET_BY_ID[id].body, 0, from); ev.date.getTime() < limit; ev = A.SearchRelativeLongitude(PLANET_BY_ID[id].body, 0, new Date(ev.date.getTime() + 30 * 86_400_000)))
+      out.push({ time: ev.date.getTime(), kind: "opposition", body: id, detail: "Biggest and brightest of the year, opposite the Sun and up all night." });
   }
   for (const id of ["mercury", "venus"] as PlanetId[]) {
     let start = from;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 40; i++) {
       const ev = A.SearchMaxElongation(PLANET_BY_ID[id].body, start);
       const ms = ev.time.date.getTime();
       if (ms > limit) break;
@@ -116,7 +117,10 @@ export function planetaryEvents(fromMs: number, days: number) {
         time: ms,
         kind: "elongation",
         body: id,
-        detail: `${ev.elongation.toFixed(1)}° from the Sun — look ${ev.visibility === "evening" ? "low in the west after sunset" : "low in the east before sunrise"}.`,
+        detail:
+          id === "mercury"
+            ? `${ev.elongation.toFixed(1)}° from the Sun — Mercury's best ${ev.visibility} showing: look low in the ${ev.visibility === "evening" ? "west after sunset" : "east before sunrise"}.`
+            : `${ev.elongation.toFixed(1)}° from the Sun — Venus is a brilliant ${ev.visibility === "evening" ? "evening star in the west after sunset" : "morning star in the east before sunrise"}.`,
       });
       start = new Date(ms + 86_400_000);
     }

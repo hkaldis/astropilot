@@ -242,9 +242,19 @@ function MyLocations() {
         <div className="flex flex-col gap-3 rounded-xl border border-dashed p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 text-sm">
             <div className="font-medium">You're looking at {guest.name}, which isn't saved</div>
-            <p className="text-muted-foreground">Save it to give it a sky darkness and keep it one tap away.</p>
+            <p className="text-muted-foreground">Save it to keep it one tap away, with its sky darkness and notes.</p>
           </div>
-          <Button variant="outline" className="shrink-0" onClick={() => openAdd({ name: guest.name, lat: guest.lat, lon: guest.lon, bortle: guest.bortle, sqm: guest.sqm })}>
+          <Button variant="outline" className="shrink-0" onClick={() =>
+              openAdd({
+                name: guest.name,
+                lat: guest.lat,
+                lon: guest.lon,
+                bortle: guest.bortle,
+                bortleChosen: guest.bortleSource === "user",
+                sqm: guest.bortleSource === "atlas" ? null : guest.sqm,
+              })
+            }
+          >
             <MapPin /> Save this place
           </Button>
         </div>
@@ -323,7 +333,8 @@ function GuestLocations() {
   const { prefs } = usePrefs();
   const label = useBortleLabelId();
   const guest: ObservingSite | null = site;
-  const setBortle = (b: number) => guest && setGuestSite({ name: guest.name, lat: guest.lat, lon: guest.lon, elevation: guest.elevation, timezone: guest.timezone, bortle: b, sqm: null });
+  const setBortle = (b: number) =>
+    guest && setGuestSite({ name: guest.name, lat: guest.lat, lon: guest.lon, elevation: guest.elevation, timezone: guest.timezone, bortle: b, sqm: null, bortleSource: "user" });
 
   return (
     <div className="flex flex-col gap-8">
@@ -375,7 +386,16 @@ function GuestLocations() {
                 </a>
               </div>
               <BortleScale value={guest.bortle} onChange={setBortle} labelledBy={label} />
-              <BortleExplainer bortle={guest.bortle} />
+              <BortleExplainer bortle={guest.bortle} sqm={guest.bortleSource === "atlas" ? guest.sqm : null} sqmKind="atlas" />
+              {guest.bortleSource === "atlas" && (
+                <p className="text-2xs text-muted-foreground">
+                  Estimated from the{" "}
+                  <a href="https://djlorenz.github.io/astronomy/lp/" target="_blank" rel="noreferrer" className="link">
+                    2025 light-pollution atlas
+                  </a>
+                  . If you know your sky better, pick its class above.
+                </p>
+              )}
             </div>
           </div>
         ) : (
@@ -386,7 +406,7 @@ function GuestLocations() {
           <PlacePicker
             onPick={(p) => {
               setGuestSite({ name: p.name, lat: p.latitude, lon: p.longitude, elevation: p.elevation, timezone: p.timezone, bortle: guest?.bortle ?? 5, sqm: null });
-              toast({ title: `Observing from ${p.name}`, description: "Set how dark the sky is there for better suggestions." });
+              toast({ title: `Observing from ${p.name}`, description: "Sky darkness is estimated from the light-pollution atlas — adjust it if you know better." });
             }}
           />
         </div>

@@ -5,6 +5,7 @@ import type { ApiLocation, ApiSession, JournalStats } from "@shared/api";
 import { ErrorState, PageHeader, Section, SignInPrompt, Skel, usePageTitle } from "@/components/common/Page";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useSite } from "@/hooks/useSite";
 import { usePrefs } from "@/hooks/usePrefs";
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { EXPORT_URL, useCreateSession, useJournalSessions, useJournalStats } from "@/features/journal/api";
 import { ResponsiveModal } from "@/features/journal/controls";
 import { CatalogGrid, MonthBars, SolarSystemChips, TypeBars } from "@/features/journal/progress";
+import { AchievementsGrid, achievementSummary } from "@/features/journal/achievements";
 import { SessionForm, sessionValues, toSessionInput } from "@/features/journal/SessionForm";
 import { SEEING_LABEL, TRANSPARENCY_LABEL, formatTime, monthLabel, nightLabel, nightWeekday, placeOf, sessionNight, sessionTitle } from "@/features/journal/format";
 
@@ -49,10 +51,13 @@ function SignedInJournal() {
   const s = stats.data!;
   if (!list.length) return <EmptyJournal />;
 
+  // The server counts sessions without an end time as 1.5 h (or the span of their observations, if longer).
+  const estimatedSessions = list.filter((x) => !x.endDate || Date.parse(x.endDate) <= Date.parse(x.date)).length;
+
   return (
     <div className="flex flex-col gap-10">
       <JournalHeader canExport={s.observations > 0} />
-      <StatsStrip stats={s} />
+      <StatsStrip stats={s} estimatedSessions={estimatedSessions} />
       <ProgressSection stats={s} />
       <Section title="Sessions" description="Every night you've logged, newest first.">
         <SessionList sessions={list} locations={locations} />
@@ -83,14 +88,34 @@ function JournalHeader({ canExport }: { canExport: boolean }) {
   );
 }
 
-function StatsStrip({ stats }: { stats: JournalStats }) {
+function StatsStrip({ stats, estimatedSessions }: { stats: JournalStats; estimatedSessions: number }) {
   const hours = stats.hoursObserved;
+  const hoursText = `${estimatedSessions > 0 ? "≈" : ""}${hours < 10 ? hours.toFixed(1) : Math.round(hours)}`;
   return (
     <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-4">
       {[
         { label: "Sessions", value: stats.sessions, sub: stats.firstSession ? `since ${new Date(stats.firstSession).getFullYear()}` : null },
         { label: "Objects", value: stats.uniqueObjects, sub: `${stats.observations} observation${stats.observations === 1 ? "" : "s"}` },
-        { label: "Hours", value: hours < 10 ? hours.toFixed(1) : Math.round(hours), sub: "under the sky" },
+        {
+          label: "Hours",
+          value:
+            estimatedSessions > 0 ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help underline decoration-muted-foreground/50 decoration-dotted decoration-1 underline-offset-[6px]" tabIndex={0}>
+                    {hoursText}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs">
+                  An estimate: {estimatedSessions === 1 ? "a session" : `${estimatedSessions} sessions`} without an end time {estimatedSessions === 1 ? "counts" : "count"} as
+                  1.5 h, or as long as {estimatedSessions === 1 ? "its" : "their"} observations span if that's longer. Add an end time to a session for exact hours.
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              hoursText
+            ),
+          sub: estimatedSessions > 0 ? "under the sky, estimated" : "under the sky",
+        },
         { label: "Best streak", value: stats.longestStreakNights, sub: `night${stats.longestStreakNights === 1 ? "" : "s"} in a row` },
       ].map((x) => (
         <div key={x.label} className="bg-background px-4 py-4 sm:px-5">
@@ -131,7 +156,26 @@ function ProgressSection({ stats }: { stats: JournalStats }) {
           <MonthBars perMonth={stats.perMonth} />
         </Section>
       </div>
+      {stats.achievements?.length ? <AchievementsSection stats={stats} /> : null}
     </>
+  );
+}
+
+function AchievementsSection({ stats }: { stats: JournalStats }) {
+  const { earned, total, latest } = achievementSummary(stats.achievements);
+  return (
+    <div className="border-t pt-8">
+      <Section
+        title="Achievements"
+        description={
+          latest
+            ? `${earned} of ${total} earned, all from what you've logged. Latest: ${latest.title}, ${latest.tier}.`
+            : `${total} to earn, all from what you log — nothing to game.`
+        }
+      >
+        <AchievementsGrid achievements={stats.achievements} />
+      </Section>
+    </div>
   );
 }
 

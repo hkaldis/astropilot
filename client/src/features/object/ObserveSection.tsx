@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Filter, Info } from "lucide-react";
-import { filterAdvice, idealMagnification, rankEyepieces, scopeLimits, type EyepieceChoice } from "@shared/astro";
+import { filterAdvice, formatMag, formatTime, idealMagnification, rankEyepieces, scopeLimits, type EyepieceChoice } from "@shared/astro";
 import { useGear } from "@/hooks/useScope";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import type { ActiveScopeState } from "@/features/explore/InstrumentBar";
 import type { NightContext } from "@/features/explore/sky";
 import { FieldView, angleLabel } from "./FieldView";
-import { binocularSpec, fieldShape, opticsTarget, planetNotes } from "./observing";
+import { binocularSpec, fieldShape, opticsTarget, planetFilterAdvice, planetNotes } from "./observing";
 import type { Subject, Tonight } from "./model";
 
 const VERDICT_TONE = { ideal: "excellent", good: "good", usable: "fair", poor: "poor" } as const;
@@ -83,7 +83,7 @@ export function ObserveSection({ subject, tonight, ctx, scope }: { subject: Subj
   const advice =
     target.type === "double_star"
       ? { best: "none" as const, label: "No filter", why: "Filters only dim the stars and shift their colours — enjoy the pair unfiltered." }
-      : filterAdvice(target);
+      : ((subject.kind === "body" ? planetFilterAdvice(subject.id) : null) ?? filterAdvice(target));
   const owned = user && gear.data ? ownedFilterName(advice.best, gear.data.filters) : null;
   const isDouble = subject.kind === "deep" && subject.obj.type === "double_star";
   const isBino = scope.kind === "binoculars";
@@ -92,18 +92,19 @@ export function ObserveSection({ subject, tonight, ctx, scope }: { subject: Subj
 
   const fieldDeg = chosen ? chosen.setup.trueField : bino ? bino.fieldDeg : null;
   const objSizeArcmin = subject.kind === "deep" ? subject.obj.size?.[0] : (tonight.body?.state.diameter ?? 0) / 60;
+  const name = subject.kind === "body" && subject.id === "moon" ? "The Moon" : subject.name;
 
   let framing: string | null = null;
   if (fieldDeg && objSizeArcmin && !isDouble) {
     const fill = objSizeArcmin / (fieldDeg * 60);
     framing =
       fill > 1.05
-        ? `${subject.name} is ${angleLabel(objSizeArcmin * 60)} across — bigger than this ${fieldText(fieldDeg)} field, so you'll see part of it at a time.`
+        ? `${name} is ${angleLabel(objSizeArcmin * 60)} across — bigger than this ${fieldText(fieldDeg)} field, so you'll see part of it at a time.`
         : fill > 0.6
-          ? `${subject.name} fills most of the field — a snug fit.`
+          ? `${name} fills most of the field — a snug fit.`
           : fill > 0.15
-            ? `${subject.name} sits comfortably in the field with dark sky around it.`
-            : `${subject.name} is small in this field — ${subject.kind === "body" ? "more power shows more detail if the air is steady" : "look for it near the centre"}.`;
+            ? `${name} sits comfortably in the field with dark sky around it.`
+            : `${name} is small in this field — ${subject.kind === "body" ? "more power shows more detail if the air is steady" : "look for it near the centre"}.`;
   }
 
   return (
@@ -246,7 +247,7 @@ export function ObserveSection({ subject, tonight, ctx, scope }: { subject: Subj
               {subject.obj.mag !== undefined && subject.obj.mag2 !== undefined && (
                 <>
                   {" "}
-                  (mag <span className="num">{subject.obj.mag}</span> and <span className="num">{subject.obj.mag2}</span>)
+                  (mag <span className="num">{formatMag(subject.obj.mag)}</span> and <span className="num">{formatMag(subject.obj.mag2)}</span>)
                 </>
               )}
               .{" "}
@@ -302,10 +303,11 @@ export function ObserveSection({ subject, tonight, ctx, scope }: { subject: Subj
               <figcaption className="mt-1 max-w-[17rem] text-center text-2xs leading-relaxed text-muted-foreground">
                 {framing && <span className="block text-xs text-foreground/90">{framing}</span>}
                 True field {fieldText(fieldDeg)}
-                {chosen ? ` with the ${chosen.eyepiece.name ?? chosen.eyepiece.focalLength + " mm"}` : ""}. North up, east left — your scope may flip or rotate the view.
+                {chosen ? ` with the ${chosen.eyepiece.name ?? chosen.eyepiece.focalLength + " mm"}` : ""}.{" "}
+                {scope.kind === "telescope" ? "North up, east left — your scope may flip or rotate the view." : "North up, east left, as on a star chart."}
                 {shape.kind === "extended" && " Dashed outline: catalog size; the visible extent is usually smaller under bright skies."}
                 {shape.kind === "extended" && (shape.pa === null || shape.pa === undefined) && shape.minor !== shape.major && " Orientation not shown."}
-                {shape.kind === "disk" && shape.moons && ` Moon positions at ${new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hour12: ctx.hour12, timeZone: ctx.tz }).format(at)}.`}
+                {shape.kind === "disk" && shape.moons && ` The moons are placed for ${formatTime(at, { tz: ctx.tz, hour12: ctx.hour12 })}.`}
               </figcaption>
             </>
           ) : null}

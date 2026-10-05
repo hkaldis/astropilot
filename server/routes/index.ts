@@ -8,6 +8,7 @@ import { registerGeo } from "./geo";
 import { registerGear } from "./gear";
 import { registerJournal } from "./journal";
 import { registerForecast } from "./forecast";
+import { registerComets } from "./comets";
 
 export function registerRoutes(app: Express) {
   registerFeatures(app);
@@ -18,5 +19,6 @@ export function registerRoutes(app: Express) {
   registerTargets(app);
   registerJournal(app);
   registerForecast(app);
+  registerComets(app);
   registerDonations(app);
 }

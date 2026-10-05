@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { cached, wikiRevision, separationDeg, round, fmtRA, fmtDec, parseIauConstellationTable, writeJsonCompact, makeConstellationFinder, OUT_DIR } from './lib/common.mjs';
-import { WIKI_REVISIONS } from './curation.mjs';
+import { WIKI_REVISIONS, STAR_MAG_OVERRIDES } from './curation.mjs';
 
 // Pinned d3-celestial commit: last change to data/ (2021-12-02); identical to master as of 2026-10.
 const D3_COMMIT = 'b56735c22935b7bde41a944a74e0f780ca0c6dfa';
@@ -43,7 +43,9 @@ const starTuples = [];
 const byHip = new Map();
 for (const f of stars.features) {
   const [lon, lat] = f.geometry.coordinates;
-  const mag = f.properties.mag;
+  // Hipparcos V from d3-celestial, except the documented corrections in curation.mjs (STAR_MAG_OVERRIDES).
+  const mag = STAR_MAG_OVERRIDES[f.id]?.[0] ?? f.properties.mag;
+  if (STAR_MAG_OVERRIDES[f.id]) log(`  star magnitude HIP ${f.id}: ${f.properties.mag} → ${mag} (${STAR_MAG_OVERRIDES[f.id][1]})`);
   const bvRaw = f.properties.bv;
   const bv = bvRaw === '' || bvRaw == null ? null : Number(bvRaw);
   if (bv != null && !Number.isFinite(bv)) throw new Error(`bad bv for HIP ${f.id}: ${bvRaw}`);

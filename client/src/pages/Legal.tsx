@@ -25,6 +25,8 @@ function Privacy() {
         <li><strong>Open-Meteo</strong> — weather and geocoding. We send the coordinates of the place you're viewing, never your identity.</li>
         <li><strong>OpenStreetMap (Nominatim and map tiles)</strong> — place names and maps for coordinates you choose.</li>
         <li><strong>NOAA SWPC and CelesTrak</strong> — space weather and satellite orbits (no personal data sent).</li>
+        <li><strong>D. J. Lorenz's light-pollution atlas (GitHub Pages)</strong> — our server downloads the 5° map tile covering a place to estimate its sky darkness (no personal data sent).</li>
+        <li><strong>NASA/JPL Small-Body Database and Horizons</strong> — comet orbits and positions, fetched by our server (no personal data sent).</li>
         <li><strong>Google</strong> — only if you choose "Continue with Google".</li>
         <li><strong>Stripe</strong> — only if you make a donation; we never see your card details.</li>
         <li><strong>Replit</strong> — hosting, database and photo storage.</li>
@@ -77,11 +79,20 @@ function About() {
         </li>
         <li>
           <strong>Sky brightness</strong> combines your site's Bortle class (or SQM reading), atmospheric extinction with altitude and moonlight from the
-          Krisciunas &amp; Schaefer (1991) model at each object's position.
+          Krisciunas &amp; Schaefer (1991) model at each object's position. For a new place, the Bortle class is estimated from the{" "}
+          <a href="https://djlorenz.github.io/astronomy/lp/">World Atlas of Artificial Night Sky Brightness</a> (D. J. Lorenz, 2025 edition, from VIIRS satellite
+          data by the Earth Observation Group, Colorado School of Mines) — a zenith-brightness model at about 1 km resolution, so it's an estimate you can override.
         </li>
         <li>
-          <strong>Visibility</strong> compares each object's surface brightness with that sky, corrected for its size, your aperture and its altitude, giving an honest
-          easy-to-out-of-reach rating.
+          <strong>Visibility</strong> follows how the eye detects faint light: an object's contrast against the sky must beat a threshold that depends on its apparent
+          size and on how dark the background is at the eyepiece (Blackwell's threshold data, as modelled by Crumey 2014). We pick the best magnification your
+          instrument offers, treat bright cores and nebula regions separately, include twilight and moonlight, and calibrated the result against hundreds of
+          real observing judgments — so the easy-to-out-of-reach rating means the same thing for the naked eye, binoculars and big Dobsonians, from a dark site or a city.
+        </li>
+        <li>
+          <strong>Sky events</strong>: meteor-shower peaks from the International Meteor Organization's solar longitudes (with the radiant's altitude for your
+          site), conjunctions and occultations computed for your location, and eclipse visibility across all contacts. Comets come from NASA/JPL's Small-Body
+          Database and Horizons.
         </li>
         <li>
           <strong>The observing forecast</strong> uses Open-Meteo numerical weather models (cloud at three heights, humidity, dew point, wind and jet-stream winds) and

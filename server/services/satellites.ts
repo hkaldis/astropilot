@@ -1,20 +1,27 @@
 /**
- * ISS pass predictions. TLE from CelesTrak (cached 6 h), SGP4 via satellite.js, 10-second scan
- * over the next 5 days. A pass is the stretch above 10°; it is *visible* when, at some moment of
- * it, the observer is in darkness (Sun below −6°) while the ISS is still sunlit — outside the
- * Earth's shadow, modelled as a cylinder of Earth radius along the anti-Sun direction (Sun
- * vector from astronomy-engine, rotated to the true equator of date ≈ SGP4's TEME frame).
+ * Space-station pass predictions (ISS and China's Tiangong). TLEs from CelesTrak (cached 6 h),
+ * SGP4 via satellite.js, 10-second scan over the next 5 days. A pass is the stretch above 10°; it
+ * is *visible* when, at some moment of it, the observer is in darkness (Sun below −6°) while the
+ * station is still sunlit — outside the Earth's shadow, modelled as a cylinder of Earth radius
+ * along the anti-Sun direction (Sun vector from astronomy-engine, rotated to the true equator of
+ * date ≈ SGP4's TEME frame).
  *
- * Magnitude: m = −1.7 + 5·log10(range / 1000 km) + 0.0115·(φ − 90°), φ the Sun–ISS–observer
- * phase angle. This linear phase law reproduces Heavens-Above's predictions within ~0.15 mag
- * (overhead ≈ −3.7, low passes toward the twilight glow ≈ −0.5).
+ * Magnitude: m = M₀ + 5·log10(range / 1000 km) + 0.0115·(φ − 90°), φ the Sun–station–observer
+ * phase angle. For the ISS, M₀ = −1.7 reproduces Heavens-Above's predictions within ~0.15 mag
+ * (overhead ≈ −3.7, low passes toward the twilight glow ≈ −0.5). Tiangong is ~1.8 mag fainter
+ * intrinsically (Heavens-Above: 0.0 vs −1.8 at 1000 km, half lit), so M₀ = +0.1 (overhead ≈ −2).
+ * Tiangong's 41.5° orbit keeps it below 10° for observers poleward of ~55°.
  */
 import * as satellite from "satellite.js";
 import { A, DEG, HOUR_MS, compassPoint } from "@shared/astro";
-import type { IssPass } from "@shared/forecast";
+import type { IssPass, StationId } from "@shared/forecast";
 import { HttpError, TTLCache, USER_AGENT, fetchWithTimeout } from "../http";
 
-const TLE_URL = "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=tle";
+export const STATIONS: Record<StationId, { norad: number; name: string; stdMag: number }> = {
+  iss: { norad: 25544, name: "ISS", stdMag: -1.7 },
+  tiangong: { norad: 48274, name: "Tiangong", stdMag: 0.1 },
+};
+
 const TLE_TTL = 6 * HOUR_MS;
 const TLE_STALE_MAX = 3 * 24 * HOUR_MS; // still usable for a few days if CelesTrak is down
 const DAYS = 5;
@@ -22,7 +29,6 @@ const STEP_MS = 10_000;
 const MIN_ALT = 10; // deg
 const DARK_SUN_ALT = -6; // deg
 const EARTH_R = 6378.137; // km
-const STD_MAG = -1.7; // at 1000 km and 90° phase angle
 const PHASE_COEF = 0.0115; // mag per degree of phase angle
 const PASS_TTL = 30 * 60_000;
 
@@ -33,35 +39,43 @@ interface Tle {
   fetchedAt: number;
 }
 
-let tleCache: Tle | null = null;
-let tleInflight: Promise<Tle> | null = null;
+const tleCache = new Map<StationId, Tle>();
+const tleInflight = new Map<StationId, Promise<Tle>>();
 
-async function loadTle(): Promise<Tle> {
-  const res = await fetchWithTimeout(TLE_URL, { timeoutMs: 8000, headers: { "User-Agent": USER_AGENT } });
+async function loadTle(id: StationId): Promise<Tle> {
+  const { norad, name } = STATIONS[id];
+  const url = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${norad}&FORMAT=tle`;
+  const res = await fetchWithTimeout(url, { timeoutMs: 8000, headers: { "User-Agent": USER_AGENT } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const lines = (await res.text())
     .split(/\r?\n/)
     .map((l) => l.trimEnd())
     .filter(Boolean);
-  const i = lines.findIndex((l) => l.startsWith("1 25544"));
-  if (i < 0 || !lines[i + 1]?.startsWith("2 25544") || lines[i].length < 69 || lines[i + 1].length < 69) throw new Error("unexpected TLE format");
+  const i = lines.findIndex((l) => l.startsWith(`1 ${norad}`));
+  if (i < 0 || !lines[i + 1]?.startsWith(`2 ${norad}`) || lines[i].length < 69 || lines[i + 1].length < 69) throw new Error("unexpected TLE format");
   satellite.twoline2satrec(lines[i], lines[i + 1]); // throws on garbage
-  return { name: (lines[i - 1] ?? "ISS").trim(), line1: lines[i], line2: lines[i + 1], fetchedAt: Date.now() };
+  return { name: (lines[i - 1] ?? name).trim(), line1: lines[i], line2: lines[i + 1], fetchedAt: Date.now() };
 }
 
-async function getTle(): Promise<Tle> {
-  if (tleCache && Date.now() - tleCache.fetchedAt < TLE_TTL) return tleCache;
-  if (!tleInflight) {
-    tleInflight = loadTle()
-      .then((t) => (tleCache = t))
-      .finally(() => (tleInflight = null));
+async function getTle(id: StationId): Promise<Tle> {
+  const cached = tleCache.get(id);
+  if (cached && Date.now() - cached.fetchedAt < TLE_TTL) return cached;
+  let pending = tleInflight.get(id);
+  if (!pending) {
+    pending = loadTle(id)
+      .then((t) => {
+        tleCache.set(id, t);
+        return t;
+      })
+      .finally(() => tleInflight.delete(id));
+    tleInflight.set(id, pending);
   }
   try {
-    return await tleInflight;
+    return await pending;
   } catch (e) {
-    console.warn(`[iss] TLE fetch failed: ${(e as Error).message}`);
-    if (tleCache && Date.now() - tleCache.fetchedAt < TLE_STALE_MAX) return tleCache;
-    throw new HttpError(502, "ISS orbit data is unavailable right now. Please try again later.");
+    console.warn(`[passes] ${STATIONS[id].name} TLE fetch failed: ${(e as Error).message}`);
+    if (cached && Date.now() - cached.fetchedAt < TLE_STALE_MAX) return cached;
+    throw new HttpError(502, `${STATIONS[id].name} orbit data is unavailable right now. Please try again later.`);
   }
 }
 
@@ -103,8 +117,8 @@ function sample(rec: satellite.SatRec, obs: Observer, t: number): Sample | null 
   return { t, alt: look.elevation / DEG, az: look.azimuth / DEG, range: look.rangeSat, eci: [p.x, p.y, p.z], gmst };
 }
 
-/** Is the observer dark and the ISS sunlit at this sample? Returns a magnitude when visible. */
-function visibility(s: Sample, obs: Observer, sun: V3): number | null {
+/** Is the observer dark and the station sunlit at this sample? Returns a magnitude when visible. */
+function visibility(s: Sample, obs: Observer, sun: V3, stdMag: number): number | null {
   const sunLen = norm(sun);
   const u: V3 = [sun[0] / sunLen, sun[1] / sunLen, sun[2] / sunLen];
   // Observer's local vertical in the inertial frame (geodetic normal rotated by GMST).
@@ -121,14 +135,15 @@ function visibility(s: Sample, obs: Observer, sun: V3): number | null {
   const toObs = sub([o.x, o.y, o.z], s.eci);
   const toSun = sub(sun, s.eci);
   const phase = Math.acos(Math.max(-1, Math.min(1, dot(toObs, toSun) / (norm(toObs) * norm(toSun)))));
-  const mag = STD_MAG + 5 * Math.log10(s.range / 1000) + PHASE_COEF * (phase / DEG - 90);
-  return Math.max(-4.5, Math.min(5, mag));
+  const mag = stdMag + 5 * Math.log10(s.range / 1000) + PHASE_COEF * (phase / DEG - 90);
+  return Math.max(-4.5, Math.min(6, mag));
 }
 
 /** Time where a quantity crosses `level` between two samples (linear). */
 const cross = (a: Sample, b: Sample, level: number) => a.t + ((level - a.alt) / (b.alt - a.alt)) * (b.t - a.t);
 
-function buildPass(rec: satellite.SatRec, obs: Observer, pts: Sample[]): IssPass | null {
+function buildPass(rec: satellite.SatRec, obs: Observer, pts: Sample[], id: StationId): IssPass | null {
+  const stdMag = STATIONS[id].stdMag;
   // pts: consecutive samples, the first and last at or below the horizon when available.
   let iMax = 0;
   for (let i = 1; i < pts.length; i++) if (pts[i].alt > pts[iMax].alt) iMax = i;
@@ -164,14 +179,14 @@ function buildPass(rec: satellite.SatRec, obs: Observer, pts: Sample[]): IssPass
     for (let k = 0; k < 4 && hi - lo > 1000; k++) {
       const midT = Math.round((lo + hi) / 2);
       const m = sample(rec, obs, midT);
-      const v = m ? visibility(m, obs, sun) !== null : !aVisible;
+      const v = m ? visibility(m, obs, sun, stdMag) !== null : !aVisible;
       if (v === aVisible) lo = midT;
       else hi = midT;
     }
     return (lo + hi) / 2;
   };
   for (const s of along) {
-    const mag = visibility(s, obs, sun);
+    const mag = visibility(s, obs, sun, stdMag);
     const vis = mag !== null;
     if (vis) {
       if (visibleStart === null) visibleStart = prev && !prev.vis ? refine(prev.s, s, false) : s.t;
@@ -196,6 +211,8 @@ function buildPass(rec: satellite.SatRec, obs: Observer, pts: Sample[]): IssPass
 
   const r1 = (x: number) => Math.round(x * 10) / 10;
   return {
+    sat: id,
+    name: STATIONS[id].name,
     start: s0.t,
     max: sm.t,
     end: s1.t,
@@ -213,7 +230,7 @@ function buildPass(rec: satellite.SatRec, obs: Observer, pts: Sample[]): IssPass
   };
 }
 
-function computePasses(tle: Tle, lat: number, lon: number, elevM: number, from: number, to: number): IssPass[] {
+function computePasses(id: StationId, tle: Tle, lat: number, lon: number, elevM: number, from: number, to: number): IssPass[] {
   const rec = satellite.twoline2satrec(tle.line1, tle.line2);
   const gd = { latitude: lat * DEG, longitude: lon * DEG, height: elevM / 1000 };
   const obs: Observer = { gd, ecf: satellite.geodeticToEcf(gd), lat: lat * DEG, lon: lon * DEG };
@@ -231,33 +248,51 @@ function computePasses(tle: Tle, lat: number, lon: number, elevM: number, from: 
       run.push(s);
     } else if (run) {
       run.push(s);
-      const p = buildPass(rec, obs, run);
+      const p = buildPass(rec, obs, run, id);
       if (p) passes.push(p);
       run = null;
     }
     prev = s;
   }
   if (run) {
-    const p = buildPass(rec, obs, run);
+    const p = buildPass(rec, obs, run, id);
     if (p) passes.push(p);
   }
   return passes;
 }
 
-const passCache = new TTLCache<IssPass[]>(PASS_TTL, 300);
+const passCache = new TTLCache<IssPass[]>(PASS_TTL, 600);
 
-export async function getIssPasses(q: { lat: number; lon: number; elev?: number }): Promise<IssPass[]> {
-  const tle = await getTle();
+type PassQuery = { lat: number; lon: number; elev?: number };
+
+async function passesFor(id: StationId, q: PassQuery): Promise<IssPass[]> {
+  const tle = await getTle(id);
   const lat = Math.round(q.lat * 100) / 100;
   const lon = Math.round(q.lon * 100) / 100;
   const elev = Math.round((q.elev ?? 0) / 10) * 10;
-  const key = `${lat},${lon},${elev},${tle.line1.slice(18, 32)}`;
+  const key = `${id},${lat},${lon},${elev},${tle.line1.slice(18, 32)}`;
   let passes = passCache.get(key);
   if (!passes) {
     const now = Date.now();
-    passes = computePasses(tle, lat, lon, elev, now - 20 * 60_000, now + DAYS * 24 * HOUR_MS);
+    passes = computePasses(id, tle, lat, lon, elev, now - 20 * 60_000, now + DAYS * 24 * HOUR_MS);
     passCache.set(key, passes);
   }
   const now = Date.now();
   return passes.filter((p) => p.end > now);
+}
+
+/**
+ * Passes of the given stations, merged and sorted by start. A station whose orbit data is
+ * unavailable is skipped when another one succeeds; with a single station the error surfaces.
+ */
+export async function getStationPasses(ids: StationId[], q: PassQuery): Promise<IssPass[]> {
+  const results = await Promise.allSettled(ids.map((id) => passesFor(id, q)));
+  const ok = results.filter((r): r is PromiseFulfilledResult<IssPass[]> => r.status === "fulfilled");
+  if (ok.length === 0) throw (results[0] as PromiseRejectedResult).reason;
+  return ok.flatMap((r) => r.value).sort((a, b) => a.start - b.start);
+}
+
+/** ISS only — the original /api/iss/passes behaviour. */
+export function getIssPasses(q: PassQuery): Promise<IssPass[]> {
+  return getStationPasses(["iss"], q);
 }

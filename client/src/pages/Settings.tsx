@@ -26,6 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { clearOfflineApiCache } from "@/lib/offline";
 import type { ApiUser } from "@shared/api";
 
 function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; label: string }) {
@@ -285,6 +286,7 @@ function DeleteAccount() {
   const m = useMutation({
     mutationFn: () => api("DELETE", "/api/me"),
     onSuccess: () => {
+      clearOfflineApiCache();
       queryClient.clear();
       queryClient.setQueryData(AUTH_KEY, { user: null });
       navigate("/");

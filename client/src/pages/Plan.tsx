@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CalendarClock, Check, Sparkles, Trash2, Undo2 } from "lucide-react";
+import { CalendarClock, CalendarDays, Check, Sparkles, Trash2, Undo2 } from "lucide-react";
 import {
+  PLANET_BY_ID,
   addDays,
   currentNightDate,
+  detectability,
   evaluateTarget,
   formatNightDate,
   formatTime,
@@ -13,12 +15,12 @@ import {
   planSequence,
   rankTargets,
   sqmForBortle,
-  SOLAR_SYSTEM,
-  bodyState,
+  type NightFrames,
+  type NightInfo,
   type RankedTarget,
-  type CatalogLike,
+  type SolarSystemId,
 } from "@shared/astro";
-import type { ApiTarget } from "@shared/api";
+import type { ApiTarget, ObservingSite } from "@shared/api";
 import { useSite, siteTz } from "@/hooks/useSite";
 import { useAuth } from "@/hooks/useAuth";
 import { usePrefs } from "@/hooks/usePrefs";
@@ -31,16 +33,51 @@ import { TypeGlyph } from "@/components/common/Glyphs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { InstrumentPicker } from "@/features/tonight/BestTargets";
+import { DarkCalendar } from "@/features/plan/DarkCalendar";
+import { BODY_SUN_LIMIT, bodyWindow, evaluateBody } from "@/features/explore/sky";
 import { DIFFICULTY_TONE, TYPE_LABEL } from "@/lib/objects";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
-/** Planets as catalog-like targets, positioned for the middle of the night. */
-function planetTargets(mid: number, site: { lat: number; lon: number }): CatalogLike[] {
-  return SOLAR_SYSTEM.map((p) => {
-    const s = bodyState(p.id, mid, site);
-    return { id: p.id, name: p.name, type: p.id === "moon" ? "moon" : "planet", ra: s.raJ2000, dec: s.decJ2000, mag: s.mag, size: [s.diameter / 60] };
-  });
+const RUN_MINUTES = 25;
+
+interface PlanItem {
+  target: ApiTarget | null;
+  r: RankedTarget;
+  /** Planets and the Moon: tracked along their real motion, observable whenever the Sun is below −6°. */
+  body: boolean;
+}
+
+/** A planet or the Moon as a ranked target (the same evaluation as on its own page). */
+function bodyTarget(id: SolarSystemId, ctx: { frames: NightFrames; night: NightInfo; site: ObservingSite; minAlt: number; sqm: number }, apertureMm: number): RankedTarget {
+  const b = evaluateBody(id, ctx, apertureMm);
+  const st = b.state;
+  const detect = b.detect ?? detectability({ type: "planet", mag: st.mag }, { sqmZenith: ctx.sqm, apertureMm, alt: Math.max(b.track.maxAlt, 1) });
+  return {
+    object: { id, name: b.meta.name, type: id === "moon" ? "moon" : "planet", ra: st.raJ2000, dec: st.decJ2000, mag: st.mag, size: [st.diameter / 60] },
+    score: b.visible ? 100 : 0,
+    rawScore: b.visible ? 100 : 0,
+    track: b.track,
+    detect,
+    bestTime: b.bestTime,
+    reasons: [],
+  };
+}
+
+/** End of the time an item can be observed: darkness for deep-sky objects, civil dawn for planets and the Moon. */
+function observingEnd(item: PlanItem, night: NightInfo, nf: NightFrames) {
+  return item.body ? bodyWindow(night, nf)[1] : nf.darkEnd;
+}
+
+/**
+ * Why an item has no observing window this night: only up in bright twilight (planets near the Sun),
+ * below the horizon after dark, or too low.
+ */
+function whyNotUp(item: PlanItem, nf: NightFrames, minAlt: number): string {
+  const tr = item.r.track;
+  if (item.body && tr.points.some((p, i) => p.alt >= minAlt && nf.sunAlt[i] >= BODY_SUN_LIMIT && nf.sunAlt[i] < -0.833)) return "only up in bright twilight";
+  if (tr.maxAlt < 0) return item.body ? "only up in daylight" : "below the horizon after dark";
+  return `too low: at most ${Math.max(0, Math.round(tr.maxAlt))}° after dark`;
 }
 
 export default function PlanPage() {
@@ -53,6 +90,7 @@ export default function PlanPage() {
   const scope = useActiveScope();
   const [offset, setOffset] = useState(0);
   const [autoPlan, setAutoPlan] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const tz = siteTz(site);
   const targetsQ = useQuery<ApiTarget[]>({ queryKey: ["/api/targets"], enabled: !!user });
 
@@ -63,35 +101,54 @@ export default function PlanPage() {
     const night = nightOf(date, site);
     return { night, frames: nightFrames(night, site, 10) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [site?.lat, site?.lon, date]);
+  }, [site?.lat, site?.lon, site?.elevation, site?.timezone, date]);
 
   const sqm = site ? (site.sqm ?? sqmForBortle(site.bortle)) : 21;
-  const ctx = { sqm, apertureMm: scope.scope.aperture, minAlt: prefs.minAltitude };
+  const minAlt = prefs.minAltitude;
+  const ctx = { sqm, apertureMm: scope.scope.aperture, minAlt };
 
   const planned = (targetsQ.data ?? []).filter((t) => t.status === "planned");
   const done = (targetsQ.data ?? []).filter((t) => t.status !== "planned");
 
   const evaluated = useMemo(() => {
-    if (!astro || !site) return [] as { target: ApiTarget | null; r: RankedTarget }[];
-    const planets = planetTargets(astro.night.solarMidnight, site);
-    const resolve = (ref: string) => byId.get(ref.toUpperCase()) ?? planets.find((p) => p.id === ref);
+    if (!astro || !site) return [] as PlanItem[];
+    const bodyCtx = { frames: astro.frames, night: astro.night, site, minAlt, sqm };
     const fromList = planned
-      .map((t) => {
-        const o = resolve(t.ref);
-        return o ? { target: t, r: evaluateTarget(o as CatalogLike, astro.frames, ctx) } : null;
+      .map((t): PlanItem | null => {
+        const id = t.ref.toLowerCase();
+        if (Object.prototype.hasOwnProperty.call(PLANET_BY_ID, id)) return { target: t, r: bodyTarget(id as SolarSystemId, bodyCtx, ctx.apertureMm), body: true };
+        const o = byId.get(t.ref.toUpperCase());
+        return o ? { target: t, r: evaluateTarget(o, astro.frames, ctx), body: false } : null;
       })
-      .filter(Boolean) as { target: ApiTarget | null; r: RankedTarget }[];
+      .filter((x): x is PlanItem => x !== null);
     if (!autoPlan || !objects.length) return fromList;
     const exclude = new Set(fromList.map((x) => x.r.object.id.toUpperCase()));
     const extra = rankTargets(objects, astro.frames, ctx, { limit: Math.max(0, 8 - fromList.length), perTypeCap: 2 })
       .filter((r) => !exclude.has(r.object.id.toUpperCase()) && r.score >= 40)
-      .map((r) => ({ target: null, r }));
+      .map((r): PlanItem => ({ target: null, r, body: false }));
     return [...fromList, ...extra];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [astro, site, planned.map((p) => p.ref).join(","), byId, autoPlan, objects, sqm, scope.scope.aperture, prefs.minAltitude]);
+  }, [astro, site, planned.map((p) => p.ref).join(","), byId, autoPlan, objects, sqm, scope.scope.aperture, minAlt]);
 
-  const schedule = useMemo(() => (astro ? planSequence(evaluated.map((e) => e.r), astro.night, 25) : []), [evaluated, astro]);
-  const unscheduled = evaluated.filter((e) => !schedule.some((s) => s.target.object.id === e.r.object.id));
+  // Deep-sky windows lie inside darkness; planets and the Moon can also be scheduled in twilight (Sun below −6°).
+  const runNight = useMemo(() => {
+    if (!astro) return null;
+    const n = astro.night;
+    if (!evaluated.some((e) => e.body)) return n;
+    const [dusk, dawn] = bodyWindow(n, astro.frames);
+    const starts = [n.darkStart, dusk].filter((x): x is number => x !== null);
+    const ends = [n.darkEnd, dawn].filter((x): x is number => x !== null);
+    return { ...n, darkStart: starts.length ? Math.min(...starts) : null, darkEnd: ends.length ? Math.max(...ends) : null };
+  }, [astro, evaluated]);
+  const schedule = useMemo(() => (runNight ? planSequence(evaluated.map((e) => e.r), runNight, RUN_MINUTES) : []), [evaluated, runNight]);
+  const unscheduled = evaluated
+    .filter((e) => !schedule.some((s) => s.target.object.id === e.r.object.id))
+    .map((e) => {
+      const w = e.r.track.window;
+      if (!w || !astro || !runNight) return { name: e.r.object.name, why: astro ? whyNotUp(e, astro.frames, minAlt) : "" };
+      const usable = Math.min(w[1], runNight.darkEnd ?? w[1]) - Math.max(w[0], runNight.darkStart ?? w[0]);
+      return { name: e.r.object.name, why: usable < RUN_MINUTES * 60_000 ? "only up briefly" : "no time left" };
+    });
 
   const patch = useMutation({
     mutationFn: ({ id, ...body }: { id: number; status?: string; priority?: string }) => api<ApiTarget[]>("PATCH", `/api/targets/${id}`, body),
@@ -111,6 +168,31 @@ export default function PlanPage() {
 
   const fmt = (t: number | null) => formatTime(t, { tz, hour12 });
 
+  /** "sets below 30° at 02:14" when it drops below the minimum during the night, else that it stays up until the end. */
+  const untilText = (item: PlanItem) => {
+    const tr = item.r.track;
+    const w = tr.window;
+    if (!w || !astro) return null;
+    const i = tr.points.findIndex((pt) => pt.t === w[1]);
+    const a = tr.points[i];
+    const b = tr.points[i + 1];
+    const end = observingEnd(item, astro.night, astro.frames);
+    if (a && b && b.alt < minAlt) {
+      const t = a.t + ((a.alt - minAlt) / (a.alt - b.alt)) * (b.t - a.t);
+      if (end === null || t <= end) return `sets below ${minAlt}° at ${fmt(t)}`;
+    }
+    return item.body ? `above ${minAlt}° until dawn` : `above ${minAlt}° until darkness ends`;
+  };
+  /** "Up 21:10–03:40", "Briefly up around 05:20" for a single sample, and "in twilight" for a planet that's only up then. */
+  const windowText = (item: PlanItem) => {
+    const w = item.r.track.window;
+    if (!w) return null;
+    const n = astro?.night;
+    const twilight = item.body && n && (n.darkStart === null || n.darkEnd === null || w[1] <= n.darkStart || w[0] >= n.darkEnd);
+    const when = w[1] - w[0] < 15 * 60_000 ? `Briefly up around ${fmt(w[0])}` : `Up ${fmt(w[0])}–${fmt(w[1])}`;
+    return twilight ? `${when}, in twilight` : when;
+  };
+
   if (!site)
     return (
       <div className="flex flex-col gap-6">
@@ -127,18 +209,35 @@ export default function PlanPage() {
         description="Your targets, put in the order that makes the most of the dark hours — objects that set first come first."
         actions={<InstrumentPicker />}
       />
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Night">
-        {Array.from({ length: 7 }, (_, i) => (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Night">
+          {[...Array.from({ length: 7 }, (_, i) => i), ...(offset >= 7 ? [offset] : [])].map((i) => (
+            <button
+              key={i}
+              role="tab"
+              aria-selected={offset === i}
+              onClick={() => setOffset(i)}
+              className={cn("rounded-full border px-3 py-1 text-xs", offset === i ? "border-primary/50 bg-primary/10" : "text-muted-foreground hover:bg-accent")}
+            >
+              {i === 0 ? "Tonight" : tonight ? formatNightDate(addDays(tonight, i)) : ""}
+            </button>
+          ))}
           <button
-            key={i}
-            role="tab"
-            aria-selected={offset === i}
-            onClick={() => setOffset(i)}
-            className={cn("rounded-full border px-3 py-1 text-xs", offset === i ? "border-primary/50 bg-primary/10" : "text-muted-foreground hover:bg-accent")}
+            onClick={() => setShowCalendar((v) => !v)}
+            aria-expanded={showCalendar}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs",
+              showCalendar ? "border-primary/50 bg-primary/10" : "text-muted-foreground hover:bg-accent",
+            )}
           >
-            {i === 0 ? "Tonight" : tonight ? formatNightDate(addDays(tonight, i)) : ""}
+            <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" /> Dark-sky calendar
           </button>
-        ))}
+        </div>
+        {showCalendar && tonight && (
+          <div className="panel p-3 sm:p-4">
+            <DarkCalendar site={site} tonight={tonight} selected={offset} onSelect={setOffset} southern={site.lat < 0} />
+          </div>
+        )}
       </div>
 
       {astro && (
@@ -166,7 +265,7 @@ export default function PlanPage() {
 
       <Section
         title="Run order"
-        description={schedule.length ? `${schedule.length} targets, about 25 minutes each.` : undefined}
+        description={schedule.length ? `${schedule.length} target${schedule.length === 1 ? "" : "s"}, about ${RUN_MINUTES} minutes each.` : undefined}
         action={
           <Button variant={autoPlan ? "subtle" : "outline"} size="sm" onClick={() => setAutoPlan((a) => !a)} aria-pressed={autoPlan}>
             <Sparkles /> {autoPlan ? "Showing suggestions" : "Fill with suggestions"}
@@ -200,16 +299,17 @@ export default function PlanPage() {
             {schedule.map(({ target: r, at }) => {
               const item = evaluated.find((e) => e.r.object.id === r.object.id);
               const p = r.track.points.reduce((best, pt) => (Math.abs(pt.t - at) < Math.abs(best.t - at) ? pt : best), r.track.points[0]);
+              const until = item ? untilText(item) : null;
               return (
                 <li key={r.object.id} className="flex items-center gap-3 px-3 py-3 sm:px-4">
                   <div className="num w-14 shrink-0 text-sm font-medium">{fmt(at)}</div>
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-primary">
-                    <TypeGlyph type={r.object.type} className="h-[1.1rem] w-[1.1rem]" />
+                    <TypeGlyph type={r.object.type} id={r.object.id} className="h-[1.1rem] w-[1.1rem]" />
                   </span>
                   <Link href={`/object/${r.object.id}`} className="min-w-0 flex-1">
                     <div className="truncate font-medium hover:underline">{r.object.name}</div>
                     <div className="truncate text-xs text-muted-foreground">
-                      {TYPE_LABEL[r.object.type] ?? r.object.type} · {Math.round(p.alt)}° high then · sets below {prefs.minAltitude}° at {fmt(r.track.window?.[1] ?? null)}
+                      {TYPE_LABEL[r.object.type] ?? r.object.type} · {Math.round(p.alt)}° high then{until ? ` · ${until}` : ""}
                     </div>
                   </Link>
                   <Badge variant={DIFFICULTY_TONE[r.detect.difficulty]} className="hidden capitalize sm:inline-flex">
@@ -231,7 +331,7 @@ export default function PlanPage() {
         )}
         {unscheduled.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            Not placeable this night (too low or no time left): {unscheduled.map((u) => u.r.object.name).join(", ")}.
+            Not placeable this night: {unscheduled.map((u) => (u.why ? `${u.name} (${u.why})` : u.name)).join(", ")}.
           </p>
         )}
       </Section>
@@ -255,10 +355,10 @@ export default function PlanPage() {
                           ? "Observed"
                           : t.status === "dismissed"
                             ? "Dismissed"
-                            : ev
+                            : ev && astro
                               ? ev.r.track.window
-                                ? `Up ${fmt(ev.r.track.window[0])}–${fmt(ev.r.track.window[1])} · ${ev.r.detect.difficulty}`
-                                : "Not well placed this night"
+                                ? `${windowText(ev)} · ${ev.r.detect.difficulty}`
+                                : `Not well placed this night: ${whyNotUp(ev, astro.frames, minAlt)}`
                               : "Planned"}
                       </div>
                     </Link>

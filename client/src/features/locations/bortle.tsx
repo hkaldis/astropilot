@@ -70,7 +70,18 @@ export function BortleScale({ value, onChange, disabled, labelledBy }: { value: 
 }
 
 /** The selected class explained: label, description, typical SQM and naked-eye limit. */
-export function BortleExplainer({ bortle, sqm, className }: { bortle: number; sqm?: number | null; className?: string }) {
+export function BortleExplainer({
+  bortle,
+  sqm,
+  sqmKind = "measured",
+  className,
+}: {
+  bortle: number;
+  sqm?: number | null;
+  /** Where `sqm` came from: a meter reading, or the light-pollution atlas (an estimate). */
+  sqmKind?: "measured" | "atlas";
+  className?: string;
+}) {
   const b = BORTLE[bortle];
   return (
     <div className={cn("rounded-lg bg-surface-2 px-3 py-2.5", className)}>
@@ -79,7 +90,8 @@ export function BortleExplainer({ bortle, sqm, className }: { bortle: number; sq
       </div>
       <p className="mt-0.5 text-xs text-muted-foreground">{b.description}</p>
       <p className="num mt-1 text-2xs text-muted-foreground">
-        {sqm ? `Measured SQM ${sqm.toFixed(2)}` : `Typical SQM ${b.sqm.toFixed(1)}`} mag/arcsec² · naked-eye limit ≈ {b.nelm.toFixed(1)}
+        {sqm ? `${sqmKind === "atlas" ? "Atlas estimate" : "Measured"} SQM ${sqm.toFixed(2)}` : `Typical SQM ${b.sqm.toFixed(1)}`} mag/arcsec² · naked-eye limit ≈{" "}
+        {b.nelm.toFixed(1)}
       </p>
     </div>
   );

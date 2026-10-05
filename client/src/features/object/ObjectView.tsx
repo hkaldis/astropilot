@@ -13,13 +13,14 @@ import {
 } from "@shared/astro";
 import type { CatalogObject } from "@shared/data/types";
 import { useCatalog } from "@/hooks/useCatalog";
+import { usePrefs } from "@/hooks/usePrefs";
 import { useActiveScope } from "@/hooks/useScope";
 import { EmptyState, Section, Skel, usePageTitle } from "@/components/common/Page";
 import { MoonGlyph, TypeGlyph } from "@/components/common/Glyphs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TYPE_LABEL } from "@/lib/objects";
-import { InstrumentBar } from "@/features/explore/InstrumentBar";
+import { InstrumentBar, instrumentPhrase, skySourcePhrase } from "@/features/explore/InstrumentBar";
 import { NoSite } from "@/features/explore/NoSite";
 import { constellationName } from "@/features/explore/constellations";
 import { isSolarSystemId, useNightContext } from "@/features/explore/sky";
@@ -87,7 +88,7 @@ function NotFound({ id, suggestions }: { id: string; suggestions: { id: string; 
                 {suggestions.map((s) => (
                   <li key={s.id}>
                     <Link href={`/object/${encodeURIComponent(s.id)}`} className="inline-flex min-h-[2.5rem] items-center gap-2 rounded-full border px-3 py-1.5 text-sm hover:bg-accent">
-                      <TypeGlyph type={s.type} className="h-4 w-4 text-muted-foreground" />
+                      <TypeGlyph type={s.type} id={s.id} className="h-4 w-4 text-muted-foreground" />
                       {s.name}
                     </Link>
                   </li>
@@ -140,7 +141,16 @@ function DeepStats({ o }: { o: CatalogObject }) {
   );
 }
 
+const AU_KM = 149_597_870.7;
+
+/** The Moon's distance in the user's units: "369,415 km" / "229,543 mi". */
+function moonDistance(distanceAu: number, imperial: boolean) {
+  const km = distanceAu * AU_KM;
+  return imperial ? `${Math.round(km / 1.609344).toLocaleString()} mi` : `${Math.round(km).toLocaleString()} km`;
+}
+
 function BodyStats({ id, st }: { id: string; st: BodyState }) {
+  const { prefs } = usePrefs();
   const isMoon = id === "moon";
   const items: { label: string; value: React.ReactNode; sub?: React.ReactNode }[] = [
     { label: "Magnitude", value: formatMag(st.mag) },
@@ -148,7 +158,7 @@ function BodyStats({ id, st }: { id: string; st: BodyState }) {
     { label: "Illuminated", value: `${Math.round(st.illumination * 100)}%` },
     {
       label: "Distance",
-      value: isMoon ? `${Math.round(st.distanceAu * 149_597_870.7).toLocaleString()} km` : `${st.distanceAu.toFixed(2)} AU`,
+      value: isMoon ? moonDistance(st.distanceAu, prefs.units === "imperial") : `${st.distanceAu.toFixed(2)} AU`,
       sub: isMoon ? undefined : `light takes ${Math.round((st.distanceAu * 499.005) / 60)} min`,
     },
     { label: "Position", value: `${formatRA(st.raJ2000).slice(0, 7)} ${formatDec(st.decJ2000).slice(0, 8)}`, sub: `J2000 · in ${constellationName(st.constellation)}` },
@@ -187,6 +197,7 @@ function FinderText({ o }: { o: CatalogObject }) {
 function SubjectPage({ subject }: { subject: Subject }) {
   usePageTitle(subject.name);
   const scope = useActiveScope();
+  const { prefs } = usePrefs();
   const { ctx, now } = useNightContext(10);
   const aperture = scope.scope.aperture;
 
@@ -205,9 +216,9 @@ function SubjectPage({ subject }: { subject: Subject }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subject, ctx?.site.key, Math.floor(now / 86_400_000)]);
 
-  // Pre-fill for the journal: the eyepiece AstroPilot recommends.
+  // Pre-fill for the journal: the eyepiece AstroPilot recommends — only from the user's own kit on their own telescope.
   const suggestion = useMemo(() => {
-    if (!tonight) return { telescopeId: scope.telescopeId };
+    if (!tonight || scope.source !== "gear") return { telescopeId: scope.telescopeId };
     const { target, sizeArcmin } = opticsTarget(subject, tonight);
     const best = rankEyepieces(scope.scope, scope.eyepieces, scope.barlows, target, { sizeArcmin })[0];
     return {
@@ -216,7 +227,7 @@ function SubjectPage({ subject }: { subject: Subject }) {
       barlowId: best?.barlow?.id ?? null,
       magnification: best ? Math.round(best.setup.magnification) : null,
     };
-  }, [subject, tonight, scope.scope, scope.eyepieces, scope.barlows, scope.telescopeId]);
+  }, [subject, tonight, scope.source, scope.scope, scope.eyepieces, scope.barlows, scope.telescopeId]);
 
   const typeLabel = TYPE_LABEL[subject.type] ?? subject.type;
   const conAbbr = subject.kind === "deep" ? subject.obj.con : tonight?.body?.state.constellation;
@@ -232,9 +243,9 @@ function SubjectPage({ subject }: { subject: Subject }) {
         <div className="flex items-start gap-4">
           <div className="hidden h-14 w-14 shrink-0 place-items-center rounded-2xl border bg-surface-2/60 text-foreground/85 sm:grid">
             {subject.kind === "body" && subject.id === "moon" && ctx ? (
-              <MoonGlyph elongation={ctx.night.moon.elongation} size={40} />
+              <MoonGlyph elongation={ctx.night.moon.elongation} size={40} southern={ctx.site.lat < 0} />
             ) : (
-              <TypeGlyph type={subject.type} className={subject.kind === "body" ? "h-8 w-8 text-gold" : "h-8 w-8"} />
+              <TypeGlyph type={subject.type} id={subject.id} className={subject.kind === "body" ? "h-8 w-8 text-gold" : "h-8 w-8"} />
             )}
           </div>
           <div className="min-w-0">
@@ -271,7 +282,7 @@ function SubjectPage({ subject }: { subject: Subject }) {
               <Section title={`Tonight from ${ctx.site.name}`} description={formatNightDate(ctx.night.date, "long")}>
                 {tonight ? <TonightSection subject={subject} tonight={tonight} ctx={ctx} scope={scope} /> : <Skel className="h-64" />}
               </Section>
-              <Section title="How to observe it" description={`With ${scope.source === "gear" ? "your" : "an"} ${scope.scope.name}`}>
+              <Section title="How to observe it" description={`With ${instrumentPhrase(scope)}`}>
                 {tonight && <ObserveSection key={`${subject.id}|${scope.telescopeId ?? scope.presetId}`} subject={subject} tonight={tonight} ctx={ctx} scope={scope} />}
                 <OpticsFootnote scope={scope} />
               </Section>
@@ -295,9 +306,9 @@ function SubjectPage({ subject }: { subject: Subject }) {
                     {tonight?.body &&
                       (subject.id === "moon" ? (
                         <p className="leading-relaxed">
-                          Tonight the Moon is <span className="num">{Math.round(tonight.body.state.distanceAu * 149_597_870.7).toLocaleString()}</span> km
-                          away — its light takes <span className="num">{((tonight.body.state.distanceAu * 499.005) || 0).toFixed(2)}</span> seconds to reach
-                          you. It moves about its own width eastward every hour against the stars.
+                          Tonight the Moon is <span className="num">{moonDistance(tonight.body.state.distanceAu, prefs.units === "imperial")}</span> away — its
+                          light takes <span className="num">{((tonight.body.state.distanceAu * 499.005) || 0).toFixed(2)}</span> seconds to reach you. It moves
+                          about its own width eastward every hour against the stars.
                         </p>
                       ) : (
                         <p className="leading-relaxed">
@@ -311,8 +322,7 @@ function SubjectPage({ subject }: { subject: Subject }) {
               </Section>
               <p className="text-2xs leading-relaxed text-muted-foreground">
                 Positions from astronomy-engine (VSOP87/ELP, refraction included). Catalog data from OpenNGC and the WDS. Sky brightness from{" "}
-                {ctx.sqmMeasured ? "your measured SQM" : `the Bortle ${ctx.bortle} class of this location`} with Krisciunas–Schaefer moonlight. Times in{" "}
-                {ctx.tz ?? "your time zone"}.
+                {skySourcePhrase(ctx)} with Krisciunas–Schaefer moonlight. Times in {ctx.tz ?? "your time zone"}.
               </p>
             </aside>
           </div>

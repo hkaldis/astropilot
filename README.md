@@ -15,8 +15,8 @@ Live at [astropilot.space](https://astropilot.space).
 | **Explore** | ~1,000 objects (all Messier and Caldwell, bright NGC/IC from OpenNGC, classic doubles) ranked for *your* sky darkness, telescope and tonight's Moon. |
 | **Object pages** | Tonight's altitude curve, honest difficulty for your sky, the eyepiece and filter to use (with a true-field framing preview), best months, finder notes. |
 | **Plan** | Your target list scheduled into a run order that makes the most of the dark hours. |
-| **Journal** | 15-second observation logging, sessions, Messier/Caldwell progress, stats and CSV export. |
-| **Gear & locations** | Telescopes, eyepieces, Barlows, filters, cameras with computed optics; saved sites with time zone, elevation and Bortle/SQM. |
+| **Journal** | 15-second observation logging, sessions, Messier/Caldwell progress, achievements (computed from the log, retroactive), stats and CSV export. |
+| **Gear & locations** | Telescopes, eyepieces, Barlows, filters, cameras with computed optics; saved sites with time zone, elevation and Bortle/SQM (estimated automatically from the 2025 light-pollution atlas). |
 
 Works without an account (guest location and a typical instrument); an account saves locations, gear and the log.
 
@@ -26,9 +26,15 @@ Works without an account (guest location and a typical instrument); an account s
   precession, nutation, aberration and refraction. Nights are anchored to the site's local *solar* time, so twilight, darkness
   and "tonight" are correct anywhere on Earth (polar day/night included).
 - **Sky brightness**: Bortle → zenith SQM, airmass extinction, and moonlight from the Krisciunas & Schaefer (1991) model at the
-  object's position.
-- **Visibility**: object surface brightness vs that sky, corrected for apparent size, aperture and altitude
+  object's position. A new site's zenith SQM / Bortle is estimated from D. J. Lorenz's World Atlas of Artificial Night Sky
+  Brightness (2025, VIIRS) binary tiles (`server/services/lightPollution.ts`, `GET /api/geo/sky-brightness`).
+- **Visibility**: threshold-contrast detection (Blackwell 1946 / Crumey 2014 regimes: Ricco below ~20′, Piper to ~75′,
+  de Vries–Rose background scaling), the best magnification the instrument offers, separate bright cores/regions,
+  twilight (skycalc's Meinel fit) and moonlight; constants fitted to ~210 observing judgments
   (`shared/astro/visibility.ts`).
+- **Events**: IMO solar-longitude meteor peaks with radiant altitude, topocentric conjunctions/occultations,
+  eclipse visibility over all contacts (`shared/astro/events.ts`); comets from JPL SBDB + Horizons
+  (`server/services/comets.ts`, `shared/astro/comets.ts`).
 - **Optics**: exit-pupil targets per object class, framing and seeing limits (`shared/astro/optics.ts`).
 - **Forecast**: Open-Meteo NWP + CAMS aerosols (+ 7Timer when available), scored by `shared/astro/conditions.ts`.
 
@@ -61,7 +67,7 @@ shared/
   api.ts            API contracts
 server/
   routes/           one module per feature
-  services/         forecast, space weather, satellites
+  services/         forecast, space weather, satellites, light pollution, comets
   migrate.ts        additive, idempotent schema migration run on boot
 ```
 
@@ -84,3 +90,6 @@ It backs up the current code to `.backups/`, replaces the app code with `main`, 
 
 Catalog data: OpenNGC by Mattia Verga (CC BY-SA 4.0). Star chart data: d3-celestial by Olaf Frohn (BSD-3-Clause), Hipparcos.
 Weather: Open-Meteo (CC BY 4.0). Space weather: NOAA SWPC. Orbits: CelesTrak. Maps: © OpenStreetMap contributors.
+Light pollution: World Atlas of Artificial Night Sky Brightness, D. J. Lorenz (2025), from VIIRS data by the Earth Observation
+Group, Colorado School of Mines — https://djlorenz.github.io/astronomy/lp/. Comets: NASA/JPL Small-Body Database and Horizons.
+Meteor showers: International Meteor Organization working list.

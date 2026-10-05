@@ -16,12 +16,15 @@ import { cn } from "@/lib/utils";
 import { LocationMap } from "./LocationMap";
 import { BortleExplainer, BortleScale, fmtElevation, lightPollutionUrl, tzOffset, useBortleLabelId } from "./bortle";
 import { useLocationMutations } from "./useLocationMutations";
+import { useSkyBrightness } from "@/hooks/useSkyBrightness";
 
 export interface LocationSeed {
   name: string;
   lat: number;
   lon: number;
   bortle?: number;
+  /** The visitor chose `bortle` themselves: keep it instead of the atlas estimate. */
+  bortleChosen?: boolean;
   sqm?: number | null;
 }
 
@@ -87,6 +90,7 @@ export function LocationDialog({
   const [name, setName] = useState("");
   const [nameTouched, setNameTouched] = useState(false);
   const [bortle, setBortle] = useState(5);
+  const [bortleTouched, setBortleTouched] = useState(false);
   const [sqmStr, setSqmStr] = useState("");
   const [notes, setNotes] = useState("");
   const [isDefault, setIsDefault] = useState(false);
@@ -104,6 +108,7 @@ export function LocationDialog({
     setName(location?.name ?? seed?.name ?? "");
     setNameTouched(!!location);
     setBortle(location?.bortle ?? seed?.bortle ?? 5);
+    setBortleTouched(!!location || !!seed?.bortleChosen);
     setSqmStr(location?.sqm != null ? String(location.sqm) : seed?.sqm != null ? String(seed.sqm) : "");
     setNotes(location?.notes ?? "");
     setIsDefault(location ? location.isFavorite : !!isFirst);
@@ -152,6 +157,12 @@ export function LocationDialog({
   const err = showErrors ? errors : {};
   const sqmValid = sqmN !== null && !errors.sqm ? sqmN : null;
   const effBortle = sqmValid !== null ? bortleForSqm(sqmValid) : bortle;
+
+  // Light-pollution atlas estimate for the chosen spot; pre-fills the class for new places.
+  const atlas = useSkyBrightness(pos?.lat, pos?.lon);
+  useEffect(() => {
+    if (atlas.data && !bortleTouched) setBortle(atlas.data.bortle);
+  }, [atlas.data, bortleTouched]);
 
   const saving = create.isPending || update.isPending;
   const serverError = (location ? update.error : create.error)?.message;
@@ -308,8 +319,42 @@ export function LocationDialog({
                 </a>
               )}
             </div>
-            <BortleScale value={effBortle} onChange={setBortle} disabled={sqmValid !== null} labelledBy={bortleLabel} />
+            <BortleScale
+              value={effBortle}
+              onChange={(b) => {
+                setBortle(b);
+                setBortleTouched(true);
+              }}
+              disabled={sqmValid !== null}
+              labelledBy={bortleLabel}
+            />
             <BortleExplainer bortle={effBortle} sqm={sqmValid} />
+            {pos && atlas.data && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-surface-2/40 px-3 py-2 text-xs">
+                <span className="min-w-0">
+                  <span className="text-muted-foreground">Light-pollution atlas:</span> zenith ≈ <span className="num font-medium">{atlas.data.sqm.toFixed(2)}</span> mag/arcsec², about{" "}
+                  <span className="font-medium">Bortle {atlas.data.bortle}</span>.{" "}
+                  <a href={atlas.data.url} target="_blank" rel="noopener noreferrer" className="link">
+                    Source
+                  </a>
+                </span>
+                {sqmValid === null && effBortle !== atlas.data.bortle && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7"
+                    onClick={() => {
+                      setBortle(atlas.data!.bortle);
+                      setBortleTouched(true);
+                    }}
+                  >
+                    Use estimate
+                  </Button>
+                )}
+              </div>
+            )}
+            {pos && atlas.isLoading && <p className="text-xs text-muted-foreground">Looking up light pollution for this spot…</p>}
           </div>
 
           <Field

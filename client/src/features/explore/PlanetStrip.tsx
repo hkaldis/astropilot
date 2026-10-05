@@ -34,7 +34,7 @@ function WhenLine({ b, ctx }: { b: BodyTonight; ctx: NightContext }) {
           until <span className="num">{formatTime(t.window[1], tf)}</span> ·{" "}
         </>
       ) : null}
-      best <span className="num">{formatTime(b.bestTime, tf)}</span>
+      best <span className="num">{formatTime(b.peakTime, tf)}</span>
     </span>
   );
 }
@@ -57,7 +57,11 @@ export function PlanetStrip({ bodies, ctx, className }: { bodies: BodyTonight[];
               className="flex w-[16rem] items-center gap-3 rounded-xl border bg-card/60 px-3 py-2.5 transition-colors hover:bg-accent/60 sm:w-auto"
             >
               <span className="grid h-10 w-10 shrink-0 place-items-center">
-                {b.id === "moon" ? <MoonGlyph elongation={ctx.night.moon.elongation} size={34} /> : <TypeGlyph type="planet" className="h-7 w-7 text-gold" />}
+                {b.id === "moon" ? (
+                  <MoonGlyph elongation={ctx.night.moon.elongation} size={34} southern={ctx.site.lat < 0} />
+                ) : (
+                  <TypeGlyph type="planet" id={b.id} className="h-7 w-7" />
+                )}
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium">{b.meta.name}</span>

@@ -9,6 +9,7 @@ import type { Express } from "express";
 import { z } from "zod";
 import type { GeoPlace } from "@shared/api";
 import { ah, parse, rateLimit, TTLCache, fetchWithTimeout, USER_AGENT, HttpError } from "../http";
+import { skyBrightnessAt } from "../services/lightPollution";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -247,6 +248,18 @@ export function registerGeo(app: Express) {
       const places = coords ? [await reversePlace(coords.lat, coords.lon)] : await searchPlaces(q);
       res.setHeader("Cache-Control", "private, max-age=3600");
       res.json(places);
+    }),
+  );
+
+  app.get(
+    "/api/geo/sky-brightness",
+    rateLimit({ windowMs: 60_000, max: 60, message: "Too many lookups — please wait a moment." }),
+    ah(async (req, res) => {
+      const { lat, lon } = parse(coordQuery, req.query);
+      const result = await skyBrightnessAt(lat, lon);
+      if (!result) throw new HttpError(404, "No light-pollution data for this spot (outside the atlas, or the data source is unavailable).");
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.json(result);
     }),
   );
 

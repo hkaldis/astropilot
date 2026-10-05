@@ -1,5 +1,5 @@
 /** Optics helpers for the object page: targets, field shapes, Galilean moons, planet notes. */
-import { A, type BodyState, type NightInfo, type TargetLike } from "@shared/astro";
+import { A, type BodyState, type FilterAdvice, type NightInfo, type TargetLike } from "@shared/astro";
 import type { CatalogObject } from "@shared/data/types";
 import type { FieldShape } from "./FieldView";
 import type { Subject, Tonight } from "./model";
@@ -81,6 +81,27 @@ function phaseWord(f: number) {
   if (f < 0.58) return "half-lit";
   if (f < 0.95) return "gibbous";
   return "nearly full";
+}
+
+/** Filter advice for one planet (the generic planet advice covers Jupiter and Mars in one breath). Null for the Moon. */
+export function planetFilterAdvice(id: string): FilterAdvice | null {
+  switch (id) {
+    case "mercury":
+      return { best: "color", label: "Red or orange filter (optional)", why: "A red (#25) or orange (#21) filter darkens the bright twilight sky around Mercury and makes its tiny phase easier to hold." };
+    case "venus":
+      return { best: "color", label: "Violet or dark blue filter (optional)", why: "A violet (#47) or dark blue (#38A) filter cuts the glare and can show faint cloud shadings; observing in twilight helps as much." };
+    case "mars":
+      return { best: "color", label: "Orange or red filter (optional)", why: "Orange or red (#21/#23A) sharpens the dark surface markings and the polar cap; light blue (#80A) shows clouds and limb haze." };
+    case "jupiter":
+      return { best: "color", label: "Light blue filter (optional)", why: "Light blue (#80A) lifts the contrast of the red-brown belts and the Great Red Spot; a pale yellow (#8) can help the blue-grey festoons." };
+    case "saturn":
+      return { best: "color", label: "Yellow filter (optional)", why: "A light yellow (#8) or yellow-green (#11) filter can lift the cloud belts and the Cassini Division a little; most nights it's fine without." };
+    case "uranus":
+    case "neptune":
+      return { best: "none", label: "No filter", why: "The disk is tiny and faint — magnification and steady air matter far more than any filter." };
+    default:
+      return null;
+  }
 }
 
 /** What to look for on a planet tonight (plain sentences). */

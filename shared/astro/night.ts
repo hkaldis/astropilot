@@ -7,6 +7,9 @@ import { A, DAY_MS, HOUR_MS, Site, observerOf, bodyAltAz } from "./core";
 
 export type Darkness = "astronomical" | "nautical" | "civil" | "none";
 
+/** Astronomical darkness shorter than this (hours) is treated as a nautical-twilight night (summer at ~50–54°). */
+const SHORT_DARK_H = 1.5;
+
 export interface MoonInfo {
   illumination: number; // 0..1 illuminated fraction at the reference time
   phaseAngle: number; // Sun–Moon–Earth angle in degrees: 0 = full, 180 = new
@@ -67,6 +70,44 @@ export function solarDateOf(ms: number, lon: number): string {
   return local.toISOString().slice(0, 10);
 }
 
+const offsetFormatters = new Map<string, Intl.DateTimeFormat | null>();
+
+/** UTC offset of an IANA zone at an instant, in hours (null for an unknown zone). */
+export function tzOffsetHours(tz: string, ms: number): number | null {
+  let f = offsetFormatters.get(tz);
+  if (f === undefined) {
+    try {
+      f = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric" });
+    } catch {
+      f = null;
+    }
+    if (offsetFormatters.size < 1000) offsetFormatters.set(tz, f);
+  }
+  if (!f) return null;
+  const parts = f.formatToParts(new Date(ms));
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? NaN);
+  const asUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour") % 24, get("minute"));
+  if (!Number.isFinite(asUtc)) return null;
+  return (asUtc - Math.floor(ms / 60_000) * 60_000) / HOUR_MS;
+}
+
+/**
+ * Days between the site's civil calendar and its mean-solar calendar: 0 almost everywhere, ±1 near the
+ * date line (Samoa, Tonga, Kiribati, Chatham, the far Aleutians), where clocks run about a day off the Sun.
+ * Nights are computed from the Sun but labelled with the civil date of their evening.
+ */
+export function dayShift(site: Site, ms: number): number {
+  if (!site.timezone) return 0;
+  const off = tzOffsetHours(site.timezone, ms);
+  if (off === null) return 0;
+  return Math.round((off - site.lon / 15) / 24);
+}
+
+/** The local date (YYYY-MM-DD) of the evening whose night contains `ms` (anything before local noon belongs to the previous evening). */
+export function nightDateOf(ms: number, site: Site): string {
+  return addDays(solarDateOf(ms - 12 * HOUR_MS, site.lon), dayShift(site, ms));
+}
+
 export function addDays(dateStr: string, n: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
@@ -100,6 +141,8 @@ export function moonInfoAt(ms: number, site: Site, riseFrom?: number, setFrom?: 
   const d = new Date(ms);
   const illum = A.Illumination(A.Body.Moon, d);
   const elong = A.MoonPhase(d);
+  // Age = time since the last new Moon (the elongation runs unevenly, so scaling it can be a day off).
+  const lastNew = A.SearchMoonPhase(0, d, -35);
   const obs = observerOf(site);
   const rise = A.SearchRiseSet(A.Body.Moon, obs, +1, new Date(riseFrom ?? ms - 12 * HOUR_MS), 1.5);
   const set = A.SearchRiseSet(A.Body.Moon, obs, -1, new Date(setFrom ?? riseFrom ?? ms - 12 * HOUR_MS), 1.5);
@@ -108,7 +151,7 @@ export function moonInfoAt(ms: number, site: Site, riseFrom?: number, setFrom?: 
     phaseAngle: illum.phase_angle,
     elongation: elong,
     phaseName: moonPhaseName(elong),
-    ageDays: (elong / 360) * 29.530588,
+    ageDays: lastNew ? (ms - lastNew.date.getTime()) / DAY_MS : (elong / 360) * 29.530588,
     waxing: elong < 180,
     rise: t(rise),
     set: t(set),
@@ -118,9 +161,11 @@ export function moonInfoAt(ms: number, site: Site, riseFrom?: number, setFrom?: 
 /** Full description of the night that starts on the evening of `dateStr` at `site`. */
 export function nightOf(dateStr: string, site: Site): NightInfo {
   const obs = observerOf(site);
-  const noon = solarNoonFor(dateStr, site);
+  // `dateStr` is the civil date of the evening; the computation runs on the matching mean-solar date.
+  const solarDate = addDays(dateStr, -dayShift(site, approxSolarNoon(dateStr, site.lon)));
+  const noon = solarNoonFor(solarDate, site);
   const noonDate = new Date(noon);
-  const nextNoon = solarNoonFor(addDays(dateStr, 1), site);
+  const nextNoon = solarNoonFor(addDays(solarDate, 1), site);
   const solarMidnight = A.SearchHourAngle(A.Body.Sun, obs, 12, noonDate, +1).time.date.getTime();
 
   const sunset = t(A.SearchRiseSet(A.Body.Sun, obs, -1, noonDate, 1));
@@ -130,20 +175,25 @@ export function nightOf(dateStr: string, site: Site): NightInfo {
 
   const within = (x: number | null) => (x !== null && x < nextNoon ? x : null);
   const mid = new Date(solarMidnight);
-  const sunrise = sunset ? within(t(A.SearchRiseSet(A.Body.Sun, obs, +1, new Date(sunset), 1))) : null;
-  const civilDawn = civilDusk ? within(t(A.SearchAltitude(A.Body.Sun, obs, +1, mid, 1, -6))) : null;
-  const nauticalDawn = nauticalDusk ? within(t(A.SearchAltitude(A.Body.Sun, obs, +1, mid, 1, -12))) : null;
-  const astroDawn = astroDusk ? within(t(A.SearchAltitude(A.Body.Sun, obs, +1, mid, 1, -18))) : null;
+  // Dawn events are searched for even without the matching dusk: at the end of polar night the Sun
+  // rises (or twilight begins) on a morning that had no sunset the evening before.
+  const sunrise = within(t(A.SearchRiseSet(A.Body.Sun, obs, +1, sunset ? new Date(sunset) : mid, 1)));
+  const civilDawn = within(t(A.SearchAltitude(A.Body.Sun, obs, +1, civilDusk ? mid : noonDate, 1, -6)));
+  const nauticalDawn = within(t(A.SearchAltitude(A.Body.Sun, obs, +1, nauticalDusk ? mid : noonDate, 1, -12)));
+  const astroDawn = within(t(A.SearchAltitude(A.Body.Sun, obs, +1, astroDusk ? mid : noonDate, 1, -18)));
 
   let darkness: Darkness = "none";
   let darkStart: number | null = null;
   let darkEnd: number | null = null;
   const sunAtMidnight = bodyAltAz(A.Body.Sun, solarMidnight, obs).alt;
-  if (astroDusk && astroDawn && astroDusk < nextNoon) {
+  const astroLong = astroDusk && astroDawn && astroDusk < nextNoon && astroDawn > astroDusk ? astroDawn - astroDusk : 0;
+  if (astroLong >= SHORT_DARK_H * HOUR_MS || (astroLong > 0 && !(nauticalDusk && nauticalDawn))) {
     darkness = "astronomical";
     darkStart = astroDusk;
     darkEnd = astroDawn;
-  } else if (nauticalDusk && nauticalDawn) {
+  } else if (nauticalDusk && nauticalDawn && nauticalDawn > nauticalDusk) {
+    // Includes nights whose astronomical darkness is only a brief dip: the nautical window is the
+    // useful one there, and twilight's extra sky brightness is accounted for target by target.
     darkness = "nautical";
     darkStart = nauticalDusk;
     darkEnd = nauticalDawn;
@@ -190,7 +240,8 @@ export function nightOf(dateStr: string, site: Site): NightInfo {
 /** Moon-below-horizon intervals inside [start, end]: sampled every 10 min, crossings refined by bisection (~10 s). */
 function moonFree(start: number, end: number, site: Site): { hours: number; windows: [number, number][] } {
   const obs = observerOf(site);
-  const up = (t: number) => bodyAltAz(A.Body.Moon, t, obs).alt > -0.5;
+  // Same convention as moonrise/moonset: the upper limb on the (refracted) horizon, i.e. the centre at −0.26°.
+  const up = (t: number) => bodyAltAz(A.Body.Moon, t, obs).alt > -0.26;
   const refine = (a: number, b: number, upAtA: boolean) => {
     for (let i = 0; i < 6; i++) {
       const m = (a + b) / 2;
@@ -229,10 +280,11 @@ function moonFree(start: number, end: number, site: Site): { hours: number; wind
  * (or before its sunrise), otherwise tonight.
  */
 export function currentNightDate(nowMs: number, site: Site): string {
-  const today = solarDateOf(nowMs, site.lon);
+  const solarToday = solarDateOf(nowMs, site.lon);
+  const today = addDays(solarToday, dayShift(site, nowMs));
   const yesterday = addDays(today, -1);
   // Before local solar noon we may still be inside last night.
-  const noonToday = approxSolarNoon(today, site.lon);
+  const noonToday = approxSolarNoon(solarToday, site.lon);
   if (nowMs < noonToday) {
     const prev = nightOf(yesterday, site);
     const end = prev.sunrise ?? prev.civilDawn ?? prev.nextNoon;

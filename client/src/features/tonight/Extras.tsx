@@ -1,8 +1,9 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { upcomingEvents, formatDate, formatTime } from "@shared/astro";
+import { upcomingEvents, formatDate, formatMag, formatTime } from "@shared/astro";
 import type { ObservingSite } from "@shared/api";
 import type { IssPass, SpaceWeather } from "@shared/forecast";
+import { Skel } from "@/components/common/Page";
 import { withParams } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -42,24 +43,29 @@ export function EventsList({ site, now, tz, hour12, limit = 7 }: { site: Observi
   );
 }
 
+/** Visible passes of the crewed stations (ISS and Tiangong) over the next few nights. */
 export function IssPasses({ site, tz, hour12, until }: { site: ObservingSite; tz?: string; hour12?: boolean; until: number }) {
   const q = useQuery<IssPass[]>({
-    queryKey: [withParams("/api/iss/passes", { lat: site.lat.toFixed(3), lon: site.lon.toFixed(3), elev: Math.round(site.elevation ?? 0) })],
+    queryKey: [withParams("/api/satellites/passes", { lat: site.lat.toFixed(3), lon: site.lon.toFixed(3), elev: Math.round(site.elevation ?? 0) })],
     staleTime: 30 * 60_000,
     retry: 0,
   });
-  const passes = (q.data ?? []).filter((p) => p.visible && p.start < until + 2 * 86_400_000).slice(0, 3);
-  if (q.isError || (!q.isLoading && passes.length === 0)) return <p className="text-sm text-muted-foreground">No visible ISS passes in the next few nights.</p>;
+  const passes = (q.data ?? []).filter((p) => p.visible && p.start < until + 2 * 86_400_000).slice(0, 4);
+  if (q.isLoading) return <Skel className="h-24 w-full" />;
+  if (q.isError || passes.length === 0) return <p className="text-sm text-muted-foreground">No visible space-station passes in the next few nights.</p>;
   return (
     <ul className="flex flex-col">
       {passes.map((p) => (
-        <li key={p.start} className="flex items-center justify-between gap-3 border-b py-2 last:border-b-0">
+        <li key={`${p.sat ?? "iss"}-${p.start}`} className="flex items-center justify-between gap-3 border-b py-2 last:border-b-0">
           <div>
-            <div className="num text-sm font-medium">
-              {formatDate(p.start, { tz, style: "weekday" })} {formatTime(p.start, { tz, hour12 })}
+            <div className="text-sm">
+              <span className="num font-medium">
+                {formatDate(p.start, { tz, style: "weekday" })} {formatTime(p.start, { tz, hour12 })}
+              </span>
+              <span className="text-muted-foreground"> · {p.name ?? "ISS"}</span>
             </div>
             <div className="text-xs text-muted-foreground">
-              {p.startDir} → {p.endDir} · max {Math.round(p.maxAlt)}°{p.magnitude !== undefined && p.magnitude !== null ? ` · mag ${p.magnitude.toFixed(1)}` : ""}
+              {p.startDir} → {p.endDir} · max {Math.round(p.maxAlt)}°{p.magnitude !== undefined && p.magnitude !== null ? ` · mag ${formatMag(p.magnitude)}` : ""}
             </div>
           </div>
           <span className="num text-xs text-muted-foreground">{Math.max(1, Math.round((p.end - p.start) / 60000))} min</span>

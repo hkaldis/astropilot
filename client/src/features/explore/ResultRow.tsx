@@ -9,6 +9,7 @@ import { DIFFICULTY_TONE, TYPE_LABEL, objectDesignation } from "@/lib/objects";
 import { cn } from "@/lib/utils";
 import { AltitudeSparkline } from "./Sparkline";
 import { constellationName } from "./constellations";
+import { altAt, shownBestTime } from "./sky";
 
 export interface ExploreItem {
   o: CatalogObject;
@@ -63,17 +64,19 @@ function BestText({ r, rc, compact }: { r: RankedTarget<CatalogObject>; rc: RowC
         peaks <span className="num">{Math.round(t.maxAlt)}°</span>
       </span>
     );
-  const time = formatTime(r.bestTime, { tz: rc.tz, hour12: rc.hour12 });
+  // The refined transit when that's the best moment, so every page shows the same time; the altitude then.
+  const time = formatTime(shownBestTime(r.bestTime, t, rc.darkStart, rc.darkEnd), { tz: rc.tz, hour12: rc.hour12 });
+  const alt = Math.round(altAt(t, r.bestTime));
   return compact ? (
     <span className="num">
-      {time} · {Math.round(t.maxAlt)}°
+      {time} · {alt}°
     </span>
   ) : (
     <span>
       <span className="text-muted-foreground">best </span>
       <span className="num">{time}</span>
       <span className="text-muted-foreground"> · </span>
-      <span className="num">{Math.round(t.maxAlt)}°</span>
+      <span className="num">{alt}°</span>
     </span>
   );
 }
@@ -108,7 +111,7 @@ export const ResultRow = memo(function ResultRow({ item, rc }: { item: ExploreIt
         )}
       >
         <span className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-foreground/80 group-hover:text-primary">
-          <TypeGlyph type={o.type} className="h-[1.15rem] w-[1.15rem]" />
+          <TypeGlyph type={o.type} id={o.id} className="h-[1.15rem] w-[1.15rem]" />
         </span>
 
         <span className="min-w-0">
