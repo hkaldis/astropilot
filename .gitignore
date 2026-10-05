@@ -11,3 +11,4 @@ vite.config.ts.*
 scripts/data/.cache
 .claude/settings.local.json
 .local
+.backups
