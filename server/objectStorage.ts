@@ -137,6 +137,14 @@ export class ObjectStorageService {
     return { uploadUrl, objectPath: `/objects/${userFolder}/${objectId}` };
   }
 
+  /** A signed PUT URL for a given entity path ("/objects/users/<uid>/<uuid>"). */
+  async signedUploadUrl(objectPath: string, ttlSec = 900): Promise<string> {
+    if (!objectPath.startsWith("/objects/")) throw new ObjectNotFoundError();
+    const fullPath = `${this.getPrivateObjectDir().replace(/\/+$/, "")}/${objectPath.slice("/objects/".length)}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    return signObjectURL({ bucketName, objectName, method: "PUT", ttlSec });
+  }
+
   /** Delete a stored entity ("/objects/..."). Resolves to false when it didn't exist. */
   async deleteObjectEntity(objectPath: string): Promise<boolean> {
     try {

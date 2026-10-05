@@ -4,6 +4,11 @@ import { fetchWithTimeout } from './http';
 let connectionSettings: any;
 
 async function getCredentials() {
+  // Anywhere: plain keys from the environment (Stripe Dashboard → Developers → API keys).
+  if (process.env.STRIPE_SECRET_KEY) {
+    return { publishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? "", secretKey: process.env.STRIPE_SECRET_KEY };
+  }
+  // On Replit: the Stripe connector.
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY
     ? 'repl ' + process.env.REPL_IDENTITY

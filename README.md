@@ -68,23 +68,23 @@ shared/
 server/
   routes/           one module per feature
   services/         forecast, space weather, satellites, light pollution, comets
+  photoStore.ts     photo storage (Postgres by default; Replit Object Storage while on Replit)
   migrate.ts        additive, idempotent schema migration run on boot
 ```
 
-## Deploying (Replit)
+## Hosting
 
-The production database is migrated automatically and **additively** on boot (new columns and indexes only —
-existing users, sessions, locations, equipment and observations are preserved and shown in the new UI).
+AstroPilot runs on [Render](https://render.com) from [`render.yaml`](render.yaml): a web service and a
+PostgreSQL database; every push to `main` deploys automatically. Photos are stored in the database.
+A [`Dockerfile`](Dockerfile) is included for other hosts. **[docs/hosting.md](docs/hosting.md)** has the
+one-time move from Replit (data copy with `scripts/move-off-replit.sh`, domain switch) and day-to-day notes.
 
-To update the Replit workspace from this repository, open the Replit **Shell** and run:
+The database is migrated automatically and **additively** on boot (new columns, indexes and tables only —
+existing users, logins, locations, equipment and observations are preserved).
 
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/hkaldis/astropilot/main/scripts/replit-update.sh)
-```
-
-It backs up the current code to `.backups/`, replaces the app code with `main`, installs and builds. Then press
-**Deploy → Republish**. Required secrets: `DATABASE_URL`, `SESSION_SECRET`; optional: `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`
-(Google sign-in), `PRIVATE_OBJECT_DIR` (photo uploads via Replit Object Storage); donations use the Replit Stripe connector.
+While the app still runs on Replit, update that workspace with
+`bash <(curl -fsSL https://raw.githubusercontent.com/hkaldis/astropilot/main/scripts/replit-update.sh)` in the
+Replit **Shell**, then **Deploy → Republish**.
 
 ## Credits & licences
 

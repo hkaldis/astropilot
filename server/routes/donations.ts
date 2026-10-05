@@ -15,7 +15,7 @@ async function stripe() {
 }
 
 /**
- * Stripe (and Replit connector) errors carry upstream status codes and messages — e.g. a 401
+ * Stripe errors carry upstream status codes and messages — e.g. a 401
  * "Invalid API Key provided: sk_live_…" — that must neither leak nor look like "please sign in".
  */
 function upstream(e: any, notFound: string): never {
@@ -60,8 +60,8 @@ export function registerDonations(app: Express) {
       try {
         const price = await s.prices.retrieve(priceId, { expand: ["product"] });
         if (!price.active || (price.product as any)?.metadata?.type !== "donation") throw new HttpError(400, "Unknown donation option");
-        const host = process.env.REPLIT_DOMAINS?.split(",")[0] || req.get("host");
-        const base = `https://${host}`;
+        // The public address: APP_URL (e.g. https://astropilot.space), else Replit's domain, else this request's host.
+        const base = (process.env.APP_URL?.replace(/\/+$/, "") || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : `${req.protocol}://${req.get("host")}`));
         const session = await s.checkout.sessions.create({
           payment_method_types: ["card"],
           line_items: [{ price: priceId, quantity: 1 }],

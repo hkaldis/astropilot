@@ -33,6 +33,8 @@ const STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS ap_eyepieces_user_idx ON eyepieces (user_id)`,
   `CREATE INDEX IF NOT EXISTS ap_objects_catalog_idx ON celestial_objects (catalog_id)`,
   `CREATE INDEX IF NOT EXISTS ap_photos_observation_idx ON observation_photos (observation_id)`,
+  // Photo bytes when photos are stored in the database (the default outside Replit).
+  `CREATE TABLE IF NOT EXISTS photo_blobs (path varchar(300) PRIMARY KEY, content_type varchar(100) NOT NULL, size integer NOT NULL, data bytea NOT NULL, created_at timestamp DEFAULT now())`,
 ];
 
 const ident = (s: string) => s.replace(/"/g, "").toLowerCase();

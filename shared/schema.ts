@@ -10,6 +10,7 @@ import {
   boolean,
   real,
   pgEnum,
+  customType,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -870,3 +871,13 @@ export interface RecommendationRequest {
   minScore?: number;           // Minimum total score threshold
   excludeObserved?: boolean;   // Exclude previously observed objects
 }
+
+// Photo bytes when photos are stored in Postgres (AstroPilot 2 default; see server/photoStore.ts).
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
+export const photoBlobs = pgTable("photo_blobs", {
+  path: varchar("path", { length: 300 }).primaryKey(), // "/objects/users/<uid>/<uuid>", as stored in observation_photos.image_url
+  contentType: varchar("content_type", { length: 100 }).notNull(),
+  size: integer("size").notNull(),
+  data: bytea("data").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});

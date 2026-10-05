@@ -5,7 +5,7 @@
  * (sessions, observations, photos, locations, gear) are always checked for ownership; anything
  * that doesn't belong to the caller is reported as "not found" (404) so ids can't be probed.
  */
-import type { Express, Request, Response } from "express";
+import express, { type Express, type Request, type Response } from "express";
 import crypto from "crypto";
 import { and, asc, desc, eq, gte, inArray, isNull, lte, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
@@ -33,6 +33,7 @@ import { A } from "@shared/astro/core";
 import { ah, parse, requireAuth, userId, idParam, HttpError, rateLimit } from "../http";
 import { catalog, resolveRef, ensureObjectRow, legacyRef, type CatalogEntry } from "../catalog";
 import { photosEnabled } from "./features";
+import { newObjectPath, photoStore } from "../photoStore";
 import { sessionSecret } from "../env";
 
 const HOUR = 3_600_000;
@@ -654,11 +655,11 @@ export function deleteStoredPhotos(imageUrls: string[]) {
   if (!paths.length || !photosEnabled()) return;
   void (async () => {
     try {
-      const { svc } = await photoStorage();
+      const store = photoStore();
       for (const p of paths) {
         // Only delete when no other photo row still references the same object.
         const [still] = await db.select({ id: observationPhotos.id }).from(observationPhotos).where(eq(observationPhotos.imageUrl, p)).limit(1);
-        if (!still) await svc.deleteObjectEntity(p).catch(() => undefined);
+        if (!still) await store.delete(p).catch(() => undefined);
       }
     } catch (e: any) {
       console.warn("[journal] photo cleanup failed:", e?.message ?? e);
@@ -670,11 +671,9 @@ export function deleteStoredPhotos(imageUrls: string[]) {
 /* Photos                                                                                      */
 /* ------------------------------------------------------------------------------------------ */
 
-let storageModules: Promise<{ svc: import("../objectStorage").ObjectStorageService; acl: typeof import("../objectAcl") }> | null = null;
 function photoStorage() {
   if (!photosEnabled()) throw new HttpError(404, "Photo uploads aren't available on this server.");
-  storageModules ??= Promise.all([import("../objectStorage"), import("../objectAcl")]).then(([s, acl]) => ({ svc: new s.ObjectStorageService(), acl }));
-  return storageModules;
+  return photoStore();
 }
 
 interface UploadClaim {
@@ -714,15 +713,10 @@ async function servePhoto(req: Request, res: Response, rest: string) {
   if (!photosEnabled()) throw new HttpError(404, "Not found");
   const uid = userId(req);
   const objectPath = `/objects/${rest}`;
-  const { svc, acl } = await photoStorage();
-  let file;
-  try {
-    file = await svc.getObjectEntityFile(objectPath);
-  } catch {
-    throw new HttpError(404, "Photo not found.");
-  }
-  // Owner per the object's ACL, or (legacy objects without an ACL) per the photo row in the DB.
-  let allowed = await svc.canAccessObjectEntity({ userId: uid, objectFile: file, requestedPermission: acl.ObjectPermission.READ }).catch(() => false);
+  const store = photoStorage();
+  if (!(await store.stat(objectPath).catch(() => null))) throw new HttpError(404, "Photo not found.");
+  // Owner per the storage's ACL (Replit), or per the photo row in the DB.
+  let allowed = (await store.ownerOf?.(objectPath).catch(() => null)) === uid;
   if (!allowed) {
     const [row] = await db
       .select({ id: observationPhotos.id })
@@ -736,7 +730,7 @@ async function servePhoto(req: Request, res: Response, rest: string) {
   if (!allowed) throw new HttpError(404, "Photo not found.");
   res.setHeader("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox");
   res.setHeader("Content-Disposition", "inline");
-  await svc.downloadObject(file, res, 86_400);
+  await store.send(objectPath, res, 86_400);
 }
 
 /* ------------------------------------------------------------------------------------------ */
@@ -1190,12 +1184,37 @@ export function registerJournal(app: Express) {
     ah(async (req, res) => {
       const uid = userId(req);
       const id = pid(req);
-      const { svc } = await photoStorage();
+      const store = photoStorage();
       await ownedObservation(uid, id);
       const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(observationPhotos).where(eq(observationPhotos.observationId, id));
       if (Number(n) >= MAX_PHOTOS_PER_OBSERVATION) throw new HttpError(400, `You can attach up to ${MAX_PHOTOS_PER_OBSERVATION} photos to one observation.`);
-      const { uploadUrl, objectPath } = await svc.createUploadTarget(uid);
-      res.json({ uploadUrl, token: signUpload({ u: uid, o: id, p: objectPath, e: Date.now() + UPLOAD_TOKEN_TTL_MS }) });
+      const objectPath = newObjectPath(uid);
+      const token = signUpload({ u: uid, o: id, p: objectPath, e: Date.now() + UPLOAD_TOKEN_TTL_MS });
+      res.json({ uploadUrl: await store.uploadUrl(objectPath, token), token });
+    }),
+  );
+
+  // The bytes, for storage that lives behind this server (database photos). The signed token from
+  // upload-url binds user, observation and path, exactly as the attach step checks it.
+  app.put(
+    "/api/photo-uploads/:token",
+    requireAuth,
+    uploadLimit,
+    express.raw({ type: () => true, limit: MAX_PHOTO_BYTES + 1024 }),
+    ah(async (req, res) => {
+      const uid = userId(req);
+      const store = photoStorage();
+      if (!store.put) throw new HttpError(404, "Not found");
+      const claim = verifyUpload(String(req.params.token));
+      if (!claim || claim.u !== uid || !claim.p.startsWith(`/objects/users/${uid}/`)) throw new HttpError(400, "This upload link isn't valid. Please try again.");
+      if (claim.e < Date.now()) throw new HttpError(400, "This upload expired. Please upload the photo again.");
+      const type = String(req.headers["content-type"] ?? "").split(";")[0].trim();
+      if (!IMAGE_TYPES.test(type)) throw new HttpError(400, "Only JPEG, PNG, WebP, GIF or AVIF images can be attached.");
+      const body = req.body as Buffer;
+      if (!Buffer.isBuffer(body) || body.length === 0) throw new HttpError(400, "The photo arrived empty. Please try again.");
+      if (body.length > MAX_PHOTO_BYTES) throw new HttpError(400, "Photos must be 25 MB or smaller.");
+      await store.put(claim.p, type, body);
+      res.json({ ok: true });
     }),
   );
 
@@ -1206,7 +1225,7 @@ export function registerJournal(app: Express) {
     ah(async (req, res) => {
       const uid = userId(req);
       const id = pid(req);
-      const { svc, acl } = await photoStorage();
+      const store = photoStorage();
       const { token } = parse(z.object({ token: z.string().min(10).max(4000) }), req.body);
       const claim = verifyUpload(token);
       // The token binds user + observation + object path, so nobody can attach someone else's upload.
@@ -1223,24 +1242,17 @@ export function registerJournal(app: Express) {
       const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(observationPhotos).where(eq(observationPhotos.observationId, id));
       if (Number(n) >= MAX_PHOTOS_PER_OBSERVATION) throw new HttpError(400, `You can attach up to ${MAX_PHOTOS_PER_OBSERVATION} photos to one observation.`);
 
-      let file;
-      try {
-        file = await svc.getObjectEntityFile(claim.p);
-      } catch {
-        throw new HttpError(400, "We couldn't find the uploaded photo. Please try again.");
-      }
-      const [meta] = await file.getMetadata();
-      const type = String(meta.contentType ?? "");
-      const size = Number(meta.size ?? 0);
-      if (!IMAGE_TYPES.test(type)) {
-        await file.delete({ ignoreNotFound: true }).catch(() => undefined);
+      const meta = await store.stat(claim.p).catch(() => null);
+      if (!meta) throw new HttpError(400, "We couldn't find the uploaded photo. Please try again.");
+      if (!IMAGE_TYPES.test(meta.contentType)) {
+        await store.delete(claim.p);
         throw new HttpError(400, "Only JPEG, PNG, WebP, GIF or AVIF images can be attached.");
       }
-      if (size > MAX_PHOTO_BYTES) {
-        await file.delete({ ignoreNotFound: true }).catch(() => undefined);
+      if (meta.size > MAX_PHOTO_BYTES) {
+        await store.delete(claim.p);
         throw new HttpError(400, "Photos must be 25 MB or smaller.");
       }
-      await acl.setObjectAclPolicy(file, { owner: uid, visibility: "private" });
+      await store.setOwner?.(claim.p, uid);
       const [row] = await db.insert(observationPhotos).values({ observationId: id, imageUrl: claim.p }).returning();
       res.status(201).json({ id: row.id, url: photoUrl(row.imageUrl) });
     }),
