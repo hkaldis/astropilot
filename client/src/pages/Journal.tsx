@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { EXPORT_URL, useCreateSession, useJournalSessions, useJournalStats } from "@/features/journal/api";
 import { ResponsiveModal } from "@/features/journal/controls";
 import { CatalogGrid, MonthBars, SolarSystemChips, TypeBars } from "@/features/journal/progress";
-import { AchievementsGrid, achievementSummary } from "@/features/journal/achievements";
+import { AchievementSummary } from "@/features/achievements/AchievementSummary";
 import { SessionForm, sessionValues, toSessionInput } from "@/features/journal/SessionForm";
 import { SEEING_LABEL, TRANSPARENCY_LABEL, formatTime, monthLabel, nightLabel, nightWeekday, placeOf, sessionNight, sessionTitle } from "@/features/journal/format";
 
@@ -58,6 +58,7 @@ function SignedInJournal() {
     <div className="flex flex-col gap-10">
       <JournalHeader canExport={s.observations > 0} />
       <StatsStrip stats={s} estimatedSessions={estimatedSessions} />
+      {s.achievements?.length ? <AchievementSummary stats={s} /> : null}
       <ProgressSection stats={s} />
       <Section title="Sessions" description="Every night you've logged, newest first.">
         <SessionList sessions={list} locations={locations} />
@@ -156,26 +157,7 @@ function ProgressSection({ stats }: { stats: JournalStats }) {
           <MonthBars perMonth={stats.perMonth} />
         </Section>
       </div>
-      {stats.achievements?.length ? <AchievementsSection stats={stats} /> : null}
     </>
-  );
-}
-
-function AchievementsSection({ stats }: { stats: JournalStats }) {
-  const { earned, total, latest } = achievementSummary(stats.achievements);
-  return (
-    <div className="border-t pt-8">
-      <Section
-        title="Achievements"
-        description={
-          latest
-            ? `${earned} of ${total} earned, all from what you've logged. Latest: ${latest.title}, ${latest.tier}.`
-            : `${total} to earn, all from what you log — nothing to game.`
-        }
-      >
-        <AchievementsGrid achievements={stats.achievements} />
-      </Section>
-    </div>
   );
 }
 

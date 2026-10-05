@@ -1,6 +1,6 @@
 /** API contracts shared by server and client (AstroPilot 2). */
-import type { Achievement } from "./achievements";
-export type { Achievement, Tier as AchievementTier } from "./achievements";
+import type { FamilyResult, Rank } from "./achievements";
+export type { FamilyResult as AchievementFamily, TierResult as AchievementTierResult, Tier as AchievementTier, Rank as ObserverRank } from "./achievements";
 
 export interface Preferences {
   units?: "metric" | "imperial";
@@ -190,7 +190,10 @@ export interface JournalStats {
   caldwellSeen: number[];
   planetsSeen: string[];
   perMonth: { month: string; observations: number }[]; // last 12 months, "YYYY-MM"
-  achievements: Achievement[];
+  /** Achievement families (programs, collections, feats, habits) with their tiers. */
+  achievements: FamilyResult[];
+  /** Observer rank by the number of different objects seen. */
+  rank: Rank;
 }
 
 /** Light-pollution estimate for a point (GET /api/geo/sky-brightness). */

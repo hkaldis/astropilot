@@ -26,7 +26,7 @@ import {
   type ObservationSession,
 } from "@shared/schema";
 import type { ApiObservation, ApiSession, JournalStats, SessionConditions } from "@shared/api";
-import { evaluateAchievements, type AchievementEvent } from "@shared/achievements";
+import { evaluateAchievements, rankFor, type MemberLike, type ObservationEvent } from "@shared/achievements";
 import { SOLAR_SYSTEM } from "@shared/astro/planets";
 import { nightDateOf } from "@shared/astro/night";
 import { A } from "@shared/astro/core";
@@ -453,12 +453,14 @@ async function loadSession(uid: string, id: number): Promise<ApiSession> {
 /* ------------------------------------------------------------------------------------------ */
 
 async function computeStats(uid: string): Promise<JournalStats> {
-  const [sessionRows, obsRows] = await Promise.all([
+  const [sessionRows, obsRows, photoRows] = await Promise.all([
     db
       .select({
         id: observationSessions.id,
         date: observationSessions.date,
         endDate: observationSessions.endDate,
+        bortle: observationSessions.bortle,
+        lat: locations.latitude,
         lon: locations.longitude,
         tz: locations.timezone,
       })
@@ -467,19 +469,32 @@ async function computeStats(uid: string): Promise<JournalStats> {
       .where(eq(observationSessions.userId, uid)),
     db
       .select({
+        id: observations.id,
         sessionId: observations.sessionId,
         objectId: observations.objectId,
         catalogRef: observations.catalogRef,
         observedAt: observations.observedAt,
+        notes: observations.notes,
         catalogId: celestialObjects.catalogId,
         name: celestialObjects.name,
         category: celestialObjects.category,
+        scopeType: telescopes.type,
+        scopeName: telescopes.name,
       })
       .from(observations)
       .innerJoin(observationSessions, eq(observationSessions.id, observations.sessionId))
       .leftJoin(celestialObjects, eq(celestialObjects.id, observations.objectId))
+      .leftJoin(telescopes, and(eq(telescopes.id, observations.telescopeId), eq(telescopes.userId, uid)))
       .where(eq(observationSessions.userId, uid)),
+    db
+      .select({ observationId: observationPhotos.observationId, n: sql<number>`count(*)` })
+      .from(observationPhotos)
+      .innerJoin(observations, eq(observations.id, observationPhotos.observationId))
+      .innerJoin(observationSessions, eq(observationSessions.id, observations.sessionId))
+      .where(eq(observationSessions.userId, uid))
+      .groupBy(observationPhotos.observationId),
   ]);
+  const withPhotos = new Set(photoRows.filter((r) => Number(r.n) > 0).map((r) => r.observationId));
 
   const sessionsById = new Map(sessionRows.map((s) => [s.id, s]));
   const nights = new Set<string>();
@@ -489,7 +504,7 @@ async function computeStats(uid: string): Promise<JournalStats> {
   const span = new Map<number, { min: number; max: number }>();
   const seen = new Map<string, ObjectInfo>();
   const months = new Map<string, number>();
-  const events: AchievementEvent[] = [];
+  const events: ObservationEvent[] = [];
   for (const o of obsRows) {
     const s = sessionsById.get(o.sessionId);
     const t = (o.observedAt ?? s?.date)?.getTime();
@@ -506,6 +521,7 @@ async function computeStats(uid: string): Promise<JournalStats> {
     const night = nightKey(t, s?.lon, s?.tz);
     months.set(night.slice(0, 7), (months.get(night.slice(0, 7)) ?? 0) + 1);
     const e = info.ref && !SOLAR_IDS.has(info.ref.toLowerCase()) ? catalogEntry(info.ref) : undefined;
+    const scope = `${o.scopeType ?? ""} ${o.scopeName ?? ""}`;
     events.push({
       t,
       sessionId: o.sessionId,
@@ -516,7 +532,16 @@ async function computeStats(uid: string): Promise<JournalStats> {
       m: e?.m,
       c: e?.c,
       showpiece: e?.showpiece === true,
+      con: e?.con,
+      mag: e?.mag,
+      sep: typeof e?.sep === "number" ? e.sep : undefined,
       dec: e?.dec,
+      bortle: s?.bortle ?? null,
+      siteLat: s?.lat ?? null,
+      instrument: o.scopeType === null && o.scopeName === null ? null : /bino|\d+\s*[x×]\s*\d+/i.test(scope) ? "binoculars" : "telescope",
+      notes: !!o.notes && o.notes.trim().length > 0,
+      photos: withPhotos.has(o.id),
+      sessionHours: s?.endDate && s.endDate > s.date ? (s.endDate.getTime() - s.date.getTime()) / HOUR : null,
     });
   }
 
@@ -586,7 +611,8 @@ async function computeStats(uid: string): Promise<JournalStats> {
     caldwellSeen: Array.from(caldwell).sort((a, b) => a - b),
     planetsSeen: planets.sort((a, b) => planetOrder.indexOf(a) - planetOrder.indexOf(b)),
     perMonth,
-    achievements: evaluateAchievements(events),
+    achievements: evaluateAchievements(events, catalog().list as unknown as MemberLike[]),
+    rank: rankFor(seen.size),
   };
 }
 

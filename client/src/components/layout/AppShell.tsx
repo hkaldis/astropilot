@@ -15,11 +15,12 @@ import {
   Eye,
   Sun,
   Heart,
+  Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/common/Glyphs";
 import { SiteSwitcher } from "./SiteSwitcher";
-import { AchievementWatcher } from "@/features/journal/achievements";
+import { AchievementWatcher } from "@/features/achievements/Watcher";
 import { useAuth, useLogout, displayName, useFeatures } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ export const NAV: NavItem[] = [
 ];
 
 export const NAV_SECONDARY: NavItem[] = [
+  { href: "/achievements", label: "Achievements", icon: Trophy },
   { href: "/gear", label: "My gear", icon: Telescope },
   { href: "/locations", label: "Locations", icon: MapPin },
   { href: "/settings", label: "Settings", icon: Settings },

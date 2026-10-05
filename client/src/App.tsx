@@ -16,6 +16,7 @@ const ObjectPage = lazy(() => import("@/pages/ObjectPage"));
 const Plan = lazy(() => import("@/pages/Plan"));
 const Journal = lazy(() => import("@/pages/Journal"));
 const JournalSession = lazy(() => import("@/pages/JournalSession"));
+const Achievements = lazy(() => import("@/pages/Achievements"));
 const Gear = lazy(() => import("@/pages/Gear"));
 const Locations = lazy(() => import("@/pages/Locations"));
 const Settings = lazy(() => import("@/pages/Settings"));
@@ -91,6 +92,7 @@ function Routes() {
                   <Route path="/plan" component={Plan} />
                   <Route path="/journal" component={Journal} />
                   <Route path="/journal/:id">{(p) => <JournalSession id={Number(p.id)} />}</Route>
+                  <Route path="/achievements" component={Achievements} />
                   <Route path="/gear" component={Gear} />
                   <Route path="/locations" component={Locations} />
                   <Route path="/settings" component={Settings} />

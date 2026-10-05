@@ -30,6 +30,7 @@ import { TonightSection } from "./TonightSection";
 import { YearStrip, yearAltitudes } from "./YearStrip";
 import { horizonClass, resolveSubject, tonightFor, type Subject } from "./model";
 import { opticsTarget } from "./observing";
+import { CountsToward } from "@/features/achievements/CountsToward";
 import { nearestBrightStar, sepWords, useNamedStars } from "./finder";
 
 function backHref() {
@@ -266,6 +267,7 @@ function SubjectPage({ subject }: { subject: Subject }) {
             )}
           </div>
         </div>
+        <CountsToward obj={subject.kind === "deep" ? subject.obj : { id: subject.id, type: subject.type }} />
         <ObjectActions refId={subject.id} name={subject.name} suggestion={suggestion} />
         <div className="border-t pt-5">
           {subject.kind === "deep" ? <DeepStats o={subject.obj} /> : tonight?.body ? <BodyStats id={subject.id} st={tonight.body.state} /> : <Skel className="h-12 w-full" />}
