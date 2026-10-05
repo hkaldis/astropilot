@@ -195,20 +195,61 @@ export function useDeleteObservation(sessionId: number) {
 export const MAX_PHOTO_MB = 25;
 const PHOTO_TYPES = /^image\/(jpeg|png|webp|gif|avif)$/i; // what browsers can display
 
+/** Originals up to this size are accepted, because they're resized before upload (GIFs aren't). */
+const MAX_ORIGINAL_MB = 80;
+
 export function photoProblem(file: File): string | null {
   if (!PHOTO_TYPES.test(file.type)) return `${file.name}: use a JPEG, PNG, WebP, GIF or AVIF image.`;
-  if (file.size > MAX_PHOTO_MB * 1024 * 1024) return `${file.name} is larger than ${MAX_PHOTO_MB} MB.`;
+  const limit = file.type === "image/gif" ? MAX_PHOTO_MB : MAX_ORIGINAL_MB;
+  if (file.size > limit * 1024 * 1024) return `${file.name} is larger than ${limit} MB.`;
   return null;
 }
 
-/** Upload one photo straight to storage via a signed URL, then attach it to the observation. */
+const MAX_EDGE_PX = 2400;
+const KEEP_AS_IS_BYTES = 1.5 * 1024 * 1024;
+
+/**
+ * Photos straight off a phone or camera are often 5–25 MB; resized to 2400 px on the long side as a
+ * high-quality JPEG they look the same on screen at a tenth of the size — quicker to upload from the
+ * field and kinder to storage. Animated GIFs, small images and anything the browser can't decode are
+ * sent unchanged.
+ */
+async function shrinkPhoto(file: File): Promise<Blob> {
+  if (file.type === "image/gif" || typeof createImageBitmap !== "function") return file;
+  let bmp: ImageBitmap;
+  try {
+    bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+  } catch {
+    return file;
+  }
+  try {
+    const scale = Math.min(1, MAX_EDGE_PX / Math.max(bmp.width, bmp.height));
+    if (scale === 1 && file.size <= KEEP_AS_IS_BYTES) return file;
+    const w = Math.round(bmp.width * scale);
+    const h = Math.round(bmp.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bmp, 0, 0, w, h);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
+    return blob && blob.size < file.size ? blob : file;
+  } finally {
+    bmp.close();
+  }
+}
+
+/** Upload one photo (resized if large), then attach it to the observation. */
 export async function uploadPhoto(observationId: number, file: File): Promise<{ id: number; url: string }> {
   const problem = photoProblem(file);
   if (problem) throw new ApiError(400, problem);
+  const body = await shrinkPhoto(file);
+  if (body.size > MAX_PHOTO_MB * 1024 * 1024) throw new ApiError(400, `${file.name} is larger than ${MAX_PHOTO_MB} MB.`);
   const { uploadUrl, token } = await api<{ uploadUrl: string; token: string }>("POST", `/api/journal/observations/${observationId}/photos/upload-url`);
   let put: Response;
   try {
-    put = await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+    put = await fetch(uploadUrl, { method: "PUT", body, headers: { "Content-Type": body.type || file.type } });
   } catch {
     throw new ApiError(0, "The photo upload didn't go through. Check your connection and try again.");
   }

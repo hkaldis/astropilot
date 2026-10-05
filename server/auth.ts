@@ -73,7 +73,8 @@ export function sessionMiddleware() {
   const PgStore = connectPg(session);
   return session({
     secret: sessionSecret,
-    store: new PgStore({ pool, createTableIfMissing: false, ttl: ttl / 1000, tableName: "sessions" }),
+    // Prune expired logins every 6 h rather than every 15 min, so a serverless database (Neon) can sleep.
+    store: new PgStore({ pool, createTableIfMissing: false, ttl: ttl / 1000, tableName: "sessions", pruneSessionInterval: 6 * 60 * 60 }),
     resave: false,
     saveUninitialized: false,
     rolling: true,

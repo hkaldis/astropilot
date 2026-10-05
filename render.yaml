@@ -1,11 +1,15 @@
-# Render Blueprint for AstroPilot: the web app and its Postgres database, deployed from GitHub.
-# Render → New → Blueprint → choose hkaldis/astropilot. Every push to `main` then deploys automatically.
-# Values marked `sync: false` are secrets you paste once in the Render dashboard (see docs/hosting.md).
+# Render Blueprint for AstroPilot, deployed from GitHub: every push to `main` deploys automatically.
+# Render → New → Blueprint → choose hkaldis/astropilot. Values marked `sync: false` are pasted once in
+# the Render dashboard. The database is Neon's free Postgres (see docs/hosting.md).
+#
+# Free plan: the app sleeps after 15 minutes without visitors and takes about a minute to wake (a free
+# uptime monitor pinging /api/health every 10 minutes keeps it awake). For always-on, change `plan` to
+# `starter` (paid) — nothing else changes.
 services:
   - type: web
     name: astropilot
     runtime: node
-    plan: starter # always on; the free plan sleeps after 15 minutes idle
+    plan: free
     region: frankfurt
     branch: main
     autoDeploy: true
@@ -17,10 +21,8 @@ services:
         value: "22"
       - key: APP_URL
         value: https://astropilot.space
-      - key: DATABASE_URL
-        fromDatabase:
-          name: astropilot-db
-          property: connectionString
+      - key: DATABASE_URL # Neon → your project → Connect → the direct (not "-pooler") connection string
+        sync: false
       - key: SESSION_SECRET # copy it from Replit Secrets so everyone stays signed in
         sync: false
       - key: GOOGLE_CLIENT_ID
@@ -29,11 +31,3 @@ services:
         sync: false
       - key: STRIPE_SECRET_KEY # optional: donations
         sync: false
-
-databases:
-  - name: astropilot-db
-    plan: basic-256mb
-    region: frankfurt
-    postgresMajorVersion: "16"
-    databaseName: astropilot
-    user: astropilot

@@ -29,7 +29,7 @@ function Privacy() {
         <li><strong>NASA/JPL Small-Body Database and Horizons</strong> — comet orbits and positions, fetched by our server (no personal data sent).</li>
         <li><strong>Google</strong> — only if you choose "Continue with Google".</li>
         <li><strong>Stripe</strong> — only if you make a donation; we never see your card details.</li>
-        <li><strong>Render</strong> — hosting, the database and photo storage (servers in the EU, Frankfurt).</li>
+        <li><strong>Render and Neon</strong> — hosting, and the database with your photos (servers in the EU, Frankfurt).</li>
       </ul>
       <h2>Your control</h2>
       <p>
