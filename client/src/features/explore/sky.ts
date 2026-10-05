@@ -39,7 +39,8 @@ import { useNow } from "@/hooks/useNow";
 const NIGHTS = new Map<string, NightInfo>();
 const FRAMES = new Map<string, NightFrames>();
 
-const siteKey = (s: Site) => `${s.lat.toFixed(4)}|${s.lon.toFixed(4)}|${Math.round(s.elevation ?? 0)}|${s.timezone ?? ""}`;
+/** Identifies a place by what the sky depends on (an unsaved place's `key` is always "guest"). */
+export const siteKey = (s: Site) => `${s.lat.toFixed(4)}|${s.lon.toFixed(4)}|${Math.round(s.elevation ?? 0)}|${s.timezone ?? ""}`;
 
 function remember<T>(map: Map<string, T>, key: string, make: () => T, max: number): T {
   let v = map.get(key);
@@ -131,14 +132,18 @@ export function useNightContext(stepMin = 15): { ctx: NightContext | null; siteL
 
 /**
  * Same summary as `objectTrack`, for precomputed samples. `dark[i]` says whether sample i
- * counts as observing time (deep-sky: astronomical darkness; planets: Sun below −6°).
+ * counts as observing time (deep-sky: astronomical darkness; planets: Sun below −6°). With `exact`
+ * (the altitude at any instant) and `edges` (when observing time starts and ends), the highest point is
+ * taken exactly — at the transit, or at an edge of the observing time — not at the nearest sample.
  */
-export function deriveTrack(points: TrackPoint[], dark: boolean[], minAlt: number): ObjectTrack {
-  // Only observing time counts: with no such time at all (midnight sun) there is no best moment.
+export function deriveTrack(points: TrackPoint[], dark: boolean[], minAlt: number, exact?: (t: number) => number, edges?: [number | null, number | null]): ObjectTrack {
+  // Only observing time counts; with none at all (midnight sun) the night's real highest point is still
+  // given, flagged `noDarkness`, so nothing reads as "below the horizon" when it's high in a bright sky.
+  const hasDark = dark.some(Boolean);
   let maxAlt = -90;
   let maxIdx = -1;
   points.forEach((p, i) => {
-    if (dark[i] && p.alt > maxAlt) {
+    if ((!hasDark || dark[i]) && p.alt > maxAlt) {
       maxAlt = p.alt;
       maxIdx = i;
     }
@@ -179,7 +184,49 @@ export function deriveTrack(points: TrackPoint[], dark: boolean[], minAlt: numbe
   // every page quotes the same time whatever its sampling.
   let bestT = maxIdx >= 0 ? points[maxIdx].t : null;
   const transitIdx = transitTime !== null && points.length ? Math.round((transitTime - points[0].t) / step) : -1;
-  if (bestT !== null && transitTime !== null && Math.abs(transitTime - bestT) <= step && dark[transitIdx]) bestT = transitTime;
+  if (bestT !== null && transitTime !== null && Math.abs(transitTime - bestT) <= step && dark[transitIdx]) {
+    if (hasDark && exact) {
+      // The parabola through three samples misplaces a flat culmination (the Moon low in the far north):
+      // find the highest moment on the exact altitude (golden section, ~10 s).
+      let lo = transitTime - step;
+      let hi = transitTime + step;
+      const g = (Math.sqrt(5) - 1) / 2;
+      let x1 = hi - g * (hi - lo);
+      let x2 = lo + g * (hi - lo);
+      let f1 = exact(x1);
+      let f2 = exact(x2);
+      while (hi - lo > 10_000) {
+        if (f1 > f2) {
+          hi = x2;
+          x2 = x1;
+          f2 = f1;
+          x1 = hi - g * (hi - lo);
+          f1 = exact(x1);
+        } else {
+          lo = x1;
+          x1 = x2;
+          f1 = f2;
+          x2 = lo + g * (hi - lo);
+          f2 = exact(x2);
+        }
+      }
+      transitTime = (lo + hi) / 2;
+      maxAlt = Math.max(maxAlt, exact(transitTime));
+    }
+    bestT = transitTime;
+  } else if (hasDark && exact && edges && maxIdx >= 0) {
+    // Highest where observing time begins or ends (rising at dawn, setting at dusk): take that moment.
+    const before = maxIdx === 0 || !dark[maxIdx - 1];
+    const after = maxIdx === points.length - 1 || !dark[maxIdx + 1];
+    const edge = before && edges[0] !== null && Math.abs(edges[0] - points[maxIdx].t) <= step ? edges[0] : after && edges[1] !== null && Math.abs(edges[1] - points[maxIdx].t) <= step ? edges[1] : null;
+    if (edge !== null) {
+      const a = exact(edge);
+      if (a > maxAlt) {
+        maxAlt = a;
+        bestT = edge;
+      }
+    }
+  }
   const window =
     segments.find(([a, b]) => bestT !== null && bestT >= a - step && bestT <= b + step) ??
     segments.reduce<[number, number] | null>((best, sg) => (!best || sg[1] - sg[0] > best[1] - best[0] ? sg : best), null);
@@ -197,6 +244,7 @@ export function deriveTrack(points: TrackPoint[], dark: boolean[], minAlt: numbe
     setTime,
     alwaysUp: darkPts.length > 0 && darkPts.every((p) => p.alt >= minAlt),
     neverUp: darkPts.length > 0 ? darkPts.every((p) => p.alt < minAlt) : true,
+    ...(hasDark ? {} : { noDarkness: true }),
     moonSepAtBest: null,
     moonAltAtBest: null,
   };
@@ -219,8 +267,24 @@ export interface BodyTonight {
 
 /** Sun below this altitude counts as observing time for planets and the Moon. */
 export const BODY_SUN_LIMIT = -6;
+/** On white nights, when the Sun never reaches −6°: the darkest twilight, when bright planets still show. */
+export const BODY_WHITE_NIGHT_LIMIT = -3;
 
-/** A planet's (or the Moon's) track through the night's frames, sampling its real motion; observing time is Sun < −6°. */
+/** The Sun altitude below which a planet can be observed tonight (−6°, or −3° on white nights). */
+export function bodySunLimit(nf: NightFrames): number {
+  return nf.sunAlt.some((a) => a < BODY_SUN_LIMIT) ? BODY_SUN_LIMIT : BODY_WHITE_NIGHT_LIMIT;
+}
+
+/** When the Sun crosses `limit` going down (dir −1) or up (+1), between frames (linear), or null. */
+function sunCrossing(nf: NightFrames, limit: number, dir: -1 | 1): number | null {
+  for (let i = 1; i < nf.times.length; i++) {
+    const [a, b] = [nf.sunAlt[i - 1], nf.sunAlt[i]];
+    if (dir < 0 ? a >= limit && b < limit : a < limit && b >= limit) return nf.times[i - 1] + ((limit - a) / (b - a)) * (nf.times[i] - nf.times[i - 1]);
+  }
+  return null;
+}
+
+/** A planet's (or the Moon's) track through the night's frames, sampling its real motion; observing time is Sun < −6° (−3° on white nights). */
 export function bodyTrack(id: SolarSystemId, nf: NightFrames, site: Site, minAlt: number): ObjectTrack {
   const meta = PLANET_BY_ID[id];
   const points: TrackPoint[] =
@@ -230,12 +294,21 @@ export function bodyTrack(id: SolarSystemId, nf: NightFrames, site: Site, minAlt
           const p = bodyAltAz(meta.body, t, site);
           return { t, alt: p.alt, az: p.az };
         });
-  return deriveTrack(points, nf.sunAlt.map((a) => a < BODY_SUN_LIMIT), minAlt);
+  const limit = bodySunLimit(nf);
+  return deriveTrack(
+    points,
+    nf.sunAlt.map((a) => a < limit),
+    minAlt,
+    (t) => bodyAltAz(meta.body, t, site).alt,
+    [sunCrossing(nf, limit, -1), sunCrossing(nf, limit, 1)],
+  );
 }
 
-/** Start and end of the observing time for planets and the Moon (Sun below −6°). */
+/** Start and end of the observing time for planets and the Moon (Sun below −6°, or −3° on white nights). */
 export function bodyWindow(night: NightInfo, nf: NightFrames): [number | null, number | null] {
-  const dark = nf.times.filter((_, i) => nf.sunAlt[i] < BODY_SUN_LIMIT);
+  const limit = bodySunLimit(nf);
+  const dark = nf.times.filter((_, i) => nf.sunAlt[i] < limit);
+  if (limit !== BODY_SUN_LIMIT) return [sunCrossing(nf, limit, -1) ?? dark[0] ?? null, sunCrossing(nf, limit, 1) ?? dark[dark.length - 1] ?? null];
   return [night.civilDusk ?? dark[0] ?? null, night.civilDawn ?? dark[dark.length - 1] ?? null];
 }
 

@@ -5,8 +5,8 @@ import { FAMILY_BY_ID, familyMembers, type AchievementGroup } from "@shared/achi
 import type { AchievementFamily, AchievementTierResult } from "@shared/api";
 import type { CatalogObject } from "@shared/data/types";
 import { useCatalog } from "@/hooks/useCatalog";
-import { useActiveScope } from "@/hooks/useScope";
-import { evaluateBody, isSolarSystemId, useNightContext, type BodyTonight, type NightContext } from "@/features/explore/sky";
+import { ratingOptics, useActiveScope } from "@/hooks/useScope";
+import { evaluateBody, isSolarSystemId, siteKey, useNightContext, type BodyTonight, type NightContext } from "@/features/explore/sky";
 
 export const GROUPS: { id: AchievementGroup; title: string; blurb: string }[] = [
   { id: "programs", title: "Observing programs", blurb: "Lists to work through — from your first Messier objects to the jewels of the far south." },
@@ -68,13 +68,13 @@ export interface UpNext {
 
 const MAX_SUGGESTIONS = 3;
 
-function catalogSuggestions(f: AchievementFamily, objects: CatalogObject[], seen: Set<string>, ctx: NightContext, aperture: number): Suggestion[] {
+function catalogSuggestions(f: AchievementFamily, objects: CatalogObject[], seen: Set<string>, ctx: NightContext, optics: ReturnType<typeof ratingOptics>): Suggestion[] {
   const def = FAMILY_BY_ID.get(f.id);
   if (!def?.member) return [];
   const pool = familyMembers(def, objects).filter((o) => !seen.has(o.id.toUpperCase()));
   const ranked: RankedTarget<CatalogObject>[] = [];
   for (const o of pool) {
-    const r = evaluateTarget(o, ctx.frames, { sqm: ctx.sqm, apertureMm: aperture, minAlt: ctx.minAlt });
+    const r = evaluateTarget(o, ctx.frames, { sqm: ctx.sqm, minAlt: ctx.minAlt, ...optics });
     if (!r.track.window || r.detect.difficulty === "out of reach" || r.detect.difficulty === "very hard") continue;
     ranked.push(r);
   }
@@ -117,25 +117,33 @@ function solarSuggestions(ids: string[], seen: Set<string>, ctx: NightContext, a
   return out.sort((a, b) => b.score - a.score).slice(0, MAX_SUGGESTIONS);
 }
 
-const fmtDay = (ms: number) => new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" }).format(ms);
+/** "11 Oct" (with the year when asked) in the site's zone, so the date is the one at the site. */
+function fmtDay(ms: number, tz: string | undefined, year = false) {
+  try {
+    return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", ...(year ? { year: "numeric" } : {}), timeZone: tz }).format(ms);
+  } catch {
+    return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", ...(year ? { year: "numeric" } : {}) }).format(ms);
+  }
+}
 
 /** A concrete next step for feats that depend on the calendar. */
-function calendarHint(f: AchievementFamily, now: number): string | null {
+function calendarHint(f: AchievementFamily, now: number, tz: string | undefined): string | null {
   switch (f.id) {
     case "lunar-cycle": {
       const q = moonQuarters(now, 35);
-      return q.length ? `Next: ${q[0].name} on ${fmtDay(q[0].time)}, then ${q[1]?.name ?? "the next phase"}${q[1] ? ` on ${fmtDay(q[1].time)}` : ""}.` : f.hint;
+      return q.length ? `Next: ${q[0].name} on ${fmtDay(q[0].time, tz)}, then ${q[1]?.name ?? "the next phase"}${q[1] ? ` on ${fmtDay(q[1].time, tz)}` : ""}.` : f.hint;
     }
     case "opposition": {
-      const opp = planetaryEvents(now, 420).filter((e) => e.kind === "opposition" && ["mars", "jupiter", "saturn"].includes(e.body));
-      return opp.length ? `Next: ${opp[0].body.charAt(0).toUpperCase() + opp[0].body.slice(1)} at opposition on ${fmtDay(opp[0].time)} — log it within ten days.` : f.hint;
+      // An opposition up to ten days ago still counts, so search from then.
+      const opp = planetaryEvents(now - 10 * 86_400_000, 430).filter((e) => e.kind === "opposition" && ["mars", "jupiter", "saturn"].includes(e.body));
+      return opp.length ? `Next: ${opp[0].body.charAt(0).toUpperCase() + opp[0].body.slice(1)} at opposition on ${fmtDay(opp[0].time, tz)} — log it within ten days.` : f.hint;
     }
     case "eclipse": {
       try {
         let le = A.SearchLunarEclipse(new Date(now));
         for (let i = 0; i < 6 && le.kind === "penumbral"; i++) le = A.NextLunarEclipse(le.peak);
         const d = le.peak.date;
-        return `Next partial or total lunar eclipse: ${new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(d)} (check whether it's above your horizon).`;
+        return `Next partial or total lunar eclipse: ${fmtDay(d.getTime(), tz, true)} (check whether it's above your horizon).`;
       } catch {
         return f.hint;
       }
@@ -150,7 +158,7 @@ function calendarHint(f: AchievementFamily, now: number): string | null {
  * (catalog members or planets that are well placed for your sky and instrument).
  */
 export function useUpNext(fams: AchievementFamily[] | undefined, seenRefs: string[] | undefined, limit = 3): { items: UpNext[]; ready: boolean } {
-  const { ctx } = useNightContext(15);
+  const { ctx } = useNightContext(10); // the same sampling as Explore and the object pages, so best times agree
   const { objects } = useCatalog();
   const scope = useActiveScope();
   const aperture = scope.kind === "eye" ? 7 : scope.scope.aperture;
@@ -166,8 +174,8 @@ export function useUpNext(fams: AchievementFamily[] | undefined, seenRefs: strin
       .filter((x): x is NonNullable<typeof x> => !!x);
     const scored = candidates.map((c) => {
       const def = FAMILY_BY_ID.get(c.family.id);
-      const suggestions = !ctx ? [] : def?.solar ? solarSuggestions(def.solar, seen, ctx, aperture) : def?.member && objects.length ? catalogSuggestions(c.family, objects, seen, ctx, aperture) : [];
-      const hint = suggestions.length ? null : calendarHint(c.family, ctx?.now ?? Date.now());
+      const suggestions = !ctx ? [] : def?.solar ? solarSuggestions(def.solar, seen, ctx, aperture) : def?.member && objects.length ? catalogSuggestions(c.family, objects, seen, ctx, ratingOptics(scope)) : [];
+      const hint = suggestions.length ? null : calendarHint(c.family, ctx?.now ?? Date.now(), ctx?.tz);
       // Close to the next tier first; doable tonight is a big plus; huge remaining counts sink.
       const score = c.frac + (suggestions.length ? 0.6 : 0) - Math.min(0.4, c.remaining / 250) + (c.family.progress === 0 && c.family.group !== "feats" ? -0.2 : 0);
       return { ...c, suggestions, hint, score };
@@ -184,7 +192,7 @@ export function useUpNext(fams: AchievementFamily[] | undefined, seenRefs: strin
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fams, seenRefs, ctx?.night.date, ctx?.sqm, ctx?.minAlt, ctx?.site.key, objects, aperture, limit]);
+  }, [fams, seenRefs, ctx?.night.date, ctx?.sqm, ctx?.minAlt, (ctx ? siteKey(ctx.site) : null), objects, aperture, scope.kind, scope.power, limit]);
   return { items, ready: !!fams && (!!ctx || !objects.length) };
 }
 

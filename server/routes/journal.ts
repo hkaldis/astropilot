@@ -29,10 +29,11 @@ import type { ApiObservation, ApiSession, JournalStats, SessionConditions } from
 import { evaluateAchievements, rankFor, type MemberLike, type ObservationEvent } from "@shared/achievements";
 import { SOLAR_SYSTEM } from "@shared/astro/planets";
 import { MOON_IDS } from "@shared/astro/moons";
-import { nightDateOf } from "@shared/astro/night";
+import { nightDateOf, tzOffsetHours } from "@shared/astro/night";
 import { A } from "@shared/astro/core";
 import { ah, parse, requireAuth, userId, idParam, HttpError, rateLimit } from "../http";
 import { catalog, resolveRef, ensureObjectRow, legacyRef, type CatalogEntry } from "../catalog";
+import { isValidTimeZone } from "../services/geoLookup";
 import { photosEnabled } from "./features";
 import { newObjectPath, photoStore } from "../photoStore";
 import { sessionSecret } from "../env";
@@ -80,6 +81,15 @@ const conditionsSchema = z.object({
   sqmReading: z.number().min(10, "SQM readings range from 10 to 23").max(23, "SQM readings range from 10 to 23").nullable().optional(),
 });
 
+/** The zone a session's times were entered in; an unknown one is dropped rather than refused. */
+const zoneSchema = z
+  .string()
+  .trim()
+  .max(64)
+  .nullable()
+  .optional()
+  .transform((s) => (s && isValidTimeZone(s) ? s : s === undefined ? undefined : null));
+
 const sessionFields = {
   date: when("Start time"),
   endDate: when("End time").nullable().optional(),
@@ -88,6 +98,7 @@ const sessionFields = {
   notes: z.string().max(10_000, "Notes are too long (10,000 characters max)").nullable().optional(),
   conditions: conditionsSchema.nullable().optional(),
   bortle: z.number().int().min(1, "Bortle class is 1–9").max(9, "Bortle class is 1–9").optional(),
+  timezone: zoneSchema,
 };
 const sessionCreateSchema = z.object(sessionFields);
 const sessionPatchSchema = z.object(sessionFields).partial();
@@ -110,6 +121,7 @@ const observationCreateSchema = z.object({
   ...observationFields,
   observedAt: observationFields.observedAt.optional(),
   sessionId: idSchema.optional(),
+  timezone: zoneSchema,
   locationId: optId,
 });
 const observationPatchSchema = z.object({ ...observationFields, sessionId: idSchema }).partial();
@@ -251,6 +263,7 @@ function toApiSession(s: ObservationSession, locationName: string | null, observ
     bortle: bortleOf(s.bortle),
     notes: s.notes,
     conditions: sessionConditions(s),
+    timezone: s.timezone ?? null,
     observationCount,
   };
 }
@@ -466,7 +479,8 @@ async function computeStats(uid: string): Promise<JournalStats> {
         bortle: observationSessions.bortle,
         lat: locations.latitude,
         lon: locations.longitude,
-        tz: locations.timezone,
+        // No location: the zone the session was logged in (as the app shows it), never the server's.
+        tz: sql<string | null>`coalesce(${locations.timezone}, ${observationSessions.timezone})`,
       })
       .from(observationSessions)
       .leftJoin(locations, and(eq(locations.id, observationSessions.locationId), eq(locations.userId, uid)))
@@ -620,9 +634,17 @@ async function computeStats(uid: string): Promise<JournalStats> {
   };
 }
 
-/** Distinct objects logged this calendar year (UTC), and whether `objectId` is new for the user. */
-async function loggingSummary(uid: string, objectId: number, ref: string, newObservationId: number) {
-  const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1)).toISOString();
+/** 1 January 00:00 of the current year in `tz` (UTC when unknown). */
+function yearStartIn(tz: string | null | undefined, now = Date.now()): Date {
+  const off = (ms: number) => (tz ? (tzOffsetHours(tz, ms) ?? 0) : 0) * HOUR;
+  const y = new Date(now + off(now)).getUTCFullYear();
+  const guess = Date.UTC(y, 0, 1);
+  return new Date(guess - off(guess - off(guess)));
+}
+
+/** Distinct objects logged this calendar year (in the logger's zone), and whether `objectId` is new for the user. */
+async function loggingSummary(uid: string, objectId: number, ref: string, newObservationId: number, tz?: string | null) {
+  const yearStart = yearStartIn(tz).toISOString();
   const [row] = await db
     .select({
       year: sql<number>`count(distinct upper(coalesce(${observations.catalogRef}, ${celestialObjects.catalogId}, ${observations.objectId}::text))) filter (where coalesce(${observations.observedAt}, ${observationSessions.date}) >= ${yearStart}::timestamp)`,
@@ -802,6 +824,7 @@ export function registerJournal(app: Express) {
           title: blank(body.title),
           notes: blank(body.notes),
           conditions,
+          timezone: body.timezone ?? null,
         })
         .returning();
       res.status(201).json(await loadSession(uid, s.id));
@@ -832,6 +855,7 @@ export function registerJournal(app: Express) {
         }
       }
       if (body.bortle !== undefined) patch.bortle = body.bortle;
+      if (body.timezone) patch.timezone = body.timezone;
       if (body.conditions !== undefined) {
         // Merge so a partial update (e.g. just seeing) keeps the rest of the snapshot.
         const merged = { ...(sessionConditions(current) ?? {}), ...(body.conditions ?? {}) } as Record<string, unknown>;
@@ -922,13 +946,17 @@ export function registerJournal(app: Express) {
             )
             .orderBy(desc(observationSessions.date))
             .limit(5);
-          const night = loc?.longitude != null ? nightKey(at.getTime(), loc.longitude, loc.timezone) : null;
-          session = candidates.find((c) => !night || nightKey(c.date.getTime(), loc!.longitude, loc!.timezone) === night);
+          // The same night: by the place's longitude and zone, or with no location by the zone it's logged in
+          // (so a dawn session and the next evening's stay apart).
+          const lon = loc?.longitude ?? null;
+          const zoneOf = (c?: ObservationSession) => loc?.timezone ?? c?.timezone ?? body.timezone ?? null;
+          const night = lon !== null || zoneOf() ? nightKey(at.getTime(), lon, zoneOf()) : null;
+          session = candidates.find((c) => !night || nightKey(c.date.getTime(), lon, zoneOf(c)) === night);
           if (!session) {
             const conditions: SessionConditions = { moonIllumination: moonIlluminationAt(at) };
             [session] = await tx
               .insert(observationSessions)
-              .values({ userId: uid, locationId: loc?.id ?? null, date: at, bortle: loc?.bortle ?? 5, conditions })
+              .values({ userId: uid, locationId: loc?.id ?? null, date: at, bortle: loc?.bortle ?? 5, conditions, timezone: body.timezone ?? null })
               .returning();
           }
         }
@@ -973,7 +1001,7 @@ export function registerJournal(app: Express) {
           .from(observationSessions)
           .leftJoin(locations, and(eq(locations.id, observationSessions.locationId), eq(locations.userId, uid)))
           .where(and(eq(observationSessions.id, sessionId), eq(observationSessions.userId, uid))),
-        loggingSummary(uid, objectId, target.ref, observationId),
+        loggingSummary(uid, objectId, target.ref, observationId, body.timezone),
       ]);
       const s = sessions[0];
       res.status(201).json({
@@ -1093,7 +1121,7 @@ export function registerJournal(app: Express) {
           bortle: observationSessions.bortle,
           locationName: locations.name,
           lon: locations.longitude,
-          tz: locations.timezone,
+          tz: sql<string | null>`coalesce(${locations.timezone}, ${observationSessions.timezone})`,
           catalogId: celestialObjects.catalogId,
           objectName: celestialObjects.name,
           category: celestialObjects.category,

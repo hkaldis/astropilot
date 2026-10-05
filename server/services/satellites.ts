@@ -30,6 +30,7 @@ const TLE_TTL = 6 * HOUR_MS; // refresh after this (CelesTrak asks for no more t
 const TLE_MAX_AGE = 4 * 24 * HOUR_MS; // by the elements' epoch: older orbits drift too far for pass times
 const BACKGROUND_RETRY = 15 * 60_000; // after a failed background refresh, wait this long before the next
 const FAILED_RETRY = 2 * 60_000; // with nothing usable, don't ask the sources again sooner than this after a failure
+const OLD_RETRY = 2 * HOUR_MS; // the sources only had elements too old to use: ask again after this (CelesTrak's minimum)
 const SOURCE_TIMEOUT = 8000;
 const HEDGE_MS = 3000; // a slow source gets the next one started alongside it
 const DAYS = 10;
@@ -239,9 +240,11 @@ async function getTle(id: StationId): Promise<Tle> {
     }
     return usable;
   }
-  // Nothing accurate enough. Don't ask the sources again right after they failed, or when the newest
-  // elements they had a moment ago were already too old — that would be a download per page view.
-  if (!tleInflight.has(id) && (fetchedRecently || now - (lastFailure.get(id) ?? 0) < FAILED_RETRY)) throw unavailable(id);
+  // Nothing accurate enough. Don't ask the sources again right after they failed, or soon after the newest
+  // elements they had were already too old — that would be a download per page view. (Not for the whole
+  // refresh interval, though: newer elements may well be out within a couple of hours.)
+  const oldLately = !!have && now - have.fetchedAt < OLD_RETRY;
+  if (!tleInflight.has(id) && (oldLately || now - (lastFailure.get(id) ?? 0) < FAILED_RETRY)) throw unavailable(id);
   try {
     const tle = await refreshTle(id);
     if (Date.now() - tle.epoch >= TLE_MAX_AGE) throw new Error(`the newest elements are ${((Date.now() - tle.epoch) / (24 * HOUR_MS)).toFixed(1)} days old`);
@@ -314,11 +317,8 @@ function inShadow(s: Sample, sunDir: V3): boolean {
   return along < 0 && dot(s.eci, s.eci) - along * along < EARTH_R * EARTH_R;
 }
 
-/** Is the observer dark and the station sunlit at this sample? Returns a magnitude when visible. */
-function visibility(s: Sample, obs: Observer, sun: V3, stdMag: number): number | null {
-  const sunDir = unit(sun);
-  if (sunAltitude(s, obs, sunDir) >= DARK_SUN_ALT || inShadow(s, sunDir)) return null;
-  // Phase angle at the station between the Sun and the observer.
+/** Brightness of the sunlit station from its range and the phase angle at the station (Sun–station–observer). */
+function magnitude(s: Sample, obs: Observer, sun: V3, stdMag: number): number {
   const o = satellite.ecfToEci(obs.ecf, s.gmst);
   const toObs = sub([o.x, o.y, o.z], s.eci);
   const toSun = sub(sun, s.eci);
@@ -353,52 +353,57 @@ function buildPass(rec: satellite.SatRec, obs: Observer, pts: Sample[], id: Stat
   const sEnd = sample(rec, obs, Math.round(end)) ?? pts[iDown];
   const sMax = sample(rec, obs, Math.round(tMax)) ?? pts[iMax];
 
-  // Visibility along the pass (10 s samples between the 10° crossings, plus the exact ends).
+  // Sunlight along the pass (10 s samples between the 10° crossings, plus the exact ends). The station
+  // shows when it's sunlit while the observer's sky is dark (Sun below −6°) at some point of the pass.
   const sun = sunVector(tMax);
+  const sunDir = unit(sun);
   const along = [sStart, ...pts.slice(iUp, iDown + 1), sEnd].filter((s) => s.t >= sStart.t && s.t <= sEnd.t).sort((a, b) => a.t - b.t);
-  let visibleStart: number | null = null;
-  let visibleEnd: number | null = null;
+  let litStart: number | null = null;
+  let litEnd: number | null = null;
   let brightest: number | null = null;
-  let prev: { s: Sample; vis: boolean } | null = null;
-  const refine = (a: Sample, b: Sample, aVisible: boolean) => {
-    // Bisect the shadow / twilight boundary to ~1 s.
+  let seen = false;
+  let prev: { s: Sample; lit: boolean } | null = null;
+  const refine = (a: Sample, b: Sample, aLit: boolean) => {
+    // Bisect the shadow boundary to ~1 s.
     let lo = a.t;
     let hi = b.t;
     for (let k = 0; k < 4 && hi - lo > 1000; k++) {
       const midT = Math.round((lo + hi) / 2);
       const m = sample(rec, obs, midT);
-      const v = m ? visibility(m, obs, sun, stdMag) !== null : !aVisible;
-      if (v === aVisible) lo = midT;
+      const lit = m ? !inShadow(m, sunDir) : !aLit;
+      if (lit === aLit) lo = midT;
       else hi = midT;
     }
     return (lo + hi) / 2;
   };
   for (const s of along) {
-    const mag = visibility(s, obs, sun, stdMag);
-    const vis = mag !== null;
-    if (vis) {
-      if (visibleStart === null) visibleStart = prev && !prev.vis ? refine(prev.s, s, false) : s.t;
-      visibleEnd = s.t;
+    const lit = !inShadow(s, sunDir);
+    if (lit) {
+      if (litStart === null) litStart = prev && !prev.lit ? refine(prev.s, s, false) : s.t;
+      litEnd = s.t;
+      const mag = magnitude(s, obs, sun, stdMag);
       brightest = brightest === null ? mag : Math.min(brightest, mag);
-    } else if (prev?.vis) {
-      visibleEnd = refine(prev.s, s, true);
+      if (sunAltitude(s, obs, sunDir) < DARK_SUN_ALT) seen = true;
+    } else if (prev?.lit) {
+      litEnd = refine(prev.s, s, true);
     }
-    prev = { s, vis };
+    prev = { s, lit };
   }
 
-  // Like Heavens-Above / Spot the Station: a visible pass is described by its visible part — from
-  // when it is ≥ 10° up and sunlit against a dark sky until it sets or vanishes into the shadow.
+  // Like Heavens-Above / Spot the Station: a visible pass is described by its whole sunlit part above
+  // 10° — from when it rises past 10° (or leaves Earth's shadow) until it sets (or enters the shadow) —
+  // even if the observer's twilight turns bright or dark partway through.
   let s0 = sStart;
   let s1 = sEnd;
   let sm = sMax;
-  if (visibleStart !== null && visibleEnd !== null) {
-    s0 = sample(rec, obs, Math.round(visibleStart)) ?? sStart;
-    s1 = sample(rec, obs, Math.round(visibleEnd)) ?? sEnd;
+  if (seen && litStart !== null && litEnd !== null) {
+    s0 = sample(rec, obs, Math.round(litStart)) ?? sStart;
+    s1 = sample(rec, obs, Math.round(litEnd)) ?? sEnd;
     sm = sMax.t >= s0.t && sMax.t <= s1.t ? sMax : s0.alt >= s1.alt ? s0 : s1;
   }
 
   const r1 = (x: number) => Math.round(x * 10) / 10;
-  const visible = visibleStart !== null;
+  const visible = seen;
   // Where to look: the visible part's path across the sky, every ~30 s.
   const track = visible
     ? [s0, ...along.filter((s, k) => s.t > s0.t + 5000 && s.t < s1.t - 5000 && k % 3 === 0), s1].map((s) => [Math.round(s.az), Math.round(s.alt)] as [number, number])
@@ -418,7 +423,7 @@ function buildPass(rec: satellite.SatRec, obs: Observer, pts: Sample[], id: Stat
     startDir: compassPoint(s0.az),
     endDir: compassPoint(s1.az),
     visible,
-    magnitude: brightest === null ? null : r1(brightest),
+    magnitude: visible && brightest !== null ? r1(brightest) : null,
     hidden: visible ? undefined : sunAltitude(sMax, obs, unit(sun)) >= DARK_SUN_ALT ? "daylight" : "shadow",
     track,
     passStart: Math.round(start),
@@ -455,7 +460,14 @@ function computePasses(id: StationId, tle: Tle, lat: number, lon: number, elevM:
     }
   }
   if (runStart !== null) {
-    const p = passBetween(rec, obs, runStart, to, id);
+    // A pass still under way at the end of the window: follow it until it sets (at most half an hour).
+    let end = to;
+    while (end < to + 30 * 60_000) {
+      end += COARSE_MS;
+      const s = sample(rec, obs, end);
+      if (!s || s.alt <= 0) break;
+    }
+    const p = passBetween(rec, obs, runStart, end, id);
     if (p) passes.push(p);
   }
   return passes;

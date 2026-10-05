@@ -4,7 +4,7 @@ import { Check, Search, SlidersHorizontal, X, Sparkles } from "lucide-react";
 import { MOONS, PLANET_BY_ID, SOLAR_SYSTEM, altAzOf, eqjVector, evaluateTarget, formatMag, formatNightDate, horizonFrame, sunAltitude } from "@shared/astro";
 import type { CatalogObject } from "@shared/data/types";
 import { useCatalog } from "@/hooks/useCatalog";
-import { useActiveScope } from "@/hooks/useScope";
+import { ratingOptics, useActiveScope } from "@/hooks/useScope";
 import { useSite } from "@/hooks/useSite";
 import { EmptyState, PageHeader, Skel, usePageTitle } from "@/components/common/Page";
 import { TypeGlyph } from "@/components/common/Glyphs";
@@ -33,7 +33,7 @@ import {
   type ExploreFilters,
   type SortKey,
 } from "./search";
-import { evaluateBody, useNightContext } from "./sky";
+import { evaluateBody, siteKey, useNightContext } from "./sky";
 
 const PAGE = 60;
 
@@ -128,18 +128,19 @@ export function ExploreView() {
   const minAlt = ctx?.minAlt ?? 20;
   const evaluated: ExploreItem[] = useMemo(() => {
     if (!frames || sqm === undefined) return objects.map((o) => ({ o, r: null, visible: true }));
-    const sky = { sqm, apertureMm: aperture, minAlt };
+    const sky = { sqm, minAlt, ...ratingOptics(scope) };
     const hasDark = frames.darkStart !== null && frames.darkEnd !== null;
     return objects.map((o) => {
       const r = evaluateTarget(o, frames, sky);
       const up = hasDark ? r.track.window !== null : r.track.maxAlt >= minAlt;
       return { o, r, visible: up && r.detect.difficulty !== "out of reach" };
     });
-  }, [objects, frames, sqm, aperture, minAlt]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objects, frames, sqm, aperture, minAlt, scope.kind, scope.power]);
 
   const bodies = useMemo(() => (ctx ? SOLAR_SYSTEM.map((p) => evaluateBody(p.id, ctx, aperture)) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [frames, sqm, minAlt, aperture, ctx?.site.key]);
+    [frames, sqm, minAlt, aperture, (ctx ? siteKey(ctx.site) : null)]);
 
   // Current altitudes, only when sorting by them.
   const minute = ctx ? Math.floor(ctx.now / 60_000) : 0;
@@ -150,11 +151,11 @@ export function ExploreView() {
     for (const o of objects) m.set(o.id, altAzOf(f, eqjVector(o.ra, o.dec)).alt);
     return m;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.sort, objects, minute, ctx?.site.key]);
+  }, [filters.sort, objects, minute, (ctx ? siteKey(ctx.site) : null)]);
 
   const sunUp = useMemo(() => (ctx ? sunAltitude(minute * 60_000, ctx.site) > -6 : false),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [minute, ctx?.site.key]);
+    [minute, (ctx ? siteKey(ctx.site) : null)]);
 
   // ---------------------------------------------------------------- filtering & sorting
   const { shown, hiddenByVisibility, totalVisible } = useMemo(() => {
@@ -489,7 +490,9 @@ export function ExploreView() {
         )}
         {ctx && !loading && objects.length > 0 && (
           <p className="mt-6 text-2xs leading-relaxed text-muted-foreground">
-            Observable = above your {minAlt}° minimum altitude during astronomical darkness and within reach of {instrumentPhrase(scope)} under a{" "}
+            Observable = above your {minAlt}° minimum altitude{" "}
+            {ctx.night.darkness === "astronomical" ? "during astronomical darkness" : ctx.night.darkness === "nautical" ? "in tonight's darkest sky (nautical twilight)" : ctx.night.darkness === "civil" ? "in tonight's brightest twilight" : "tonight"}{" "}
+            and within reach of {instrumentPhrase(scope)} under a{" "}
             {ctx.sqmSource === "atlas" ? `≈${ctx.sqm.toFixed(1)} mag/arcsec² sky (estimated from the light-pollution atlas)` : `${ctx.sqm.toFixed(1)} mag/arcsec² sky`}.
             Difficulty compares each object's surface brightness with the sky at its best altitude, including moonlight (Krisciunas–Schaefer).{" "}
             {totalVisible.toLocaleString()} of {objects.length.toLocaleString()} catalog objects qualify tonight.
@@ -519,6 +522,7 @@ function comparator(sort: SortKey, altNow: Map<string, number> | null) {
         return ka[0] - kb[0] || ka[1] - kb[1] || ka[2].localeCompare(kb[2]);
       };
     default:
-      return (a: ExploreItem, b: ExploreItem) => (b.r?.score ?? 0) - (a.r?.score ?? 0) || byMag(a, b);
+      // The unclamped score, as Tonight's Best targets ranks them (the shown score tops out at 100, so many tie).
+      return (a: ExploreItem, b: ExploreItem) => (b.r?.rawScore ?? 0) - (a.r?.rawScore ?? 0) || byMag(a, b);
   }
 }

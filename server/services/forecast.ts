@@ -46,10 +46,13 @@ import {
   slotPreceding,
   slotWind,
   sqmForBortle,
+  sunGeometricAltitude,
+  tzOffsetHours,
   verdictOf,
 } from "@shared/astro";
 import type { CloudModelId, FogRisk, ForecastHour, ForecastResponse, ModelView, NightForecast } from "@shared/forecast";
 import { HttpError, TTLCache, USER_AGENT, fetchWithTimeout } from "../http";
+import { isValidTimeZone, lookupTzElevation } from "./geoLookup";
 
 const OPEN_METEO = "https://api.open-meteo.com/v1/forecast";
 const AIR_QUALITY = "https://air-quality-api.open-meteo.com/v1/air-quality";
@@ -109,9 +112,7 @@ const CLOUD_VARS = ["cloud_cover", "cloud_cover_low", "cloud_cover_mid", "cloud_
 type CloudVar = (typeof CLOUD_VARS)[number];
 
 interface Weather {
-  times: number[]; // epoch ms, hourly
-  timezone: string;
-  utcOffsetSeconds: number;
+  times: number[]; // epoch ms, on the whole UTC hour
   elevation: number | null;
   v: Record<OmVar, (number | null)[]>;
 }
@@ -190,14 +191,20 @@ const numOrNull = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ?
 const lastGoodWeather = new Map<string, { w: Weather; at: number }>();
 const STALE_WEATHER_MAX = 6 * HOUR_MS;
 
-function fetchWeather(lat: number, lon: number): Promise<Weather> {
-  const key = `om:${lat.toFixed(2)},${lon.toFixed(2)}`;
+/**
+ * Hourly weather for a cell. Asked in GMT: with a local zone, Open-Meteo puts its hours on local whole
+ * hours, which in half-hour zones (India, Adelaide, Newfoundland…) stamps every value 30–45 minutes off.
+ * The site's elevation, when known, corrects the temperature for a site above or below the cell's terrain.
+ */
+function fetchWeather(lat: number, lon: number, elevation: number | null): Promise<Weather> {
+  const elev = elevation === null ? null : Math.round(elevation / 10) * 10;
+  const key = `om:${lat.toFixed(2)},${lon.toFixed(2)}${elev === null ? "" : `@${elev}`}`;
   const hit = weatherCache.get(key);
   if (hit) return Promise.resolve(hit);
   return once(key, async () => {
     const url =
-      `${OPEN_METEO}?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}` +
-      `&hourly=${OM_VARS.join(",")}&timezone=auto&forecast_days=8&past_days=1&timeformat=unixtime&wind_speed_unit=kmh`;
+      `${OPEN_METEO}?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}${elev === null ? "" : `&elevation=${elev}`}` +
+      `&hourly=${OM_VARS.join(",")}&timezone=GMT&forecast_days=8&past_days=2&timeformat=unixtime&wind_speed_unit=kmh`;
     let j: any;
     try {
       j = await getJson(url, 8000).catch(async (e) => {
@@ -223,8 +230,6 @@ function fetchWeather(lat: number, lon: number): Promise<Weather> {
     }
     const w: Weather = {
       times: times.map((s: number) => s * 1000),
-      timezone: typeof j.timezone === "string" ? j.timezone : "UTC",
-      utcOffsetSeconds: Number.isFinite(j.utc_offset_seconds) ? j.utc_offset_seconds : 0,
       elevation: Number.isFinite(j.elevation) ? j.elevation : null,
       v,
     };
@@ -241,7 +246,7 @@ function fetchModels(lat: number, lon: number): Promise<ModelClouds | null> {
   return optional(modelsCache, `mm:${lat.toFixed(2)},${lon.toFixed(2)}`, async () => {
     const url =
       `${OPEN_METEO}?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&hourly=${CLOUD_VARS.join(",")}` +
-      `&models=${CHECK_MODELS.map((m) => m.om).join(",")}&timezone=auto&forecast_days=8&past_days=1&timeformat=unixtime`;
+      `&models=${CHECK_MODELS.map((m) => m.om).join(",")}&timezone=GMT&forecast_days=8&past_days=2&timeformat=unixtime`;
     const j = await getJson(url, 6000);
     const times: unknown = j?.hourly?.time;
     if (!Array.isArray(times) || times.length === 0) throw new Error("no times");
@@ -390,7 +395,7 @@ function buildSlots(
     });
 
     // Sun and Moon at the middle of the hour the slot represents.
-    const sunAlt = bodyAltAz(A.Body.Sun, mid, obs).alt;
+    const sunAlt = sunGeometricAltitude(mid, obs); // geometric, as twilight is defined
     const moonAlt = bodyAltAz(A.Body.Moon, mid, obs).alt;
     const moonIllum = A.Illumination(A.Body.Moon, new Date(mid)).phase_fraction;
 
@@ -720,7 +725,8 @@ function moonDetail(n: NightInfo, ctx: Ctx, ws: number, we: number, ongoing: boo
     .filter(([a, b]) => b - a > 60_000);
   const up = (we - ws) / HOUR_MS - free.reduce((s, [a, b]) => s + (b - a), 0) / HOUR_MS;
   if (p < 4) return `New Moon — no moonlight ${rest}`;
-  if (up < 0.2) return `Moon (${lit}) stays down ${ongoing ? "for the rest of the night" : "while it's dark"} — ideal for galaxies and nebulae`;
+  // "Ideal" only when the sky gets fully dark: in a twilight-only night the twilight, not the Moon, limits.
+  if (up < 0.2) return `Moon (${lit}) stays down ${ongoing ? "for the rest of the night" : "while it's dark"}${n.darkness === "astronomical" ? " — ideal for galaxies and nebulae" : ""}`;
   if (free.length === 0) {
     return p >= 50
       ? `Moon ${lit} and up ${rest} — favour planets, doubles and bright clusters`
@@ -926,6 +932,12 @@ export interface ForecastQuery {
   lat: number;
   lon: number;
   bortle?: number;
+  /** The site's measured or atlas sky brightness (mag/arcsec²); else the Bortle class's typical value. */
+  sqm?: number;
+  /** The site's elevation (m); else the terrain model's for the weather cell. */
+  elev?: number;
+  /** The site's IANA zone, so night dates and times match the app's; else looked up from the coordinates. */
+  tz?: string;
   units?: "metric" | "imperial";
   timeFormat?: "24h" | "12h";
 }
@@ -965,10 +977,15 @@ export async function getForecast(q: ForecastQuery): Promise<ForecastResponse> {
   const lat = round5(clamp(q.lat, -90, 90));
   const lon = round5(q.lon >= -180 && q.lon <= 180 ? q.lon : ((((q.lon + 180) % 360) + 360) % 360) - 180);
   const bortle = clamp(Math.round(q.bortle ?? DEFAULT_BORTLE), 1, 9);
+  const sqm = q.sqm !== undefined ? Math.round(q.sqm * 100) / 100 : sqmForBortle(bortle);
+  const elev = q.elev !== undefined ? Math.round(q.elev) : null;
   const units = q.units ?? "metric";
   const timeFormat = q.timeFormat ?? "24h";
+  // The site's own zone (as the app uses it), else the one at these coordinates: it dates the nights
+  // near the date line and writes the times in the text.
+  const tz = q.tz && isValidTimeZone(q.tz) ? q.tz : ((await lookupTzElevation(lat, lon))?.timezone ?? "UTC");
   // The current night is part of the key, so a forecast made just before sunrise isn't served after it.
-  const responseKey = `${lat.toFixed(3)},${lon.toFixed(3)},${bortle},${units},${timeFormat},${currentNightDate(Date.now(), { lat, lon })}`;
+  const responseKey = [lat.toFixed(3), lon.toFixed(3), elev ?? "", sqm, tz, units, timeFormat, currentNightDate(Date.now(), { lat, lon, timezone: tz })].join(",");
   const cached = responseCache.get(responseKey);
   if (cached) return cached;
 
@@ -983,12 +1000,12 @@ export async function getForecast(q: ForecastQuery): Promise<ForecastResponse> {
   const seven = track(fetchSevenTimer(clat, clon));
   const models = track(fetchModels(wlat, wlon));
   const extras = [aod, seven, models];
-  const wx = await fetchWeather(wlat, wlon);
+  const wx = await fetchWeather(wlat, wlon, elev);
   const remaining = started + OPTIONAL_BUDGET_MS - Date.now();
   if (extras.some((x) => !x.done)) await Promise.race([Promise.allSettled(extras.map((x) => x.promise)), sleep(Math.max(0, remaining))]);
 
   // The zone matters for night dates near the date line (they must match the client's).
-  const site: Site = { lat, lon, elevation: wx.elevation ?? 0, timezone: wx.timezone };
+  const site: Site = { lat, lon, elevation: elev ?? wx.elevation ?? 0, timezone: tz };
   const now = Date.now();
   const tonight = currentNightDate(now, site);
   const nights = Array.from({ length: NIGHTS }, (_, i) => {
@@ -996,11 +1013,11 @@ export async function getForecast(q: ForecastQuery): Promise<ForecastResponse> {
     return { date, info: nightOf(date, site) };
   });
   const fromMs = Math.floor(nights[0].info.noon / HOUR_MS) * HOUR_MS;
-  const slots = buildSlots(wx, aod.value, seven.value, models.value, site, sqmForBortle(bortle), fromMs);
+  const slots = buildSlots(wx, aod.value, seven.value, models.value, site, sqm, fromMs);
   const ctx: Ctx = {
-    tz: wx.timezone,
+    tz,
     units,
-    time: timeFormatter(wx.timezone, timeFormat === "12h"),
+    time: timeFormatter(tz, timeFormat === "12h"),
     observer: observerOf(site),
     same: sameAsMain(wx, models.value, now),
     now,
@@ -1020,7 +1037,7 @@ export async function getForecast(q: ForecastQuery): Promise<ForecastResponse> {
   }
 
   const response: ForecastResponse = {
-    site: { lat, lon, timezone: wx.timezone, utcOffsetSeconds: wx.utcOffsetSeconds, elevation: wx.elevation },
+    site: { lat, lon, timezone: tz, utcOffsetSeconds: Math.round((tzOffsetHours(tz, now) ?? 0) * 3600), elevation: site.elevation ?? null },
     generatedAt: now,
     sources,
     hours: slots.map((s) => s.h),

@@ -8,10 +8,12 @@ import {
   ObjectTrack,
   DetectInput,
   DetectResult,
+  InstrumentKind,
   objectTrack,
   detectability,
   altitudeQuality,
   difficultyScore,
+  instrumentOf,
   TargetLike,
 } from "./visibility";
 
@@ -32,6 +34,9 @@ export interface SkyContext {
   sqm: number; // zenith sky brightness
   apertureMm: number; // 7 = naked eye
   minAlt?: number; // default 20°
+  /** The instrument (else guessed from the aperture) and, for binoculars, their magnification. */
+  instrument?: InstrumentKind;
+  power?: number | null;
 }
 
 export interface RankedTarget<T extends CatalogLike = CatalogLike> {
@@ -61,6 +66,8 @@ function sampleInput(v: Vec3, track: ObjectTrack, nf: NightFrames, i: number, ct
   return {
     sqmZenith: ctx.sqm,
     apertureMm: ctx.apertureMm,
+    instrument: ctx.instrument,
+    power: ctx.power,
     alt: Math.max(track.points[i].alt, 1),
     moon: m ? { alt: m.alt, phaseAngle: nf.moonPhaseAngle, separation: angleBetween(v, eqjVector(m.ra, m.dec)) } : null,
     sunAlt: nf.sunAlt[i],
@@ -75,7 +82,7 @@ export function evaluateTarget<T extends CatalogLike>(o: T, nf: NightFrames, ctx
   // weigh altitude against sky darkness over the observable stretch.
   let idx = track.maxIdx;
   let input = idx >= 0 ? sampleInput(v, track, nf, idx, ctx) : null;
-  let detect = input ? detectability(o, input) : detectability(o, { sqmZenith: ctx.sqm, apertureMm: ctx.apertureMm, alt: 1, moon: null, sunAlt: 0 });
+  let detect = input ? detectability(o, input) : detectability(o, { sqmZenith: ctx.sqm, apertureMm: ctx.apertureMm, instrument: ctx.instrument, power: ctx.power, alt: 1, moon: null, sunAlt: 0 });
   if (idx >= 0 && nf.sunAlt[idx] > -18 && track.window) {
     const merit = (alt: number, d: DetectResult) => Math.pow(altitudeQuality(alt), 0.6) * (0.12 + 0.88 * difficultyScore(d));
     let best = merit(track.points[idx].alt, detect);
@@ -100,8 +107,9 @@ export function evaluateTarget<T extends CatalogLike>(o: T, nf: NightFrames, ctx
   let raw = 100 * Math.pow(altQ, 0.6) * (0.12 + 0.88 * det) * (0.6 + 0.4 * dur) * interestOf(o);
   if (alt < minAlt) raw *= 0.25;
   // Naked eye and binoculars (~1–10×): tiny objects look like stars and close pairs don't split.
-  if (ctx.apertureMm < 60) {
-    const eye = ctx.apertureMm < 10;
+  const kind = instrumentOf(ctx);
+  if (kind !== "telescope") {
+    const eye = kind === "eye";
     if (o.type === "double_star") {
       if ((o.sep ?? 0) < (eye ? 240 : 30)) raw *= 0.2;
     } else if ((o.size?.[0] ?? 0) < (eye ? 30 : 4)) raw *= 0.35;

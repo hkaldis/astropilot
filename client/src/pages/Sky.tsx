@@ -11,6 +11,7 @@ import {
   formatTime,
   nightFrames,
   nightOf,
+  sunAltitude,
   type NightFrames,
   type Site,
   type SolarSystemId,
@@ -97,7 +98,8 @@ function SkyChart({ site: obsSite }: { site: ObservingSite }) {
   const nightDate = useMemo(() => currentNightDate(now, site), [Math.floor(now / 600_000), site]); // eslint-disable-line react-hooks/exhaustive-deps
   const night = useMemo(() => nightOf(nightDate, site), [nightDate, site]);
   const scene = useMemo(() => computeScene(time, site), [time, site]);
-  const state = skyState(scene.sun.alt);
+  // Twilight is defined on the Sun's geometric altitude (the scene's is refracted, for drawing it).
+  const state = skyState(useMemo(() => sunAltitude(time, site), [time, site]));
 
   const framesRef = useRef<{ key: string; nf: NightFrames } | null>(null);
   const getFrames = useCallback(() => {

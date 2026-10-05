@@ -5,12 +5,25 @@ import { nightOf, currentNightDate, addDays, nightFrames, formatDate, formatTime
 import type { ObservingSite, Preferences } from "@shared/api";
 import { withParams } from "@/lib/api";
 
-/** The forecast for a site; units and time format only change the wording of the headline and details. */
+/**
+ * The forecast for a site; units and time format only change the wording of the headline and details.
+ * The site's zone, elevation and sky brightness go along, so the forecast's nights, temperatures and
+ * deep-sky scores match the rest of the app.
+ */
 export function useForecast(site: ObservingSite | null, prefs?: Pick<Preferences, "units" | "timeFormat">) {
   return useQuery<ForecastResponse>({
     queryKey: [
       site
-        ? withParams("/api/forecast", { lat: site.lat.toFixed(3), lon: site.lon.toFixed(3), bortle: site.bortle, units: prefs?.units, timeFormat: prefs?.timeFormat })
+        ? withParams("/api/forecast", {
+            lat: site.lat.toFixed(3),
+            lon: site.lon.toFixed(3),
+            bortle: site.bortle,
+            sqm: typeof site.sqm === "number" ? site.sqm.toFixed(2) : undefined,
+            elev: typeof site.elevation === "number" ? Math.round(site.elevation) : undefined,
+            tz: site.timezone ?? undefined,
+            units: prefs?.units,
+            timeFormat: prefs?.timeFormat,
+          })
         : "forecast:none",
     ],
     enabled: !!site,

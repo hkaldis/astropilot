@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { HttpError, ah, rateLimit } from "../http";
 import { getForecast } from "../services/forecast";
+import { isValidTimeZone } from "../services/geoLookup";
 import { getSpaceWeather } from "../services/spaceWeather";
 import { STATIONS, getStationPasses } from "../services/satellites";
 
@@ -56,6 +57,15 @@ const forecastQuery = z.object({
   lat: qnum("lat", -90, 90),
   lon: qnum("lon", -180, 180),
   bortle: qnumOpt("bortle", 1, 9),
+  sqm: qnumOpt("sqm", 14, 23),
+  elev: qnumOpt("elev", -500, 9000),
+  // An unknown zone is ignored (the server looks one up) rather than refused.
+  tz: z
+    .string({ invalid_type_error: "tz must be a single value" })
+    .trim()
+    .max(64)
+    .optional()
+    .transform((s) => (s && isValidTimeZone(s) ? s : undefined)),
   units: z.enum(["metric", "imperial"], { message: "units must be metric or imperial" }).optional(),
   timeFormat: z.enum(["24h", "12h"], { message: "timeFormat must be 24h or 12h" }).optional(),
 });

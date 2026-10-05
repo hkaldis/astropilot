@@ -18,6 +18,8 @@ export const COMET_ATTRIBUTION = "Comet orbits and ephemerides: NASA/JPL Small-B
 interface Candidate extends CometElements {
   designation: string;
   name: string;
+  /** Whether the elements were fitted within a year of now: older ones (a past apparition) can be degrees off. */
+  recent: boolean;
 }
 
 const cache = new TTLCache<{ updated: string; comets: CometInfo[] }>(12 * 60 * 60 * 1000, 2);
@@ -29,10 +31,12 @@ const jdOf = (ms: number) => ms / DAY_MS + 2440587.5;
 async function fetchCandidates(now: number): Promise<Candidate[]> {
   const jd = jdOf(now);
   const params = new URLSearchParams({
-    fields: "full_name,pdes,prefix,e,q,i,om,w,tp,M1,K1",
+    fields: "full_name,pdes,prefix,e,q,i,om,w,tp,epoch,M1,K1",
     "sb-kind": "c",
     "full-prec": "true",
-    "sb-cdata": JSON.stringify({ AND: ["q|LT|5", `tp|RG|${(jd - 500).toFixed(1)}|${(jd + 500).toFixed(1)}`] }),
+    // Comets at perihelion within ~16 months, plus every periodic comet: SBDB's perihelion date belongs to
+    // the apparition its orbit was fitted for, which for a returning comet can be several orbits ago.
+    "sb-cdata": JSON.stringify({ AND: ["q|LT|5", { OR: [`tp|RG|${(jd - 500).toFixed(1)}|${(jd + 500).toFixed(1)}`, "e|LT|1"] }] }),
   });
   const r = await fetchWithTimeout(`https://ssd-api.jpl.nasa.gov/sbdb_query.api?${params}`, { timeoutMs: 20_000, headers: { "User-Agent": USER_AGENT } });
   if (!r.ok) throw new Error(`SBDB HTTP ${r.status}`);
@@ -49,7 +53,15 @@ async function fetchCandidates(now: number): Promise<Candidate[]> {
     if (prefix === "D" || prefix === "X") continue; // defunct or uncertain
     const designation = /^\d+$/.test(pdes) ? `${pdes}${prefix || "P"}` : prefix && !pdes.includes("/") && !/^\d+[PCD]$/.test(pdes) ? `${prefix}/${pdes}` : pdes;
     const K1 = num(row[idx("K1")]);
-    out.push({ ...el, M1, K1: Number.isFinite(K1) ? K1 : null, designation, name: String(row[idx("full_name")] ?? designation).trim() });
+    // A periodic comet's perihelion nearest now: whole orbits on from the stored one (good enough to
+    // rank its brightness; Horizons supplies the real ephemeris).
+    if (el.e < 1) {
+      const period = 365.25 * Math.pow(el.q / (1 - el.e), 1.5);
+      el.tp += Math.round((jd - el.tp) / period) * period;
+    }
+    const epoch = num(row[idx("epoch")]);
+    const recent = Number.isFinite(epoch) && Math.abs(epoch - jd) < 365;
+    out.push({ ...el, M1, K1: Number.isFinite(K1) ? K1 : null, designation, name: String(row[idx("full_name")] ?? designation).trim(), recent });
   }
   return out;
 }
@@ -128,6 +140,8 @@ async function build(): Promise<{ updated: string; comets: CometInfo[] }> {
     } catch (e: any) {
       console.warn(`[comets] Horizons failed for ${c.designation}: ${e?.name === "AbortError" ? "timeout" : e?.message ?? e}`);
     }
+    // Without Horizons, only elements fitted recently are trusted: older ones can put a comet degrees off.
+    if (!ephemeris && !c.recent) continue;
     comets.push({
       id: cometKey(c.designation),
       designation: c.designation,

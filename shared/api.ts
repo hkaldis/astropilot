@@ -157,6 +157,8 @@ export interface ApiSession {
   bortle: number;
   notes: string | null;
   conditions: SessionConditions | null;
+  /** The zone its times were entered in: dates the night of a session with no location. */
+  timezone: string | null;
   observationCount: number;
   observations?: ApiObservation[];
 }
@@ -176,6 +178,8 @@ export interface ObservationInput {
   seeing?: number | null;
   transparency?: number | null;
   notes?: string | null;
+  /** The logger's zone, for a session it opens with no location. */
+  timezone?: string | null;
 }
 
 export interface JournalStats {

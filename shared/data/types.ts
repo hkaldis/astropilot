@@ -59,6 +59,8 @@ export interface CatalogObject {
   sep?: number;
   /** Double stars: companion magnitude */
   mag2?: number;
+  /** Double stars with a famous wide companion (Mizar–Alcor, ε¹–ε² Lyrae): [separation ″, magnitude, magnitude]. */
+  wide?: [number, number, number];
   /**
    * Position angle in whole degrees, measured from north through east. Double stars: direction of the companion
    * from the primary (0–359). Extended objects: orientation of the major axis (0–179; only for elongated objects

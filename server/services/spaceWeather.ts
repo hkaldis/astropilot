@@ -5,13 +5,15 @@
  * Aurora rule of thumb: the equatorward edge of the auroral oval sits at about
  * |geomagnetic latitude| ≈ 66.5° − 2.05°·Kp (Kp 0 → 66.5°, Kp 5 → 56.3°, Kp 9 → 48°), the classic
  * SWPC table; aurora can be seen low on the poleward horizon from ~3° further equatorward.
- * Geomagnetic latitude uses the eccentric (offset) dipole from IGRF degree-1/2 terms, which
- * tracks corrected geomagnetic latitude far better than a centred dipole over Europe and
- * Australasia (London ≈ 50°, Edinburgh ≈ 55°, Minneapolis ≈ 50°, Hobart ≈ −54°, Reykjavík ≈ 64°).
+ * Geomagnetic latitude is the corrected geomagnetic latitude — where the site's field line meets the
+ * dipole equator — from a grid traced through the full IGRF-14 field (server/data/cgm-latitude.json;
+ * London ≈ 47°, Edinburgh ≈ 53°, Minneapolis ≈ 54°, Reykjavík ≈ 64°, Sydney ≈ −43°). The outlook
+ * looks at the Kp forecast for the hours it's dark at the site tonight.
  */
-import { DEG, HOUR_MS } from "@shared/astro";
+import { DEG, HOUR_MS, currentNightDate, nightOf } from "@shared/astro";
 import type { KpPoint, SpaceWeather } from "@shared/forecast";
 import { HttpError, USER_AGENT, fetchWithTimeout } from "../http";
+import cgm from "../data/cgm-latitude.json";
 
 const KP_OBSERVED = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json";
 const KP_FORECAST = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json";
@@ -34,8 +36,8 @@ const EARTH_R = 6371.2;
 
 const POLE = [Math.cos(POLE_LAT * DEG) * Math.cos(POLE_LON * DEG), Math.cos(POLE_LAT * DEG) * Math.sin(POLE_LON * DEG), Math.sin(POLE_LAT * DEG)];
 
-/** Approximate geomagnetic latitude (deg, eccentric dipole). Negative in the southern hemisphere. */
-export function geomagneticLatitude(lat: number, lon: number): number {
+/** Geomagnetic latitude (deg) of the eccentric (offset) dipole: the stand-in near the geomagnetic equator. */
+export function dipoleLatitude(lat: number, lon: number): number {
   const p = [
     EARTH_R * Math.cos(lat * DEG) * Math.cos(lon * DEG) - ED_OFFSET[0],
     EARTH_R * Math.cos(lat * DEG) * Math.sin(lon * DEG) - ED_OFFSET[1],
@@ -44,6 +46,26 @@ export function geomagneticLatitude(lat: number, lon: number): number {
   const n = Math.hypot(p[0], p[1], p[2]);
   const s = (p[0] * POLE[0] + p[1] * POLE[1] + p[2] * POLE[2]) / n;
   return Math.asin(Math.max(-1, Math.min(1, s))) / DEG;
+}
+
+const CGM_ROWS = cgm.tenths.length;
+const CGM_COLS = cgm.tenths[0].length;
+
+/**
+ * Corrected geomagnetic latitude (deg, negative in the south), interpolated in the IGRF-14 grid. Near
+ * the geomagnetic equator, where field lines don't reach far enough to trace (and no aurora is seen),
+ * the eccentric dipole stands in.
+ */
+export function geomagneticLatitude(lat: number, lon: number): number {
+  const fi = (Math.max(cgm.lat0, Math.min(cgm.lat0 + (CGM_ROWS - 1) * cgm.dlat, lat)) - cgm.lat0) / cgm.dlat;
+  const i = Math.min(CGM_ROWS - 2, Math.floor(fi));
+  const fj = ((((lon - cgm.lon0) % 360) + 360) % 360) / cgm.dlon;
+  const j = Math.min(CGM_COLS - 2, Math.floor(fj));
+  const [a, b, c, d] = [cgm.tenths[i][j], cgm.tenths[i][j + 1], cgm.tenths[i + 1][j], cgm.tenths[i + 1][j + 1]];
+  if (a === null || b === null || c === null || d === null) return dipoleLatitude(lat, lon);
+  const x = fj - j;
+  const y = fi - i;
+  return ((a * (1 - x) + b * x) * (1 - y) + (c * (1 - x) + d * x) * y) / 10;
 }
 
 export function ovalEdge(kp: number): number {
@@ -151,7 +173,11 @@ function auroraNote(kpMax: number, gm: number | null): { likely: boolean; note: 
   if (a >= edge) return { likely: true, note: `${kpText(kpMax)} expected: aurora may be overhead from your latitude after dark.` };
   if (a >= view) return { likely: true, note: `${kpText(kpMax)} expected: aurora possible low on the ${horizon} horizon from your latitude.` };
   const need = kpNeededFor(a);
-  if (need > 9) return { likely: false, note: k >= M.stormKp ? `${kpText(kpMax)} storm, but you're too far from the auroral zone to see it.` : "Quiet — aurora only near the poles tonight." };
+  if (need > 9)
+    return {
+      likely: false,
+      note: k >= M.stormKp ? `${kpText(kpMax)} storm, but you're too far from the auroral zone to see it.` : k >= 4 ? `${kpText(kpMax)} expected — active, but you're too far from the auroral zone to see it.` : "Quiet — aurora only near the poles tonight.",
+    };
   const needText = `Kp ${Math.ceil(need)}`;
   if (k < 4) return { likely: false, note: `Quiet — aurora only near the poles tonight; you'd need ${needText}+ to see it from here.` };
   return { likely: false, note: `${kpText(kpMax)} expected — not quite enough here; you'd need ${needText}+.` };
@@ -167,10 +193,27 @@ export async function getSpaceWeather(q: { lat?: number; lon?: number } = {}): P
   const next = pts.filter((p) => p.t + 3 * HOUR_MS > now && p.t < now + 24 * HOUR_MS);
   const kpMax24h = next.length ? Math.max(...next.map((p) => p.kp)) : kpNow;
   const gm = q.lat !== undefined && q.lon !== undefined ? geomagneticLatitude(q.lat, q.lon) : null;
-  // "Tonight" includes right now: judge by the larger of the current and the forecast Kp, so the note
-  // never calls an active Kp 4 "quiet".
-  const kpTonight = Math.max(kpNow, kpMax24h);
-  const { likely, note } = auroraNote(kpTonight, gm);
+  // Tonight at the site: the Kp forecast over the hours it's dark there (the rest of them, once it's
+  // dark), and the current Kp only if it's dark now. Without a site, the next 24 hours.
+  let kpTonight = Math.max(kpNow, kpMax24h);
+  let noDarkness = false;
+  if (q.lat !== undefined && q.lon !== undefined) {
+    const site = { lat: q.lat, lon: q.lon };
+    const night = nightOf(currentNightDate(now, site), site);
+    const a = night.darkStart ?? night.civilDusk ?? night.sunset;
+    const b = night.darkEnd ?? night.civilDawn ?? night.sunrise;
+    if (a === null || b === null) noDarkness = true;
+    else {
+      const from = Math.max(now, a);
+      const inDark = pts.filter((p) => p.t + 3 * HOUR_MS > from && p.t < b);
+      const darkNow = now >= a && now <= b;
+      kpTonight = Math.max(inDark.length ? Math.max(...inDark.map((p) => p.kp)) : 0, darkNow ? kpNow : 0);
+      if (!inDark.length && !darkNow) kpTonight = kpMax24h;
+    }
+  }
+  const { likely, note } = noDarkness
+    ? { likely: false, note: "The sky doesn't get dark here tonight, so aurora won't show." }
+    : auroraNote(kpTonight, gm);
   const edge = ovalEdge(kpTonight);
   return {
     kpNow,

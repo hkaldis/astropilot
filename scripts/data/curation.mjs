@@ -142,6 +142,8 @@ export const SIZE_OVERRIDES = {
   NGC6541: [[15], wiki('NGC 6541', 1373118180)], // C78; 7.5
   NGC3201: [[20], wiki('NGC 3201', 1373294872)], // C79; 9.6
   NGC5139: [[36.3], wiki('Omega Centauri', 1375779961)], // C80; 27
+  // C34, the West Veil: OpenNGC gives only its 70′ length, which made the thin arc a 70′ disc.
+  NGC6960: [[70, 6], "Steinicke's Revised NGC/IC Catalog via SEDS, spider.seds.org/ngc/revngcic.cgi?NGC6960 (accessed 2026-10-06): 70.0′ × 6.0′"],
   NGC6193: [[15], wiki('NGC 6193', 1378219013)], // C82; 8.1
   NGC5286: [[9.1], wiki('NGC 5286', 1373124594)], // C84; 6.6
   IC2391: [[50], wiki('IC 2391', 1370780151)], // C85; 29.1
@@ -463,11 +465,11 @@ export const DOUBLE_STARS = [
     note: 'A stunning gold-and-blue double marking the head of Cygnus, the Swan.' },
   { id: 'mizar', name: 'Mizar and Alcor', wds: '13239+5456', pair: ['STF1744', 'AB'], subject: 'Mizar A and B',
     note: 'The famous double in the handle of the Big Dipper; together with Alcor it forms a sextuple star system.',
-    extras: [{ pairs: [['STF1744', 'AC']], text: (p) => `Alcor (magnitude ${p.m2}) lies ${p.sep}″ (${p.sepArcmin}′) from Mizar, an easy naked-eye pair.` }] },
+    extras: [{ pairs: [['STF1744', 'AC']], wide: true, text: (p) => `Alcor (magnitude ${p.m2}) lies ${p.sep}″ (${p.sepArcmin}′) from Mizar, an easy naked-eye pair.` }] },
   { id: 'epsilon-lyrae', name: 'Epsilon Lyrae (Double Double)', wds: '18443+3940', pair: ['STF2382', 'AB'], pairLabel: 'ε¹',
     aliases: ['Double Double', 'Epsilon Lyrae', 'ε Lyr'],
     note: 'The famous "Double Double" near Vega.',
-    extras: [{ pairs: [['STFA 37', 'AB,CD'], ['STF2383', 'CD']],
+    extras: [{ pairs: [['STFA 37', 'AB,CD'], ['STF2383', 'CD']], wide: true,
       text: (w, cd) => `ε¹ and ε² are ${w.sep}″ apart (easy in binoculars), and ε² splits into stars of magnitude ${cd.m1} and ${cd.m2}, ${cd.sep}″ apart.` }] },
   { id: 'almach', name: 'Almach', wds: '02039+4220', pair: ['STF 205', 'A,BC'],
     note: 'A showcase color-contrast double: a golden-orange primary with a blue companion.' },

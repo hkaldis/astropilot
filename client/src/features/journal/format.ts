@@ -72,13 +72,13 @@ export interface SessionPlace {
   location: ApiLocation | null;
 }
 
-/** Where a session happened, for time zones and night dates. */
-export function placeOf(s: Pick<ApiSession, "locationId">, locations: ApiLocation[]): SessionPlace {
+/** Where a session happened, for time zones and night dates (no location: the zone it was logged in, as the server does). */
+export function placeOf(s: Pick<ApiSession, "locationId"> & { timezone?: string | null }, locations: ApiLocation[]): SessionPlace {
   const location = s.locationId ? (locations.find((l) => l.id === s.locationId) ?? null) : null;
-  return { tz: validTz(location?.timezone) ?? undefined, lon: location?.longitude ?? null, location };
+  return { tz: validTz(location?.timezone) ?? validTz(s.timezone) ?? undefined, lon: location?.longitude ?? null, location };
 }
 
-export const sessionNight = (s: Pick<ApiSession, "date" | "locationId">, locations: ApiLocation[]) => {
+export const sessionNight = (s: Pick<ApiSession, "date" | "locationId"> & { timezone?: string | null }, locations: ApiLocation[]) => {
   const p = placeOf(s, locations);
   return nightKeyOf(Date.parse(s.date), p.lon, p.tz);
 };

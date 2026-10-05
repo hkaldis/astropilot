@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type { ApiObservation, ApiSession, JournalStats, ObservationInput, SessionConditions } from "@shared/api";
 import { api, ApiError, queryClient } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+import { browserTimeZone } from "@/hooks/useSite";
 
 export const SESSIONS_KEY = "/api/journal/sessions";
 export const STATS_KEY = "/api/journal/stats";
@@ -23,6 +24,8 @@ export interface SessionInput {
   title?: string | null;
   notes?: string | null;
   conditions?: SessionConditions | null;
+  /** The zone the times were entered in (the session form's: its location's, else this browser's). */
+  timezone?: string | null;
 }
 
 export type ObservationPatch = Partial<Omit<ObservationInput, "locationId">>;
@@ -53,7 +56,8 @@ export function useJournalStats() {
 
 export function useLogObservation() {
   return useMutation({
-    mutationFn: (input: ObservationInput) => api<LogResult>("POST", "/api/journal/observations", input),
+    // The zone goes along so a session opened with no location is dated in the logger's time, not UTC.
+    mutationFn: (input: ObservationInput) => api<LogResult>("POST", "/api/journal/observations", { timezone: browserTimeZone(), ...input }),
     onSuccess: (r) => {
       // Show the new row immediately where we already hold the session, then refresh.
       const key = [sessionKey(r.observation.sessionId)];
@@ -68,7 +72,7 @@ export function useLogObservation() {
 
 export function useCreateSession() {
   return useMutation({
-    mutationFn: (input: SessionInput) => api<ApiSession>("POST", SESSIONS_KEY, input),
+    mutationFn: (input: SessionInput) => api<ApiSession>("POST", SESSIONS_KEY, { timezone: browserTimeZone(), ...input }),
     onSuccess: (s) => {
       queryClient.setQueryData([sessionKey(s.id)], s);
       queryClient.setQueryData<ApiSession[]>([SESSIONS_KEY], (list) =>

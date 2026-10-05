@@ -286,6 +286,7 @@ export const observationSessions = pgTable("observation_sessions", {
   title: varchar("title", { length: 120 }),
   endDate: timestamp("end_date"),
   conditions: jsonb("conditions"), // forecast snapshot + observer ratings (AstroPilot 2)
+  timezone: varchar("timezone", { length: 64 }), // zone its times were entered in (dates sessions with no location)
   createdAt: timestamp("created_at").defaultNow(),
 });
 

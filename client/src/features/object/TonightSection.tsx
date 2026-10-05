@@ -104,8 +104,9 @@ export function TonightSection({ subject, tonight, ctx, scope }: { subject: Subj
     let text = list.map((x) => x[1]).join(" · ");
     if (upAtDusk && upAtDawn) text = list.length ? `up all night · ${text}` : "up all night";
     else if (!list.length) text = "not up tonight";
-    else if (upAtDawn) text += " · up until sunrise";
-    else if (upAtDusk) text = "up at sunset · " + text;
+    // Polar night has no sunset or sunrise to speak of: the ends of the night instead.
+    else if (upAtDawn) text += night.sunrise !== null ? " · up until sunrise" : " · still up at the end of the night";
+    else if (upAtDusk) text = (night.sunset !== null ? "up at sunset · " : "up at the start of the night · ") + text;
     return text.charAt(0).toUpperCase() + text.slice(1) + ".";
   })();
 

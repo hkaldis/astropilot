@@ -29,7 +29,7 @@ import { TYPE_LABEL } from "@/lib/objects";
 import { InstrumentBar, instrumentPhrase, skySourcePhrase } from "@/features/explore/InstrumentBar";
 import { NoSite } from "@/features/explore/NoSite";
 import { constellationName } from "@/features/explore/constellations";
-import { frameIndex, isSolarSystemId, sampleAt, useNightContext } from "@/features/explore/sky";
+import { frameIndex, isSolarSystemId, sampleAt, siteKey, useNightContext } from "@/features/explore/sky";
 import { useMoonSystem } from "@/features/moons/useMoonSystem";
 import { MoonSystemPanel } from "@/features/moons/MoonSystemPanel";
 import { ObjectActions } from "./ObjectActions";
@@ -245,10 +245,10 @@ function SubjectPage({ subject }: { subject: Subject }) {
   const system = useMoonSystem(sysPlanet, range?.[0] ?? null, range?.[1] ?? null);
 
   const tonight = useMemo(
-    () => (ctx ? tonightFor(subject, ctx, aperture, system) : null),
+    () => (ctx ? tonightFor(subject, ctx, aperture, system, { instrument: scope.kind, power: scope.power }) : null),
     // Recompute when the night, sky, instrument or moon positions change — not every minute.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [subject, ctx?.frames, ctx?.sqm, ctx?.minAlt, ctx?.site.key, aperture, system],
+    [subject, ctx?.frames, ctx?.sqm, ctx?.minAlt, (ctx ? siteKey(ctx.site) : null), aperture, scope.kind, scope.power, system],
   );
 
   const year = useMemo(() => {
@@ -257,7 +257,7 @@ function SubjectPage({ subject }: { subject: Subject }) {
     if (subject.kind === "body" && subject.id === "moon") return null;
     return yearAltitudes(ctx.site, now, { body: subject.kind === "satellite" ? subject.parent.body : subject.meta.body });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subject, ctx?.site.key, Math.floor(now / 86_400_000)]);
+  }, [subject, (ctx ? siteKey(ctx.site) : null), Math.floor(now / 86_400_000)]);
 
   // Moons: how easy each is in this instrument at a given moment, and where the slider starts.
   const planetTrack = tonight?.body ?? null;

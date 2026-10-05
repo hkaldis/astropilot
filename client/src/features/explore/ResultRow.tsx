@@ -40,6 +40,12 @@ export function otherDesignations(o: CatalogObject, max = 2): string[] {
 
 export function DifficultyBadge({ r, className }: { r: RankedTarget<CatalogObject> | null; className?: string }) {
   if (!r) return null;
+  if (r.track.noDarkness)
+    return (
+      <Badge variant="outline" className={className}>
+        No darkness
+      </Badge>
+    );
   if (r.track.neverUp || r.track.maxAlt < 0) {
     return (
       <Badge variant="outline" className={className}>
@@ -57,6 +63,7 @@ export function DifficultyBadge({ r, className }: { r: RankedTarget<CatalogObjec
 
 function BestText({ r, rc, compact }: { r: RankedTarget<CatalogObject>; rc: RowContext; compact?: boolean }) {
   const t = r.track;
+  if (t.noDarkness) return <span className="text-muted-foreground">No darkness tonight</span>;
   if (t.maxAlt < 0) return <span className="text-muted-foreground">Below horizon</span>;
   if (t.neverUp)
     return (

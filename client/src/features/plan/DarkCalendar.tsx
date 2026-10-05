@@ -5,6 +5,7 @@
 import { useMemo } from "react";
 import { addDays, formatDuration, nightDateOf, nightOf, upcomingEvents, type SkyEvent } from "@shared/astro";
 import { MoonGlyph } from "@/components/common/Glyphs";
+import { localDate } from "@/features/tonight/useTonight";
 import { cn } from "@/lib/utils";
 
 interface CalNight {
@@ -59,7 +60,8 @@ export function DarkCalendar({
     const evs = upcomingEvents(start, days + 1, s).filter((e) => e.kind === "meteor" || e.kind === "eclipse" || e.kind === "opposition" || e.importance >= 3);
     const byNight = new Map<string, SkyEvent[]>();
     for (const e of evs) {
-      const key = nightDateOf(e.time, s);
+      // A solar eclipse happens in daylight: it goes on its own date at the site, not the night before.
+      const key = e.daytime ? localDate(e.time, s.timezone ?? undefined) : nightDateOf(e.time, s);
       byNight.set(key, [...(byNight.get(key) ?? []), e]);
     }
     return Array.from({ length: days }, (_, i) => {

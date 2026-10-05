@@ -6,7 +6,7 @@
  *   Sweet spots (visual practice): low 4–6 mm, medium 2–3 mm, high 0.7–1.2 mm.
  *   Useful range: aperture/7 (7 mm pupil) to 2 × aperture in mm, capped by typical seeing.
  */
-import { scopeLimits, setup, type BarlowSpec, type EyepieceSpec, type ScopeSpec } from "@shared/astro/optics";
+import { scopeLimits, setup, zoomApparentField, type BarlowSpec, type EyepieceSpec, type ScopeSpec } from "@shared/astro/optics";
 import { STANDARD_EYEPIECE_FOCALS, zoomRange } from "@shared/data/gear-presets";
 import { fmtFRatio, fmtFocal, fmtMag, fmtPupil, fmtFactor } from "./format";
 
@@ -47,7 +47,8 @@ export function kitPoints(scope: ScopeSpec, eyepieces: EyepieceSpec[], barlows: 
     const zoom = zoomRange(e.name ?? "");
     for (const b of combos) {
       const longFocal = zoom ? zoom[1] : e.focalLength;
-      const lo = setup(scope, { ...e, focalLength: longFocal }, b);
+      // A zoom's stated field is its short end's; it is narrower at the long end.
+      const lo = setup(scope, { ...e, focalLength: longFocal, afov: zoom ? zoomApparentField(e.afov, zoom[0], longFocal) : e.afov }, b);
       const hi = zoom ? setup(scope, { ...e, focalLength: zoom[0] }, b) : lo;
       const base = zoom ? `${zoom[0]}–${zoom[1]} mm zoom` : fmtFocal(e.focalLength);
       out.push({

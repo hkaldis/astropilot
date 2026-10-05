@@ -218,10 +218,16 @@ export async function buildDoubleStars({ findCon, CON_NAME, CON_GEN }) {
     let desc = `${d.note} ${ps.text}`;
     for (const e of d.extras || []) desc += ` ${e.text(...e.pairs.map(([disc, comp]) => extraVals(withStarMags(d, pair(d.wds, disc, comp)))))}`;
 
+    // A famous wide companion (Alcor, ε²): [separation ″, magnitudes of the two], rated on its own when the
+    // close pair is beyond an instrument (the eye, binoculars).
+    const wideExtra = (d.extras || []).find((e) => e.wide);
+    const wp = wideExtra ? withStarMags(d, pair(d.wds, ...wideExtra.pairs[0])) : null;
     objects.push({
       id: d.id, name: d.name, designations: desig, type: 'double_star',
       ra: round(pos.ra, 4) >= 24 ? 0 : round(pos.ra, 4), dec: round(pos.dec, 3),
-      mag: round(p.m1, 2), con, sep: ps.sep, mag2: round(p.m2, 2), pa: ps.pa, desc,
+      mag: round(p.m1, 2), con, sep: ps.sep, mag2: round(p.m2, 2), pa: ps.pa,
+      ...(wp ? { wide: [round(wp.sepLast, 1), round(wp.m1, 2), round(wp.m2, 2)] } : {}),
+      desc,
     });
     notes.push(`  ${d.id.padEnd(20)} ${displayCode(p.disc)} ${p.comp.padEnd(5)} sep ${String(ps.sep).padStart(6)}″ PA ${String(ps.pa).padStart(3)}°  ${ps.orbit ? `ORB6 ${ps.orbit.ref} grade ${ps.orbit.grade} @${DOUBLE_EPOCH}` : `WDS last ${p.last}`}  mags ${p.m1}/${p.m2}  ${con}`);
   }

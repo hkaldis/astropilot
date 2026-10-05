@@ -2,6 +2,7 @@ import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ApiGear } from "@shared/api";
 import type { ScopeSpec, EyepieceSpec, BarlowSpec } from "@shared/astro/optics";
+import { binocularMagnification } from "@shared/data/gear-presets";
 import { store } from "@/lib/storage";
 import { useAuth } from "./useAuth";
 import { usePrefs } from "./usePrefs";
@@ -42,6 +43,13 @@ export interface ActiveScope {
   telescopeId: number | null;
   presetId: string | null;
   kind: ScopePreset["kind"];
+  /** Fixed magnification: 1 for the eye, the binoculars' own; null for a telescope (it has a range). */
+  power: number | null;
+}
+
+/** What visibility ratings need to know about the instrument (see SkyContext / DetectInput). */
+export function ratingOptics(s: Pick<ActiveScope, "kind" | "power" | "scope">) {
+  return { apertureMm: s.kind === "eye" ? 7 : s.scope.aperture, instrument: s.kind, power: s.power };
 }
 
 // ---- shared selection store (one choice for the whole app, persisted per browser) ----
@@ -105,6 +113,7 @@ export function useActiveScope() {
         telescopeId: t.id,
         presetId: null,
         kind: isBino ? "binoculars" : "telescope",
+        power: isBino ? binocularMagnification({ name: t.name, aperture: t.aperture, focalLength: t.focalLength }) : null,
       };
     }
     const p = SCOPE_PRESETS.find((x) => x.id === c.presetId) ?? SCOPE_PRESETS[4];
@@ -116,6 +125,7 @@ export function useActiveScope() {
       telescopeId: null,
       presetId: p.id,
       kind: p.kind,
+      power: p.kind === "eye" ? 1 : p.kind === "binoculars" ? binocularMagnification({ name: p.name, aperture: p.aperture, focalLength: p.focalLength }) : null,
     };
   }, [user, gear.data, c, prefs.defaultTelescopeId]);
 

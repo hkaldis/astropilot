@@ -49,20 +49,36 @@ export function TimeBar({ time, live, night, site, tz, hour12, onChange, onLive 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [night, start, end]);
 
-  // When the Moon is up during the night (sampled every 10 minutes).
+  // When the Moon is up during the night: the same convention as the moonrise and moonset shown elsewhere
+  // (its upper limb on the horizon, the centre at −0.26°), each crossing refined between 10-minute samples.
   const moonUp = useMemo(() => {
-    const segs: [number, number][] = [];
-    let open: number | null = null;
-    const step = 10 * 60_000;
-    for (let t = start; t <= end + 1; t += step) {
-      const tt = Math.min(t, end);
-      const up = moonPosition(tt, site).alt > 0;
-      if (up && open === null) open = tt;
-      if (!up && open !== null) {
-        segs.push([open, tt]);
-        open = null;
+    const up = (t: number) => moonPosition(t, site).alt > -0.26;
+    const refine = (a: number, b: number, upAtA: boolean) => {
+      for (let i = 0; i < 7; i++) {
+        const m = (a + b) / 2;
+        if (up(m) === upAtA) a = m;
+        else b = m;
       }
-      if (tt === end) break;
+      return (a + b) / 2;
+    };
+    const segs: [number, number][] = [];
+    const step = 10 * 60_000;
+    let prevT = start;
+    let prevUp = up(start);
+    let open: number | null = prevUp ? start : null;
+    for (let t = Math.min(start + step, end); ; t = Math.min(t + step, end)) {
+      const u = up(t);
+      if (u !== prevUp) {
+        const x = refine(prevT, t, prevUp);
+        if (u) open = x;
+        else if (open !== null) {
+          segs.push([open, x]);
+          open = null;
+        }
+      }
+      prevT = t;
+      prevUp = u;
+      if (t >= end) break;
     }
     if (open !== null) segs.push([open, end]);
     return segs;

@@ -187,6 +187,14 @@ function zoomOf(e: EyepieceSpec): [number, number] | null {
  * Zooms are stored at their short end; offer the whole range as click stops (the apparent field narrows
  * towards the long end, e.g. 60° at 8 mm to ~40° at 24 mm).
  */
+/**
+ * A zoom eyepiece's apparent field at focal length `f`: the stated field is the short end's, and it narrows
+ * towards the long end (an 8–24 mm at 60° is about 40° at 24 mm).
+ */
+export function zoomApparentField(afov: number | null | undefined, shortF: number, f: number): number {
+  return (afov ?? DEFAULT_AFOV) * Math.pow(shortF / f, 0.37);
+}
+
 function expandZooms(eyepieces: EyepieceSpec[]): EyepieceSpec[] {
   const out: EyepieceSpec[] = [];
   for (const e of eyepieces) {
@@ -199,7 +207,7 @@ function expandZooms(eyepieces: EyepieceSpec[]): EyepieceSpec[] {
     const steps = 5;
     for (let k = 0; k < steps; k++) {
       const f = Math.round(z[0] * Math.pow(z[1] / z[0], k / (steps - 1)) * 2) / 2;
-      out.push({ ...e, focalLength: f, afov: (e.afov ?? DEFAULT_AFOV) * Math.pow(z[0] / f, 0.37) });
+      out.push({ ...e, focalLength: f, afov: zoomApparentField(e.afov, z[0], f) });
     }
   }
   return out;
@@ -224,7 +232,8 @@ export function rankEyepieces(
   const combos: { e: EyepieceSpec; b: BarlowSpec | null }[] = [];
   for (const e of expandZooms(eyepieces)) {
     combos.push({ e, b: null });
-    for (const b of barlows) combos.push({ e, b });
+    // A 1× "Barlow" (a coma corrector, say) changes nothing: it would only repeat the eyepiece alone.
+    for (const b of barlows) if (Math.abs(b.factor - 1) > 0.02) combos.push({ e, b });
   }
 
   const setups = combos.map(({ e, b }) => ({ e, b, s: setup(scope, e, b) }));

@@ -117,6 +117,18 @@ export function bodyAltAz(body: A.Body, date: Date | number, site: Site | A.Obse
   return { alt: hor.altitude, az: hor.azimuth, ra: eq.ra, dec: eq.dec, dist: eq.dist };
 }
 
+/**
+ * The Sun's geometric (airless) altitude, degrees — what twilight is defined on (civil −6°, nautical −12°,
+ * astronomical −18°; sunrise and sunset at −0.833°, the upper limb on the refracted horizon). Refraction
+ * would lift it by ~0.6° near and below the horizon, and every twilight boundary would come minutes late.
+ */
+export function sunGeometricAltitude(date: Date | number, site: Site | A.Observer): number {
+  const obs = site instanceof A.Observer ? site : observerOf(site);
+  const d = new Date(date);
+  const eq = A.Equator(A.Body.Sun, d, obs, true, true);
+  return A.Horizon(d, obs, eq.ra, eq.dec).altitude;
+}
+
 /** IAU constellation abbreviation for a J2000 position. */
 export function constellationOf(raHours: number, decDeg: number): string {
   return A.Constellation(raHours, decDeg).symbol;

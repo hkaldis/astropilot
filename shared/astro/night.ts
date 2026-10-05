@@ -3,7 +3,7 @@
  * "The night of D" starts at local solar noon on date D, so results never depend on
  * the server's or browser's time zone.
  */
-import { A, DAY_MS, HOUR_MS, Site, observerOf, bodyAltAz } from "./core";
+import { A, DAY_MS, HOUR_MS, Site, observerOf, bodyAltAz, sunGeometricAltitude } from "./core";
 
 export type Darkness = "astronomical" | "nautical" | "civil" | "none";
 
@@ -185,7 +185,7 @@ export function nightOf(dateStr: string, site: Site): NightInfo {
   let darkness: Darkness = "none";
   let darkStart: number | null = null;
   let darkEnd: number | null = null;
-  const sunAtMidnight = bodyAltAz(A.Body.Sun, solarMidnight, obs).alt;
+  const sunAtMidnight = sunGeometricAltitude(solarMidnight, obs);
   const astroLong = astroDusk && astroDawn && astroDusk < nextNoon && astroDawn > astroDusk ? astroDawn - astroDusk : 0;
   if (astroLong >= SHORT_DARK_H * HOUR_MS || (astroLong > 0 && !(nauticalDusk && nauticalDawn))) {
     darkness = "astronomical";
@@ -293,8 +293,9 @@ export function currentNightDate(nowMs: number, site: Site): string {
   return today;
 }
 
+/** The Sun's geometric altitude at the site (for twilight tests; see sunGeometricAltitude). */
 export function sunAltitude(ms: number, site: Site): number {
-  return bodyAltAz(A.Body.Sun, ms, site).alt;
+  return sunGeometricAltitude(ms, site);
 }
 
 export function moonPosition(ms: number, site: Site) {

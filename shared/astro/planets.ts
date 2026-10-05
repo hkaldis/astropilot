@@ -50,6 +50,38 @@ export interface BodyState {
   ringTilt?: number;
 }
 
+const poly = (x: number, c: number[]) => c.reduce((s, k, i) => s + k * Math.pow(x, i), 0);
+
+/**
+ * Apparent magnitude after Mallama & Hilton (2018), the formulas JPL Horizons and the Astronomical Almanac
+ * use: within 0.01 mag of Horizons for Mercury, Venus, Jupiter and Neptune and 0.05 for Saturn (whose rings
+ * astronomy-engine's older formula made 0.1–0.2 mag too bright). Uranus (it needs latitude terms) and the
+ * Moon keep astronomy-engine's values, which already agree.
+ */
+export function planetMagnitude(id: SolarSystemId, illum: A.IlluminationInfo): number {
+  const a = illum.phase_angle;
+  const m5 = 5 * Math.log10(illum.helio_dist * illum.geo_dist);
+  switch (id) {
+    case "mercury":
+      return m5 + poly(a, [-0.613, 6.328e-2, -1.6336e-3, 3.3644e-5, -3.4265e-7, 1.6893e-9, -3.0334e-12]);
+    case "venus":
+      return m5 + (a < 163.7 ? poly(a, [-4.384, -1.044e-3, 3.687e-4, -2.814e-6, 8.938e-9]) : poly(a, [236.05828, -2.81914, 8.39034e-3]));
+    case "mars":
+      return m5 + (a <= 50 ? poly(a, [-1.601, 2.267e-2, -1.302e-4]) : poly(a, [-0.367, -0.02573, 3.445e-4]));
+    case "jupiter":
+      return m5 + poly(a, [-9.395, -3.7e-4, 6.16e-4]);
+    case "saturn": {
+      // Globe and rings, for the phase angles and ring openings seen from Earth (α ≤ 6.5°, |B| ≤ 27°).
+      const sinB = Math.sin(Math.abs(illum.ring_tilt ?? 0) * DEG);
+      return m5 - 8.914 - 1.825 * sinB + 0.026 * a - 0.378 * sinB * Math.exp(-2.25 * a);
+    }
+    case "neptune":
+      return m5 + poly(a, [-7.0, 7.944e-3, 9.617e-5]);
+    default:
+      return illum.mag;
+  }
+}
+
 export function bodyState(id: SolarSystemId, ms: number, site: Site): BodyState {
   const meta = PLANET_BY_ID[id];
   const obs = observerOf(site);
@@ -68,7 +100,7 @@ export function bodyState(id: SolarSystemId, ms: number, site: Site): BodyState 
     dec: pos.dec,
     raJ2000: j2000.ra,
     decJ2000: j2000.dec,
-    mag: illum.mag,
+    mag: planetMagnitude(id, illum),
     diameter,
     illumination: illum.phase_fraction,
     elongation: elong,
@@ -102,15 +134,46 @@ export function bodyEvents(id: SolarSystemId, fromMs: number, site: Site): BodyN
   };
 }
 
+/**
+ * Opposition to the half-minute: when the planet's apparent geocentric ecliptic longitude is 180° from the
+ * Sun's. (The heliocentric alignment astronomy-engine searches for comes 5–20 minutes earlier.)
+ */
+function refineOpposition(body: A.Body, approx: number): number {
+  const off = (t: number) => {
+    const d = new Date(t);
+    return ((A.Ecliptic(A.GeoVector(body, d, true)).elon - A.SunPosition(d).elon + 360) % 360) - 180;
+  };
+  let lo = approx - 2 * 86_400_000;
+  let hi = approx + 2 * 86_400_000;
+  const sLo = Math.sign(off(lo));
+  if (sLo === Math.sign(off(hi))) return approx;
+  while (hi - lo > 30_000) {
+    const mid = (lo + hi) / 2;
+    if (Math.sign(off(mid)) === sLo) lo = mid;
+    else hi = mid;
+  }
+  return Math.round((lo + hi) / 2);
+}
+
+export interface PlanetaryEvent {
+  time: number;
+  kind: "opposition" | "elongation" | "conjunction";
+  body: PlanetId;
+  detail: string;
+  /** Greatest elongations: the angle from the Sun and whether it's an evening or morning showing. */
+  elongation?: number;
+  visibility?: "evening" | "morning";
+}
+
 /** Upcoming oppositions and greatest elongations within `days` of `fromMs`. */
-export function planetaryEvents(fromMs: number, days: number) {
-  const out: { time: number; kind: "opposition" | "elongation" | "conjunction"; body: PlanetId; detail: string }[] = [];
+export function planetaryEvents(fromMs: number, days: number): PlanetaryEvent[] {
+  const out: PlanetaryEvent[] = [];
   const limit = fromMs + days * 86_400_000;
   const from = new Date(fromMs);
   for (const id of ["mars", "jupiter", "saturn", "uranus", "neptune"] as PlanetId[]) {
     // Every opposition in the window (a long window can hold more than one for the slow outer planets).
     for (let ev = A.SearchRelativeLongitude(PLANET_BY_ID[id].body, 0, from); ev.date.getTime() < limit; ev = A.SearchRelativeLongitude(PLANET_BY_ID[id].body, 0, new Date(ev.date.getTime() + 30 * 86_400_000)))
-      out.push({ time: ev.date.getTime(), kind: "opposition", body: id, detail: "Biggest and brightest of the year, opposite the Sun and up all night." });
+      out.push({ time: refineOpposition(PLANET_BY_ID[id].body, ev.date.getTime()), kind: "opposition", body: id, detail: "Biggest and brightest of the year, opposite the Sun and up all night." });
   }
   for (const id of ["mercury", "venus"] as PlanetId[]) {
     let start = from;
@@ -122,6 +185,8 @@ export function planetaryEvents(fromMs: number, days: number) {
         time: ms,
         kind: "elongation",
         body: id,
+        elongation: ev.elongation,
+        visibility: ev.visibility === "morning" ? "morning" : "evening",
         detail:
           id === "mercury"
             ? `${ev.elongation.toFixed(1)}° from the Sun — Mercury's best ${ev.visibility} showing: look low in the ${ev.visibility === "evening" ? "west after sunset" : "east before sunrise"}.`

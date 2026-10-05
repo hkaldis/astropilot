@@ -1,7 +1,7 @@
 /** Upcoming sky events: Moon phases, meteor showers, oppositions, elongations, eclipses, conjunctions, seasons. */
 import { A, DAY_MS, DEG, HOUR_MS, Site, altAzRaDec, bodyAltAz, observerOf } from "./core";
 import { moonQuarters, nightDateOf, nightOf } from "./night";
-import { planetaryEvents, SOLAR_SYSTEM } from "./planets";
+import { planetaryEvents, PLANET_BY_ID, SOLAR_SYSTEM } from "./planets";
 
 export interface SkyEvent {
   id: string;
@@ -10,6 +10,11 @@ export interface SkyEvent {
   title: string;
   detail: string;
   importance: 1 | 2 | 3; // 3 = major
+  /** The stretch worth watching from the site (an eclipse's visible part, a shower's moonless hours), when known. */
+  start?: number;
+  end?: number;
+  /** Happens in daylight (a solar eclipse): belongs to its calendar day, not to a night. */
+  daytime?: boolean;
 }
 
 /**
@@ -26,27 +31,73 @@ export const METEOR_SHOWERS = [
   { id: "ori", name: "Orionids", lambda: 208, peak: [10, 21], zhr: 20, radiant: [6.33, 16], parent: "1P/Halley", note: "Fast meteors, best after midnight" },
   { id: "sta", name: "Southern Taurids", lambda: 223, peak: [11, 5], zhr: 5, radiant: [3.47, 15], parent: "2P/Encke", note: "Slow, with frequent fireballs" },
   { id: "nta", name: "Northern Taurids", lambda: 230, peak: [11, 12], zhr: 5, radiant: [3.87, 22], parent: "2P/Encke", note: "Slow, with frequent fireballs" },
-  { id: "leo", name: "Leonids", lambda: 235.27, peak: [11, 17], zhr: 15, radiant: [10.27, 22], parent: "55P/Tempel–Tuttle", note: "Very fast meteors, after midnight" },
-  { id: "gem", name: "Geminids", lambda: 262.2, peak: [12, 14], zhr: 150, radiant: [7.47, 33], parent: "3200 Phaethon", note: "The richest shower of the year; good from evening on" },
+  { id: "leo", name: "Leonids", lambda: 235.27, peak: [11, 17], zhr: 15, radiant: [10.13, 22], parent: "55P/Tempel–Tuttle", note: "Very fast meteors, after midnight" },
+  { id: "gem", name: "Geminids", lambda: 262.2, peak: [12, 14], zhr: 150, radiant: [7.47, 33], parent: "3200 Phaethon", note: "The richest shower of the year" },
   { id: "urs", name: "Ursids", lambda: 270.7, peak: [12, 22], zhr: 10, radiant: [14.47, 75], parent: "8P/Tuttle", note: "Modest rates near the winter solstice" },
 ] as const;
 
-/** Peak instant of a shower in `year`: when the Sun reaches the shower's solar longitude (precessed to the date's equinox). */
-export function meteorPeak(s: (typeof METEOR_SHOWERS)[number], year: number): number | null {
-  const lonOfDate = (s.lambda + 0.01397 * (year - 2000)) % 360;
-  const from = new Date(Date.UTC(year, s.peak[0] - 1, s.peak[1]) - 8 * DAY_MS);
-  const hit = A.SearchSunLongitude(lonOfDate, from, 16);
-  return hit ? hit.date.getTime() : null;
+const EQJ_TO_ECL = A.Rotation_EQJ_ECL();
+
+/** The Sun's geometric ecliptic longitude in the J2000 frame — the solar longitude the IMO lists peaks by. */
+export function sunLongitudeJ2000(ms: number): number {
+  const earth = A.RotateVector(EQJ_TO_ECL, A.HelioVector(A.Body.Earth, new Date(ms)));
+  return (A.SphereFromVector(earth).lon + 180) % 360;
 }
 
-/** Highest altitude (deg) a shower's radiant reaches during the dark hours of the night around `t`. */
-function radiantMaxAlt(s: (typeof METEOR_SHOWERS)[number], t: number, site: Site): number {
+/** Peak instant of a shower in `year`: when the Sun reaches the shower's solar longitude (J2000). */
+export function meteorPeak(s: (typeof METEOR_SHOWERS)[number], year: number): number | null {
+  const approx = Date.UTC(year, s.peak[0] - 1, s.peak[1]);
+  // Degrees past the shower's longitude (−180…180), rising by about one a day.
+  const past = (t: number) => ((sunLongitudeJ2000(t) - s.lambda + 540) % 360) - 180;
+  let lo = approx - 8 * DAY_MS;
+  let hi = approx + 8 * DAY_MS;
+  if (!(past(lo) < 0 && past(hi) > 0)) return null;
+  while (hi - lo > 10_000) {
+    const mid = (lo + hi) / 2;
+    if (past(mid) < 0) lo = mid;
+    else hi = mid;
+  }
+  return Math.round((lo + hi) / 2);
+}
+
+/**
+ * A shower from the site on its peak night: the radiant's highest point while it's dark, whether it gets
+ * dark at all, and the hours worth watching — radiant up (≥ 15°, or near its best when it stays lower)
+ * with the Moon down. Sampled every 10 minutes, ends of the night included.
+ */
+function showerAtSite(s: (typeof METEOR_SHOWERS)[number], t: number, site: Site) {
   const night = nightOf(nightDateOf(t, site), site);
+  const obs = observerOf(site);
   const from = night.darkStart ?? night.sunset ?? night.noon + 6 * HOUR_MS;
   const to = night.darkEnd ?? night.sunrise ?? night.nextNoon - 6 * HOUR_MS;
-  let best = -90;
-  for (let x = from; x <= to; x += HOUR_MS / 2) best = Math.max(best, altAzRaDec(s.radiant[0], s.radiant[1], x, site).alt);
-  return best;
+  const step = 10 * 60_000;
+  const samples: { t: number; h: number; moonUp: boolean }[] = [];
+  for (let x = from; ; x = Math.min(x + step, to)) {
+    samples.push({ t: x, h: altAzRaDec(s.radiant[0], s.radiant[1], x, site).alt, moonUp: bodyAltAz(A.Body.Moon, x, obs).alt > 0 });
+    if (x >= to) break;
+  }
+  const maxAlt = Math.max(...samples.map((p) => p.h));
+  const good = (p: (typeof samples)[number]) => p.h >= Math.min(15, maxAlt - 5) && p.h > 0;
+  const radiantUp = samples.filter(good);
+  const moonless = radiantUp.filter((p) => !p.moonUp);
+  // The longest run with the radiant up: with the Moon down (`best`), and whatever the Moon (`anyMoon`).
+  const longest = (ok: (p: (typeof samples)[number]) => boolean) => {
+    let best: [number, number] | null = null;
+    let run: [number, number] | null = null;
+    for (const p of samples) {
+      run = ok(p) ? (run ? [run[0], p.t] : [p.t, p.t]) : null;
+      if (run && (!best || run[1] - run[0] > best[1] - best[0])) best = [run[0], run[1]];
+    }
+    return best;
+  };
+  return {
+    night,
+    maxAlt,
+    radiantUpHours: (radiantUp.length * step) / HOUR_MS,
+    moonlessHours: (moonless.length * step) / HOUR_MS,
+    best: longest((p) => good(p) && !p.moonUp),
+    anyMoon: longest(good),
+  };
 }
 
 function meteorEvents(fromMs: number, days: number, site?: Site): SkyEvent[] {
@@ -57,28 +108,49 @@ function meteorEvents(fromMs: number, days: number, site?: Site): SkyEvent[] {
     for (const s of METEOR_SHOWERS) {
       const t = meteorPeak(s, year);
       if (t === null || t + DAY_MS < fromMs || t >= end) continue;
-      const moonFrac = A.Illumination(A.Body.Moon, new Date(t)).phase_fraction;
-      const moonNote = moonFrac > 0.6 ? `a bright ${Math.round(moonFrac * 100)}% Moon will wash out faint meteors` : moonFrac < 0.25 ? "dark, moonless skies" : `Moon ${Math.round(moonFrac * 100)}% lit`;
+      const moonPct = Math.round(A.Illumination(A.Body.Moon, new Date(t)).phase_fraction * 100);
+      let moonNote = moonPct > 60 ? `A bright ${moonPct}% Moon will wash out faint meteors.` : moonPct < 25 ? "Dark, moonless skies." : `Moon ${moonPct}% lit.`;
       let importance: 1 | 2 | 3 = s.zhr >= 50 ? 3 : 2;
       let where = "";
+      let window: [number, number] | null = null;
       if (site) {
+        const at = showerAtSite(s, t, site);
+        const h = at.maxAlt;
         // Rates scale with the radiant's altitude (∝ sin h): a radiant that stays low gives few meteors.
-        const h = radiantMaxAlt(s, t, site);
-        if (h < 5) {
+        if (at.night.darkness === "none") {
+          importance = 1;
+          where = " The sky doesn't get dark here around the peak, so very few meteors will show.";
+        } else if (h < 5) {
           importance = 1;
           where = " From your latitude the radiant barely clears the horizon, so you'll see very few.";
         } else if (h < 25) {
           importance = Math.min(importance, 2) as 1 | 2;
           where = ` From your latitude the radiant only climbs to ${Math.round(h)}°, so expect roughly ${Math.max(1, Math.round(s.zhr * Math.sin(h * DEG)))} an hour at best.`;
         }
+        if (at.night.darkness === "civil") {
+          importance = Math.min(importance, 2) as 1 | 2;
+          where += " The sky stays in twilight all night here, so only the brighter meteors will show.";
+        }
+        // The Moon as it is at the site: up or down while the radiant is.
+        if (moonPct >= 25 && at.radiantUpHours > 0) {
+          if (at.moonlessHours >= Math.min(1, at.radiantUpHours * 0.8) && at.best) {
+            const allNight = at.moonlessHours >= at.radiantUpHours - 0.2;
+            moonNote = allNight ? `The ${moonPct}% Moon stays out of the way while the radiant is up.` : `The ${moonPct}% Moon is down for part of the time the radiant is up — watch then.`;
+          } else if (at.moonlessHours < 0.5) {
+            moonNote = moonPct > 60 ? `A bright ${moonPct}% Moon is up all the while — it will wash out faint meteors.` : `The ${moonPct}% Moon is up all the while.`;
+          }
+        }
+        // When to watch: the radiant up and the Moon down if it matters, else the radiant up.
+        if (at.night.darkness !== "none" && h >= 5) window = (moonPct >= 25 ? at.best : null) ?? at.anyMoon;
       }
       out.push({
         id: `meteor-${s.id}-${year}`,
         time: t,
         kind: "meteor",
         title: `${s.name} peak`,
-        detail: `Up to ~${s.zhr} meteors an hour under ideal skies. ${s.note}. ${moonNote.charAt(0).toUpperCase()}${moonNote.slice(1)}.${where}`,
+        detail: `Up to ~${s.zhr} meteors an hour under ideal skies. ${s.note}. ${moonNote}${where}`,
         importance,
+        ...(window ? { start: window[0], end: window[1] } : {}),
       });
     }
   }
@@ -92,21 +164,27 @@ function eclipseEvents(fromMs: number, days: number, site?: Site): SkyEvent[] {
   const out: SkyEvent[] = [];
   const end = fromMs + days * DAY_MS;
   const obs = site ? observerOf(site) : null;
+  // The eclipsed Moon is in view once it's 2° up in a dark-enough sky (lower, the horizon and haze hide it).
+  const moonInView = (x: number) => altOf(A.Body.Moon, x, obs!) > 2 && altOf(A.Body.Sun, x, obs!) < -0.833;
   let le = A.SearchLunarEclipse(new Date(fromMs));
-  while (le.peak.date.getTime() < end) {
+  for (; le.peak.date.getTime() < end; le = A.NextLunarEclipse(le.peak)) {
     const t = le.peak.date.getTime();
+    // A penumbral eclipse whose penumbral phase lasts under two hours in all is too shallow to notice.
+    if (le.kind === "penumbral" && le.sd_penum < 60) continue;
     let importance: 1 | 2 | 3 = le.kind === "total" ? 3 : le.kind === "partial" ? 2 : 1;
     let detail = le.kind === "penumbral" ? "A subtle darkening of part of the Moon; easy to miss." : "Maximum eclipse at the time shown.";
+    // The umbral phase (the penumbral one for penumbral eclipses): when there's something to see.
+    const half = (le.kind === "penumbral" ? le.sd_penum : le.sd_partial) * MIN;
+    let span: [number, number] | null = [t - half, t + half];
     if (obs) {
-      // Judge visibility across the whole umbral phase (penumbral phase for penumbral eclipses), not just at maximum.
-      const half = (le.kind === "penumbral" ? le.sd_penum : le.sd_partial) * MIN;
+      // Judge visibility across that whole phase, not just at maximum.
       const step = 5 * MIN;
       let up = 0;
       let n = 0;
       let firstUp: number | null = null;
       let lastUp: number | null = null;
       for (let x = t - half; x <= t + half; x += step, n++) {
-        if (altOf(A.Body.Moon, x, obs) > 0 && altOf(A.Body.Sun, x, obs) < -0.833) {
+        if (moonInView(x)) {
           up++;
           firstUp ??= x;
           lastUp = x;
@@ -114,38 +192,60 @@ function eclipseEvents(fromMs: number, days: number, site?: Site): SkyEvent[] {
       }
       let totalVisible = false;
       if (le.kind === "total")
-        for (let x = t - le.sd_total * MIN; x <= t + le.sd_total * MIN && !totalVisible; x += step)
-          totalVisible = altOf(A.Body.Moon, x, obs) > 0 && altOf(A.Body.Sun, x, obs) < -0.833;
+        for (let x = t - le.sd_total * MIN; x <= t + le.sd_total * MIN && !totalVisible; x += step) totalVisible = moonInView(x);
       if (up === 0) {
-        detail = "Not visible from your location: the Moon is below your horizon throughout.";
+        detail = "Not visible from your location: the Moon is below your horizon (or the sky is bright) throughout.";
         importance = 1;
+        span = null;
       } else if (up >= n - 1) detail = `Visible from your location from start to finish${le.kind === "total" ? ", totality included" : ""}.`;
       else {
         const rises = firstUp !== null && firstUp > t - half + step;
         detail = `Partly visible from your location: the Moon ${rises ? "rises" : "sets"} during the eclipse${le.kind === "total" ? (totalVisible ? ", with at least part of totality in view" : ", outside totality") : ""}.`;
-        if (lastUp !== null && importance === 3 && !totalVisible) importance = 2;
+        if (importance === 3 && !totalVisible) importance = 2;
+        span = [rises ? firstUp! : t - half, rises ? t + half : lastUp!];
       }
     }
-    out.push({ id: `le-${t}`, time: t, kind: "eclipse", title: `${cap(le.kind)} lunar eclipse`, detail, importance });
-    le = A.NextLunarEclipse(le.peak);
+    out.push({ id: `le-${t}`, time: t, kind: "eclipse", title: `${cap(le.kind)} lunar eclipse`, detail, importance, ...(span ? { start: span[0], end: span[1] } : {}) });
   }
   let se = A.SearchGlobalSolarEclipse(new Date(fromMs));
-  while (se.peak.date.getTime() < end) {
+  for (; se.peak.date.getTime() < end; se = A.NextGlobalSolarEclipse(se.peak)) {
     const t = se.peak.date.getTime();
+    let time = t;
     let detail = "Visible only from part of the Earth.";
     let importance: 1 | 2 | 3 = 2;
+    let span: [number, number] | null = null;
     if (obs) {
       const local = A.SearchLocalSolarEclipse(new Date(t - 2 * DAY_MS), obs);
-      if (Math.abs(local.peak.time.date.getTime() - t) < 2 * DAY_MS && local.peak.altitude > 0) {
-        detail = `Visible from your location as a ${local.kind} eclipse (${Math.round(local.obscuration * 100)}% of the Sun covered). Never look without certified solar filters.`;
-        importance = 3;
+      const up = (e: A.EclipseEvent | undefined) => !!e && e.altitude > 0;
+      const begin = local.partial_begin;
+      const finish = local.partial_end;
+      // Visible if the Sun is up for any of it — at its start, maximum or end (an eclipse can set or rise under way).
+      if (Math.abs(local.peak.time.date.getTime() - t) < 2 * DAY_MS && (up(begin) || up(local.peak) || up(finish))) {
+        const pct = Math.round(local.obscuration * 100);
+        const a = local.kind === "annular" ? "an" : "a";
+        // The part of it in the sky, between sunrise and sunset.
+        const sunrise = up(begin) ? null : A.SearchRiseSet(A.Body.Sun, obs, +1, begin.time, 1);
+        const sunset = up(finish) ? null : A.SearchRiseSet(A.Body.Sun, obs, -1, up(begin) ? begin.time : local.peak.time, 1);
+        span = [sunrise?.date.getTime() ?? begin.time.date.getTime(), sunset?.date.getTime() ?? finish.time.date.getTime()];
+        const filters = "Never look without certified solar filters.";
+        if (up(local.peak)) {
+          time = local.peak.time.date.getTime();
+          const edge = !up(begin) ? " The Sun rises with the eclipse under way." : !up(finish) ? " The Sun sets before it ends." : "";
+          detail = `Visible from your location as ${a} ${local.kind} eclipse: ${pct}% of the Sun covered at maximum, the time shown.${edge} ${filters}`;
+        } else if (up(begin)) {
+          time = span[0];
+          detail = `Begins at the time shown, low in the west: the Sun sets eclipsed, before the maximum (${pct}% covered). ${filters}`;
+        } else {
+          time = span[0];
+          detail = `The Sun rises already eclipsed, after the maximum (${pct}% covered), at the time shown — look low in the east. ${filters}`;
+        }
+        importance = local.kind !== "partial" || pct >= 20 ? 3 : 2;
       } else {
         detail = "Not visible from your location.";
         importance = 1;
       }
     }
-    out.push({ id: `se-${t}`, time: t, kind: "eclipse", title: `${cap(se.kind)} solar eclipse`, detail, importance });
-    se = A.NextGlobalSolarEclipse(se.peak);
+    out.push({ id: `se-${t}`, time, kind: "eclipse", title: `${cap(se.kind)} solar eclipse`, detail, importance, daytime: true, ...(span ? { start: span[0], end: span[1] } : {}) });
   }
   return out;
 }
@@ -293,14 +393,37 @@ export function upcomingEvents(fromMs: number, days = 45, site?: Site): SkyEvent
             : "Morning Moon; evenings stay dark for deep-sky observing.",
     importance: q.quarter === 0 || q.quarter === 2 ? 2 : 1,
   }));
-  const planets: SkyEvent[] = planetaryEvents(fromMs, days).map((e) => ({
-    id: `${e.kind}-${e.body}-${e.time}`,
-    time: e.time,
-    kind: e.kind === "opposition" ? "opposition" : "elongation",
-    title: e.kind === "opposition" ? `${cap(e.body)} at opposition` : `${cap(e.body)} at greatest elongation`,
-    detail: e.detail,
-    importance: e.kind === "opposition" && ["mars", "jupiter", "saturn"].includes(e.body) ? 3 : 2,
-  }));
+  const planets: SkyEvent[] = planetaryEvents(fromMs, days).map((e) => {
+    let detail = e.detail;
+    let importance: 1 | 2 | 3 = e.kind === "opposition" && ["mars", "jupiter", "saturn"].includes(e.body) ? 3 : 2;
+    // A greatest elongation as it is from the site: how high the planet stands at dusk (or dawn) that day.
+    if (site && e.kind === "elongation" && e.visibility && e.elongation !== undefined) {
+      const night = nightOf(nightDateOf(e.time, site), site);
+      const evening = e.visibility === "evening";
+      const at = evening ? (night.civilDusk ?? night.sunset) : (night.civilDawn ?? night.sunrise);
+      if (at !== null) {
+        const alt = bodyAltAz(PLANET_BY_ID[e.body].body, at, site).alt;
+        const when = evening ? "at dusk" : "at dawn";
+        const sky = evening ? "west after sunset" : "east before sunrise";
+        const name = cap(e.body);
+        if (alt < 3) {
+          detail = `${e.elongation.toFixed(1)}° from the Sun, but from your latitude ${name} is ${alt < 0 ? "below the horizon" : "barely above the horizon"} ${when} — not one to try from here.`;
+          importance = 1;
+        } else if (alt < 10)
+          detail = `${e.elongation.toFixed(1)}° from the Sun, but from your latitude only about ${Math.round(alt)}° up ${when}: look low in the ${sky}, with a clear, flat horizon.`;
+        else
+          detail = `${e.elongation.toFixed(1)}° from the Sun and about ${Math.round(alt)}° up ${when} from here — ${e.body === "mercury" ? `Mercury's best ${e.visibility} showing` : `a brilliant ${e.visibility} star`}: look ${e.body === "mercury" ? "low " : ""}in the ${sky}.`;
+      }
+    }
+    return {
+      id: `${e.kind}-${e.body}-${e.time}`,
+      time: e.time,
+      kind: e.kind === "opposition" ? "opposition" : "elongation",
+      title: e.kind === "opposition" ? `${cap(e.body)} at opposition` : `${cap(e.body)} at greatest elongation`,
+      detail,
+      importance,
+    };
+  });
   return [...moon, ...meteorEvents(fromMs, days, site), ...planets, ...eclipseEvents(fromMs, days, site), ...conjunctionEvents(fromMs, days, site), ...seasonEvents(fromMs, days)]
     .filter((e) => e.time >= fromMs - DAY_MS)
     .sort((a, b) => a.time - b.time);

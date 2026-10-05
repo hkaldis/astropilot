@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { MoreHorizontal, Pencil, Star, Trash2 } from "lucide-react";
 import type { ApiBarlow, ApiCamera, ApiEyepiece, ApiFilter, ApiTelescope } from "@shared/api";
-import { cameraField, scopeLimits, setup, type BarlowSpec, type EyepieceSpec } from "@shared/astro/optics";
+import { cameraField, scopeLimits, setup, zoomApparentField, type BarlowSpec, type EyepieceSpec } from "@shared/astro/optics";
 import {
   barlowKind,
   binocularMagnification,
@@ -260,7 +260,8 @@ export function EyepieceTable({
       [...eyepieces]
         .map((e) => {
           const zoom = zoomRange(e.name ?? "");
-          const wide = setup(scope, { ...e, focalLength: zoom ? zoom[1] : e.focalLength }, barlow);
+          // A zoom's stated field is its short end's; it is narrower at the long end.
+          const wide = setup(scope, zoom ? { ...e, focalLength: zoom[1], afov: zoomApparentField(e.afov, zoom[0], zoom[1]) } : e, barlow);
           const tight = zoom ? setup(scope, { ...e, focalLength: zoom[0] }, barlow) : wide;
           const use = pupilUse(tight.exitPupil, tight.magnification, lim.maxUsefulMag);
           const wideUse = pupilUse(wide.exitPupil, wide.magnification, lim.maxUsefulMag);

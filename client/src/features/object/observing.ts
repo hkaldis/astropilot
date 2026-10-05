@@ -52,12 +52,6 @@ export function fieldShape(subject: Subject, tonight: Tonight, night: NightInfo,
   return { kind: "extended", type: o.type, major: o.size[0], minor: o.size[1] ?? o.size[0], pa: pa ?? null };
 }
 
-export function binocularSpec(name: string): { magnification: number; aperture: number; fieldDeg: number } {
-  const m = /(\d+(?:\.\d+)?)\s*[×x]\s*(\d+)/.exec(name);
-  const mag = m ? Number(m[1]) : 10;
-  return { magnification: mag, aperture: m ? Number(m[2]) : 50, fieldDeg: 65 / mag };
-}
-
 function phaseWord(f: number) {
   if (f < 0.08) return "a thin crescent";
   if (f < 0.42) return "a crescent";

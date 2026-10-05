@@ -31,7 +31,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePrefs } from "@/hooks/usePrefs";
 import { useNow } from "@/hooks/useNow";
 import { useCatalog } from "@/hooks/useCatalog";
-import { useActiveScope } from "@/hooks/useScope";
+import { ratingOptics, useActiveScope } from "@/hooks/useScope";
 import { api, queryClient } from "@/lib/api";
 import { EmptyState, PageHeader, Section, Skel, usePageTitle } from "@/components/common/Page";
 import { TypeGlyph } from "@/components/common/Glyphs";
@@ -129,7 +129,7 @@ export default function PlanPage() {
 
   const sqm = site ? (site.sqm ?? sqmForBortle(site.bortle)) : 21;
   const minAlt = prefs.minAltitude;
-  const ctx = { sqm, apertureMm: scope.scope.aperture, minAlt };
+  const ctx = { sqm, minAlt, ...ratingOptics(scope) };
 
   const planned = (targetsQ.data ?? []).filter((t) => t.status === "planned");
   const done = (targetsQ.data ?? []).filter((t) => t.status !== "planned");
@@ -153,7 +153,7 @@ export default function PlanPage() {
       .map((r): PlanItem => ({ target: null, r, body: false }));
     return [...fromList, ...extra];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [astro, site, planned.map((p) => p.ref).join(","), byId, autoPlan, objects, sqm, scope.scope.aperture, minAlt]);
+  }, [astro, site, planned.map((p) => p.ref).join(","), byId, autoPlan, objects, sqm, scope.scope.aperture, scope.kind, scope.power, minAlt]);
 
   // Deep-sky windows lie inside darkness; planets and the Moon can also be scheduled in twilight (Sun below −6°).
   const runNight = useMemo(() => {
@@ -268,7 +268,8 @@ export default function PlanPage() {
       {astro && (
         <div className="grid gap-3 text-sm sm:grid-cols-3">
           <div className="panel-muted px-4 py-3">
-            <div className="eyebrow">Dark from</div>
+            {/* Named for what the night offers, as on Explore: nautical or civil twilight is not darkness. */}
+            <div className="eyebrow">{astro.night.darkness === "astronomical" ? "Dark from" : astro.night.darkness === "nautical" ? "Darkest (nautical twilight)" : astro.night.darkness === "civil" ? "Brightest twilight only" : "Darkness"}</div>
             <div className="num mt-1 font-medium">
               {astro.night.darkStart ? `${fmt(astro.night.darkStart)} – ${fmt(astro.night.darkEnd)}` : "No full darkness"}
             </div>

@@ -1,10 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ApiLocation, ObservingSite } from "@shared/api";
+import { apiGet, withParams } from "@/lib/api";
 import { store } from "@/lib/storage";
 import { useAuth } from "./useAuth";
 import { fetchSkyBrightness } from "./useSkyBrightness";
 import { bortleForSqm } from "@shared/astro/visibility";
+
+/** An elevation worth using (m): geocoders answer 9999 for "unknown". */
+const plausibleElevation = (m: number | null | undefined) => (typeof m === "number" && Number.isFinite(m) && m > -450 && m < 9000 ? m : null);
 
 interface SiteState {
   /** The site everything is computed for (saved location or guest location). */
@@ -37,7 +41,7 @@ export function locationToSite(l: ApiLocation): ObservingSite | null {
     name: l.name,
     lat: l.latitude,
     lon: l.longitude,
-    elevation: l.elevation,
+    elevation: plausibleElevation(l.elevation),
     timezone: l.timezone,
     bortle: l.bortle,
     sqm: l.sqm,
@@ -49,7 +53,9 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   const q = useQuery<ApiLocation[]>({ queryKey: ["/api/locations"], enabled: !!user });
   const [selectedKey, setSelectedKey] = useState<string | null>(() => store.get<string | null>("ap.siteKey", null));
   const [guest, setGuest] = useState<ObservingSite | null>(() => {
-    const g = store.get<ObservingSite | null>("ap.guestSite", null);
+    const stored = store.get<ObservingSite | null>("ap.guestSite", null);
+    // Places stored before heights were checked may carry a geocoder's 9999 "unknown".
+    const g = stored ? { ...stored, elevation: plausibleElevation(stored.elevation) } : null;
     // Atlas estimates keep their SQM; re-derive the class so it always follows the current Bortle table.
     return g && g.bortleSource === "atlas" && typeof g.sqm === "number" ? { ...g, bortle: bortleForSqm(g.sqm) } : g;
   });
@@ -74,12 +80,35 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setGuestSite = useCallback((s: Omit<ObservingSite, "key" | "locationId">) => {
-    const g: ObservingSite = { ...s, key: "guest", locationId: null, timezone: s.timezone ?? browserTimeZone() };
+    // A place without a known zone keeps none (it's looked up below), never this browser's: a place
+    // picked from far away would get the wrong clock and, near the date line, the wrong nights.
+    const g: ObservingSite = { ...s, key: "guest", locationId: null, elevation: plausibleElevation(s.elevation), timezone: s.timezone ?? null };
     setGuest(g);
     store.set("ap.guestSite", g);
     setSelectedKey("guest");
     store.set("ap.siteKey", "guest");
   }, []);
+
+  // A guest place without a time zone or height gets them from its coordinates.
+  useEffect(() => {
+    if (!guest || (guest.timezone && guest.elevation !== null && guest.elevation !== undefined)) return;
+    let cancelled = false;
+    const { lat, lon } = guest;
+    apiGet<{ timezone: string | null; elevation: number | null }>(withParams("/api/geo/zone", { lat: lat.toFixed(4), lon: lon.toFixed(4) }))
+      .then((geo) => {
+        if (cancelled) return;
+        setGuest((cur) => {
+          if (!cur || cur.lat !== lat || cur.lon !== lon) return cur;
+          const next: ObservingSite = { ...cur, timezone: cur.timezone ?? geo.timezone, elevation: cur.elevation ?? plausibleElevation(geo.elevation) };
+          store.set("ap.guestSite", next);
+          return next;
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [guest?.lat, guest?.lon, guest?.timezone, guest?.elevation]);
 
   // A new guest place gets its sky darkness from the light-pollution atlas unless the user has set it.
   useEffect(() => {

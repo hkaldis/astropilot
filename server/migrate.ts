@@ -18,6 +18,7 @@ const STATEMENTS = [
   `ALTER TABLE observation_sessions ADD COLUMN IF NOT EXISTS title varchar(120)`,
   `ALTER TABLE observation_sessions ADD COLUMN IF NOT EXISTS end_date timestamp`,
   `ALTER TABLE observation_sessions ADD COLUMN IF NOT EXISTS conditions jsonb`,
+  `ALTER TABLE observation_sessions ADD COLUMN IF NOT EXISTS timezone varchar(64)`,
   `ALTER TABLE observations ADD COLUMN IF NOT EXISTS observed_at timestamp`,
   `ALTER TABLE observations ADD COLUMN IF NOT EXISTS catalog_ref varchar(50)`,
   `ALTER TABLE observations ADD COLUMN IF NOT EXISTS seeing integer`,

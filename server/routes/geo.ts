@@ -9,64 +9,10 @@ import type { Express } from "express";
 import { z } from "zod";
 import type { GeoPlace } from "@shared/api";
 import { ah, parse, rateLimit, TTLCache, fetchWithTimeout, USER_AGENT, HttpError } from "../http";
+import { isValidTimeZone, lookupTzElevation, plausibleElevation } from "../services/geoLookup";
 import { skyBrightnessAt } from "../services/lightPollution";
 
 const DAY = 24 * 60 * 60 * 1000;
-
-export function isValidTimeZone(tz: string): boolean {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// ------------------------------------------------------------------------------------
-// Time zone + elevation (Open-Meteo forecast API, keyless)
-// ------------------------------------------------------------------------------------
-
-export interface TzElevation {
-  timezone: string | null;
-  elevation: number | null;
-}
-
-const tzCache = new TTLCache<TzElevation>(DAY, 5000);
-const tzFailures = new TTLCache<true>(10 * 60_000, 1000);
-const tzInFlight = new Map<string, Promise<TzElevation | null>>();
-
-/** IANA time zone and terrain elevation (m, 90 m DEM) for a point. Null if Open-Meteo is unreachable. */
-export function lookupTzElevation(lat: number, lon: number): Promise<TzElevation | null> {
-  const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
-  const hit = tzCache.get(key);
-  if (hit) return Promise.resolve(hit);
-  if (tzFailures.get(key)) return Promise.resolve(null);
-  const pending = tzInFlight.get(key);
-  if (pending) return pending;
-  const p = (async () => {
-    try {
-      const url =
-        `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}` +
-        `&timezone=auto&forecast_days=1&current=temperature_2m`;
-      const r = await fetchWithTimeout(url, { timeoutMs: 6000, headers: { "User-Agent": USER_AGENT, Accept: "application/json" } });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const j: any = await r.json();
-      const timezone = typeof j?.timezone === "string" && isValidTimeZone(j.timezone) ? j.timezone : null;
-      const elevation = typeof j?.elevation === "number" && Number.isFinite(j.elevation) ? Math.round(j.elevation) : null;
-      const v = { timezone, elevation };
-      tzCache.set(key, v);
-      return v;
-    } catch (e: any) {
-      console.warn(`[geo] Open-Meteo lookup failed: ${e?.name === "AbortError" ? "timeout" : e?.message ?? "error"}`);
-      tzFailures.set(key, true);
-      return null;
-    } finally {
-      tzInFlight.delete(key);
-    }
-  })();
-  tzInFlight.set(key, p);
-  return p;
-}
 
 // ------------------------------------------------------------------------------------
 // Nominatim reverse geocoding — globally throttled to 1 request per ~1.1 s
@@ -206,9 +152,20 @@ async function searchPlaces(q: string): Promise<GeoPlace[]> {
       country: typeof p.country === "string" ? p.country : null,
       latitude: p.latitude,
       longitude: p.longitude,
-      elevation: Number.isFinite(p.elevation) ? Math.round(p.elevation) : null,
+      // GeoNames has no height for some places and says 9999 (Tromsø, for one).
+      elevation: plausibleElevation(p.elevation),
       timezone: typeof p.timezone === "string" && isValidTimeZone(p.timezone) ? p.timezone : null,
     }));
+  // Fill a missing height or zone from the terrain model, so a picked place is never left without one.
+  await Promise.all(
+    results
+      .filter((p) => p.elevation === null || p.timezone === null)
+      .map(async (p) => {
+        const geo = await lookupTzElevation(p.latitude, p.longitude);
+        p.elevation ??= geo?.elevation ?? null;
+        p.timezone ??= geo?.timezone ?? null;
+      }),
+  );
   searchCache.set(key, results);
   return results;
 }
@@ -270,6 +227,19 @@ export function registerGeo(app: Express) {
       const { lat, lon } = parse(coordQuery, req.query);
       res.setHeader("Cache-Control", "private, max-age=3600");
       res.json(await reversePlace(lat, lon));
+    }),
+  );
+
+  // Time zone and terrain height alone (no place name), for a place picked without them.
+  app.get(
+    "/api/geo/zone",
+    rateLimit({ windowMs: 60_000, max: 30, message: "Too many location lookups — please wait a moment." }),
+    ah(async (req, res) => {
+      const { lat, lon } = parse(coordQuery, req.query);
+      const geo = await lookupTzElevation(lat, lon);
+      if (!geo?.timezone) throw new HttpError(424, "Couldn't look up the time zone right now.");
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.json(geo);
     }),
   );
 }

@@ -1,5 +1,6 @@
 /** Resolve an object-page id to a catalog object or a solar-system body, and describe its night. */
 import {
+  EXTINCTION_V,
   MOON_BY_ID,
   MOONS,
   PLANET_BY_ID,
@@ -14,6 +15,7 @@ import {
   separationOf,
   skyBrightnessAt,
   type DetectResult,
+  type InstrumentKind,
   type MoonId,
   type MoonMeta,
   type MoonPos,
@@ -24,7 +26,7 @@ import {
 } from "@shared/astro";
 import type { CatalogObject } from "@shared/data/types";
 import { matchRank, norm, searchKeys } from "@/features/explore/search";
-import { altAt, bodyWindow, evaluateBody, peakTime, sampleAt, shownBestTime, type BodyTonight, type NightContext } from "@/features/explore/sky";
+import { altAt, bodyWindow, evaluateBody, frameIndex, peakTime, sampleAt, shownBestTime, type BodyTonight, type NightContext } from "@/features/explore/sky";
 import type { QualityKey } from "@/lib/objects";
 
 export type Subject =
@@ -117,22 +119,37 @@ export interface Tonight {
 /** Where a planet's moons are: positions at any moment, and whether they are still loading. */
 type MoonSource = { at: (t: number) => MoonPos[] | null; status?: "ready" | "loading" | "error" };
 
-export function tonightFor(subject: Subject, ctx: NightContext, apertureMm: number, system?: MoonSource | null): Tonight {
+/**
+ * The Moon at the moment shown as best, and the sky there without it (same altitude, same twilight), so
+ * "the Moon brightens the sky by X" is moonlight alone, at the time it names.
+ */
+function moonAtBest(ctx: NightContext, track: ObjectTrack, t: number | null, ra: number, dec: number) {
+  const nf = ctx.frames;
+  if (t === null || track.maxAlt <= 0 || !nf.times.length) return { track, skyNoMoon: null };
+  const i = frameIndex(nf, t);
+  const m = nf.moon[i];
+  return {
+    track: { ...track, moonAltAtBest: m.alt, moonSepAtBest: separation(ra, dec, m.ra, m.dec) },
+    skyNoMoon: skyBrightnessAt(ctx.sqm, Math.max(altAt(track, t), 1), null, EXTINCTION_V, nf.sunAlt[i]),
+  };
+}
+
+export function tonightFor(subject: Subject, ctx: NightContext, apertureMm: number, system?: MoonSource | null, optics?: { instrument?: InstrumentKind; power?: number | null }): Tonight {
   const nf = ctx.frames;
   if (subject.kind === "satellite") return satelliteTonight(subject, ctx, apertureMm, system ?? null);
   if (subject.kind === "deep") {
-    const r = evaluateTarget(subject.obj, nf, { sqm: ctx.sqm, apertureMm, minAlt: ctx.minAlt });
+    const r = evaluateTarget(subject.obj, nf, { sqm: ctx.sqm, apertureMm, minAlt: ctx.minAlt, ...optics });
     const best = sampleAt(r.track, r.bestTime);
-    const alt = Math.max(r.track.maxAlt, 1);
+    const mb = moonAtBest(ctx, r.track, r.bestTime, subject.obj.ra, subject.obj.dec);
     return {
-      track: r.track,
+      track: mb.track,
       points: r.track.points,
       detect: r.detect,
       bestTime: shownBestTime(r.bestTime, r.track, nf.darkStart, nf.darkEnd),
       peakTime: peakTime(r.track, nf.darkStart, nf.darkEnd),
       darkStart: nf.darkStart,
       darkEnd: nf.darkEnd,
-      skyNoMoon: r.track.maxAlt > 0 ? skyBrightnessAt(ctx.sqm, alt, null) : null,
+      skyNoMoon: mb.skyNoMoon,
       skyWithMoon: r.track.maxAlt > 0 ? r.detect.skySB : null,
       body: null,
       score: r.score,
@@ -143,8 +160,9 @@ export function tonightFor(subject: Subject, ctx: NightContext, apertureMm: numb
   const b = evaluateBody(subject.id, ctx, apertureMm);
   const [darkStart, darkEnd] = bodyWindow(ctx.night, nf);
   const best = sampleAt(b.track, b.bestTime);
+  const mb = moonAtBest(ctx, b.track, b.bestTime, b.state.raJ2000, b.state.decJ2000);
   return {
-    track: b.track,
+    track: subject.id === "moon" ? b.track : mb.track,
     points: b.track.points,
     detect: b.detect,
     // A body's best moment is its highest one.
@@ -152,7 +170,7 @@ export function tonightFor(subject: Subject, ctx: NightContext, apertureMm: numb
     peakTime: b.peakTime,
     darkStart,
     darkEnd,
-    skyNoMoon: b.detect && b.track.maxAlt > 0 ? skyBrightnessAt(ctx.sqm, Math.max(b.track.maxAlt, 1), null) : null,
+    skyNoMoon: b.detect ? mb.skyNoMoon : null,
     skyWithMoon: b.detect && b.track.maxAlt > 0 ? b.detect.skySB : null,
     body: b,
     score: null,
@@ -211,7 +229,7 @@ function satelliteTonight(subject: Extract<Subject, { kind: "satellite" }>, ctx:
     peakTime: b.peakTime,
     darkStart,
     darkEnd,
-    skyNoMoon: best && b.track.maxAlt > 0 ? skyBrightnessAt(ctx.sqm, Math.max(best.alt, 1), null) : null,
+    skyNoMoon: best && b.track.maxAlt > 0 ? skyBrightnessAt(ctx.sqm, Math.max(best.alt, 1), null, EXTINCTION_V, nf.sunAlt[best.i]) : null,
     skyWithMoon: best?.detect.skySB ?? null,
     body: b,
     score: null,
@@ -233,10 +251,14 @@ export interface Verdict {
 
 const NEAR = 12 * 60_000;
 
-/** Does an object at this declination ever rise / ever set at this latitude? */
+/** Refraction at the horizon (deg): it lifts everything by about this much, as every altitude in the app includes. */
+const HORIZON_REFRACTION = 0.57;
+
+/** Does an object at this declination ever rise / ever set at this latitude (refraction included, like the altitudes shown)? */
 export function horizonClass(lat: number, dec: number): "never-rises" | "circumpolar" | "normal" {
-  if (lat >= 0 ? dec < lat - 90 : dec > lat + 90) return "never-rises";
-  if (lat >= 0 ? dec > 90 - lat : dec < -90 - lat) return "circumpolar";
+  const r = HORIZON_REFRACTION;
+  if (lat >= 0 ? dec < lat - 90 - r : dec > lat + 90 + r) return "never-rises";
+  if (lat >= 0 ? dec > 90 - lat - r : dec < -90 - lat + r) return "circumpolar";
   return "normal";
 }
 
@@ -253,6 +275,18 @@ export function verdictFor(t: Tonight, ctx: NightContext, opts: { dec?: number; 
       tone: "bad",
       headline: "Never rises from here",
       detail: `At latitude ${latStr} it stays below the horizon all year — you'd need to travel ${lat >= 0 ? "south" : "north"} to see it.`,
+    };
+  }
+  if (tr.noDarkness) {
+    // Midnight sun or white nights: no observing time at all, but say how high it gets rather than "below the horizon".
+    const why = ctx.night.sunNeverSets ? "The Sun doesn't set tonight" : "The sky stays bright all night";
+    return {
+      tone: "bad",
+      headline: "No darkness tonight",
+      detail:
+        tr.maxAlt > 0
+          ? `${why} — it reaches ${Math.round(tr.maxAlt)}° (${formatTime(tr.maxAltTime, tf)}), but against a ${ctx.night.sunNeverSets ? "daylit" : "twilit"} sky.${opts.isBody ? "" : " It comes back when the nights darken again."}`
+          : `${why}, and it stays below the horizon too.`,
     };
   }
   if (tr.maxAlt < 0) {

@@ -11,6 +11,7 @@ import {
   objectTrack,
   type CometInfo,
   type Difficulty,
+  type InstrumentKind,
   type NightFrames,
   type NightInfo,
 } from "@shared/astro";
@@ -61,7 +62,7 @@ export interface CometTonight {
 /** A comet's coma is roughly a few arcminutes when it's bright, an arcminute when faint (a rough guide for visibility). */
 const comaArcmin = (mag: number) => Math.min(30, Math.max(1.5, 2 * Math.pow(10, (10 - mag) / 5)));
 
-export function cometsTonight(list: CometInfo[], ctx: CometNight, apertureMm: number): CometTonight[] {
+export function cometsTonight(list: CometInfo[], ctx: CometNight, apertureMm: number, instrument?: { instrument?: InstrumentKind; power?: number | null }): CometTonight[] {
   const out: CometTonight[] = [];
   for (const comet of list) {
     const p = cometAt(comet.ephemeris, ctx.night.solarMidnight);
@@ -70,7 +71,7 @@ export function cometsTonight(list: CometInfo[], ctx: CometNight, apertureMm: nu
     if (!track.window) continue;
     const det = detectability(
       { type: "globular_cluster", mag: p.mag, size: [comaArcmin(p.mag)] },
-      { sqmZenith: ctx.sqm, apertureMm, alt: Math.max(track.maxAlt, 1) },
+      { sqmZenith: ctx.sqm, apertureMm, ...instrument, alt: Math.max(track.maxAlt, 1) },
     );
     if (det.difficulty === "out of reach") continue;
     out.push({
@@ -128,7 +129,7 @@ export function CometStrip({
   const showAll = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("comets") === "all";
   const rows = useMemo(() => {
     if (!q.data) return [];
-    if (!showAll) return cometsTonight(q.data.comets, ctx, aperture);
+    if (!showAll) return cometsTonight(q.data.comets, ctx, aperture, apertureMm === undefined ? { instrument: scope.kind, power: scope.power } : undefined);
     // Debug view (?comets=all): every listed comet, even out of reach.
     return q.data.comets.flatMap((comet) => {
       const p = cometAt(comet.ephemeris, ctx.night.solarMidnight);
@@ -148,7 +149,8 @@ export function CometStrip({
         },
       ];
     });
-  }, [q.data, ctx, aperture, showAll]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q.data, ctx, aperture, showAll, scope.kind, scope.power]);
   if (!rows.length) return null;
   const tf = { tz: ctx.tz, hour12: ctx.hour12 };
   const note = "Predicted brightness from NASA/JPL — comets often surprise by a magnitude or two.";

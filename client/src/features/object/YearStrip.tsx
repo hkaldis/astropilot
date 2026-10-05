@@ -36,13 +36,21 @@ export function yearAltitudes(site: Site, now: number, pos: { ra: number; dec: n
   return out;
 }
 
-/** Months (calendar order, may wrap the year end) where the object is near its best at midnight. */
+/** Twilight brighter than this at midnight (Sun above −12°) means no real night for deep-sky objects. */
+const BRIGHT_SUN_ALT = -12;
+
+/**
+ * Months (calendar order, may wrap the year end) where the object is near its best at midnight — among the
+ * months that have a dark night at all (far north or south, summer's are bright all night).
+ */
 export function bestMonths(months: YearMonth[], minAlt: number): string | null {
-  const peak = Math.max(...months.map((m) => m.alt));
+  const dark = months.filter((m) => m.sunAlt <= BRIGHT_SUN_ALT);
+  if (!dark.length) return null;
+  const peak = Math.max(...dark.map((m) => m.alt));
   if (peak < minAlt) return null;
   const thr = Math.max(minAlt, peak * 0.85);
   const good = Array.from({ length: 12 }, () => false);
-  for (const m of months) if (m.alt >= thr) good[m.month] = true;
+  for (const m of dark) if (m.alt >= thr) good[m.month] = true;
   if (good.every(Boolean)) return "all year";
   // Walk the calendar circle starting just after a "bad" month, so runs never get split.
   const s = (good.findIndex((g, i) => !g && good[(i + 1) % 12]) + 1) % 12;
@@ -86,7 +94,7 @@ export function YearStrip({ months, minAlt, className }: { months: YearMonth[]; 
       <div className="grid grid-cols-12 items-end gap-1" role="list" aria-label="Highest altitude around midnight, month by month">
         {months.map((m, i) => {
           const h = Math.max(0, Math.min(90, m.alt)) / 90;
-          const bright = m.sunAlt > -12;
+          const bright = m.sunAlt > BRIGHT_SUN_ALT;
           return (
             <div
               key={`${m.year}-${m.month}`}

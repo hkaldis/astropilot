@@ -7,7 +7,7 @@ import { locations } from "@shared/schema";
 import type { ApiLocation } from "@shared/api";
 import { bortleForSqm } from "@shared/astro/visibility";
 import { ah, parse, requireAuth, userId, idParam, HttpError } from "../http";
-import { isValidTimeZone, lookupTzElevation } from "./geo";
+import { isValidTimeZone, lookupTzElevation } from "../services/geoLookup";
 
 type LocationRow = typeof locations.$inferSelect;
 

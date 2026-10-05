@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { upcomingEvents, formatDate, formatMag, formatTime } from "@shared/astro";
+import { addDays, currentNightDate, upcomingEvents, formatDate, formatMag, formatTime, nightDateOf, nightOf } from "@shared/astro";
 import type { ObservingSite } from "@shared/api";
 import type { IssPass, SpaceWeather, StationId } from "@shared/forecast";
 import { Skel } from "@/components/common/Page";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { withParams } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { stagger, useCountUp, useReducedMotion } from "@/lib/motion";
+import { useNow } from "@/hooks/useNow";
 
 const KIND_DOT: Record<string, string> = {
   moon: "bg-gold",
@@ -22,18 +23,29 @@ const KIND_DOT: Record<string, string> = {
 
 export function EventsList({ site, now, tz, hour12, limit = 7 }: { site: ObservingSite; now: number; tz?: string; hour12?: boolean; limit?: number }) {
   const day = Math.floor(now / 86_400_000);
-  const events = useMemo(
-    () => upcomingEvents(day * 86_400_000, 50, { lat: site.lat, lon: site.lon }).filter((e) => e.importance >= 2 && e.time > now - 86_400_000).slice(0, limit),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [day, site.lat, site.lon, limit],
-  );
+  const all = useMemo(() => {
+    const s = { lat: site.lat, lon: site.lon, elevation: site.elevation ?? 0, timezone: site.timezone };
+    return upcomingEvents(day * 86_400_000, 50, s)
+      .filter((e) => e.importance >= 2)
+      .map((e) => {
+        // Listed while still ahead or under way: a shower until its peak night is over, an eclipse until it ends.
+        if (e.kind !== "meteor") return { e, until: e.end ?? e.time };
+        const n = nightOf(nightDateOf(e.time, s), s);
+        return { e, until: Math.max(e.end ?? 0, n.sunrise ?? n.nextNoon) };
+      });
+  }, [day, site.lat, site.lon, site.elevation, site.timezone]);
+  const events = all
+    .filter((x) => x.until > now)
+    .map((x) => x.e)
+    .slice(0, limit);
+  const fmt = (t: number) => formatTime(t, { tz, hour12 });
   return (
     <ol className="flex flex-col">
       {events.map((e, i) => (
         <li key={e.id} className="flex animate-rise gap-3 border-b py-2.5 last:border-b-0" style={stagger(i, 45)}>
           <div className="w-14 shrink-0 text-right">
             <div className="num text-xs font-medium">{formatDate(e.time, { tz })}</div>
-            {(e.kind === "moon" || e.kind === "eclipse" || e.kind === "opposition") && <div className="num text-2xs text-muted-foreground">{formatTime(e.time, { tz, hour12 })}</div>}
+            {(e.kind === "moon" || e.kind === "eclipse" || e.kind === "opposition" || e.kind === "conjunction") && <div className="num text-2xs text-muted-foreground">{fmt(e.time)}</div>}
           </div>
           <span className="relative mt-1.5 h-2 w-2 shrink-0">
             {/* Imminent (within three days): a soft pulse. */}
@@ -43,6 +55,11 @@ export function EventsList({ site, now, tz, hour12, limit = 7 }: { site: Observi
           <div className="min-w-0">
             <div className="text-sm font-medium leading-snug">{e.title}</div>
             <div className="text-xs text-muted-foreground">{e.detail}</div>
+            {e.start !== undefined && e.end !== undefined && (
+              <div className="num mt-0.5 text-2xs text-muted-foreground">
+                {e.kind === "meteor" ? "Best" : e.daytime ? "In your sky" : "Visible"} {fmt(e.start)}–{fmt(e.end)}
+              </div>
+            )}
           </div>
         </li>
       ))}
@@ -58,7 +75,6 @@ const STATIONS: { id: StationId; name: string; reach: number }[] = [
   { id: "iss", name: "ISS", reach: 64.1 },
   { id: "tiangong", name: "Tiangong", reach: 53.3 },
 ];
-const DAY = 86_400_000;
 const satOf = (p: IssPass) => p.sat ?? "iss";
 
 /** "Thu 15 Oct, 19:42" in the site's time zone. */
@@ -128,14 +144,19 @@ function PassTrack({ p, live }: { p: IssPass; live: boolean }) {
   );
 }
 
-/** Visible passes of the crewed stations (ISS and Tiangong) over the next three nights. */
-export function IssPasses({ site, tz, hour12, until }: { site: ObservingSite; tz?: string; hour12?: boolean; until: number }) {
+/** Visible passes of the crewed stations (ISS and Tiangong) over the current night and the next two (whichever night is selected). */
+export function IssPasses({ site, tz, hour12 }: { site: ObservingSite; tz?: string; hour12?: boolean }) {
   const q = useQuery<IssPass[]>({
     queryKey: [withParams("/api/satellites/passes", { lat: site.lat.toFixed(3), lon: site.lon.toFixed(3), elev: Math.round(site.elevation ?? 0) })],
     staleTime: 30 * 60_000,
+    refetchInterval: 30 * 60_000,
     retry: 1,
   });
   const reduced = useReducedMotion();
+  const now = useNow();
+  const tonight = currentNightDate(now, site);
+  // The end of the night after next, at the site.
+  const horizon = useMemo(() => nightOf(addDays(tonight, 2), site).nextNoon, [tonight, site.lat, site.lon, site.elevation, site.timezone]); // eslint-disable-line react-hooks/exhaustive-deps
   if (q.isLoading) return <Skel className="h-24 w-full" />;
   // An error only matters when there's nothing to show (a failed background refresh keeps the last list).
   if (!q.data)
@@ -148,9 +169,10 @@ export function IssPasses({ site, tz, hour12, until }: { site: ObservingSite; tz
         </Button>
       </div>
     );
-  const horizon = until + 2 * DAY; // tonight and the next two nights
-  const soon = q.data.filter((p) => p.visible && p.start < horizon).slice(0, 4);
-  const notes = STATIONS.filter((st) => !soon.some((p) => satOf(p) === st.id)).map((st) => ({ id: st.id, text: stationNote(st, site.lat, q.data, tz, hour12) }));
+  // Passes that are over drop out while the page stays open (the list is fetched every half hour).
+  const ahead = q.data.filter((p) => p.end > now);
+  const soon = ahead.filter((p) => p.visible && p.start < horizon).slice(0, 4);
+  const notes = STATIONS.filter((st) => !soon.some((p) => satOf(p) === st.id)).map((st) => ({ id: st.id, text: stationNote(st, site.lat, ahead, tz, hour12) }));
   return (
     <div className="flex flex-col gap-2.5">
       {soon.length > 0 ? (

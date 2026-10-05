@@ -1,5 +1,5 @@
 import { useId, useRef } from "react";
-import { BORTLE } from "@shared/astro/visibility";
+import { BORTLE, nelmFromSqm } from "@shared/astro/visibility";
 import { cn } from "@/lib/utils";
 
 /** Sky colour for each Bortle class, darkest to brightest (theme tokens, so light/night modes stay right). */
@@ -91,7 +91,8 @@ export function BortleExplainer({
       <p className="mt-0.5 text-xs text-muted-foreground">{b.description}</p>
       <p className="num mt-1 text-2xs text-muted-foreground">
         {sqm ? `${sqmKind === "atlas" ? "Atlas estimate" : "Measured"} SQM ${sqm.toFixed(2)}` : `Typical SQM ${b.sqm.toFixed(1)}`} mag/arcsec² · naked-eye limit ≈{" "}
-        {b.nelm.toFixed(1)}
+        {/* The same limit every rating in the app uses (overhead, for this sky brightness). */}
+        {nelmFromSqm(sqm ?? b.sqm).toFixed(1)}
       </p>
     </div>
   );

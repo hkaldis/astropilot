@@ -59,7 +59,16 @@ export const AltitudeSparkline = memo(function AltitudeSparkline({
     }
   }
 
-  const bestPt = best ? points.find((p) => p.t === best) : undefined;
+  // The best moment can fall between samples (a refined transit, the edge of darkness): place it on the curve.
+  let bestPt: { t: number; alt: number } | undefined;
+  if (best) {
+    const i = points.findIndex((p) => p.t >= best);
+    if (i === 0) bestPt = points[0];
+    else if (i > 0) {
+      const [a, b] = [points[i - 1], points[i]];
+      bestPt = { t: best, alt: a.alt + ((b.alt - a.alt) * (best - a.t)) / (b.t - a.t) };
+    }
+  }
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className={cn("overflow-visible", className)} aria-hidden="true">
       <rect x={0} y={0} width={width} height={height} rx={3} className="fill-muted/40" />

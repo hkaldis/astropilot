@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { ChevronRight, Sun, Telescope } from "lucide-react";
-import { rankTargets, sqmForBortle, sunAltitude, formatDate, formatTime, formatMag, HOUR_MS, type NightFrames, type NightInfo, type RankedTarget, type Site } from "@shared/astro";
+import { addDays, nightOf, rankTargets, sqmForBortle, sunAltitude, formatDate, formatTime, formatMag, HOUR_MS, type NightFrames, type NightInfo, type RankedTarget, type Site } from "@shared/astro";
 import type { ObservingSite } from "@shared/api";
 import type { CatalogObject } from "@shared/data/types";
 import { useCatalog } from "@/hooks/useCatalog";
-import { useActiveScope, SCOPE_PRESETS } from "@/hooks/useScope";
+import { ratingOptics, useActiveScope, SCOPE_PRESETS } from "@/hooks/useScope";
 import { usePrefs } from "@/hooks/usePrefs";
 import { TypeGlyph } from "@/components/common/Glyphs";
 import { Skel } from "@/components/common/Page";
@@ -89,12 +89,18 @@ function instrumentPhrase(s: ReturnType<typeof useActiveScope>) {
   return `${/^(8|11|18)(\D|$)|^8\d/.test(s.scope.name) ? "an" : "a"} ${s.scope.name}`;
 }
 
-/** The first evening after `date` whose Sun gets well below −18° (≈ the engine's full darkness), up to a year ahead. */
+/**
+ * The first evening after `date` with full darkness by the app's own rule (what every page then shows: at
+ * least 1.5 h of astronomical darkness), up to a year ahead. A quick look at the Sun at midnight skips the
+ * nights that can't qualify.
+ */
 function fullDarknessReturns(date: string, site: Site): number | null {
   const [y, m, d] = date.split("-").map(Number);
   for (let i = 1; i <= 366; i++) {
     const midnight = Date.UTC(y, m - 1, d + i + 1) - (site.lon / 15) * HOUR_MS; // local mean solar midnight
-    if (sunAltitude(midnight, site) < -18.5) return Date.UTC(y, m - 1, d + i, 12);
+    if (sunAltitude(midnight, site) >= -17.5) continue;
+    const evening = addDays(date, i);
+    if (nightOf(evening, site).darkness === "astronomical") return Date.UTC(y, m - 1, d + i, 12);
   }
   return null;
 }
@@ -147,10 +153,10 @@ export function BestTargets({
   const ranked = useMemo(() => {
     if (!objects.length || noDark) return [] as RankedTarget<CatalogObject>[];
     const types = CHIPS.find((c) => c.id === chip)?.types;
-    return rankTargets(objects, frames, { sqm, apertureMm: scope.scope.aperture, minAlt: prefs.minAltitude }, { limit: 24, perTypeCap: chip === "all" ? 3 : undefined, types }).filter(
+    return rankTargets(objects, frames, { sqm, minAlt: prefs.minAltitude, ...ratingOptics(scope) }, { limit: 24, perTypeCap: chip === "all" ? 3 : undefined, types }).filter(
       (r) => r.score >= 25 && r.detect.difficulty !== "out of reach",
     );
-  }, [objects, frames, sqm, scope.scope.aperture, prefs.minAltitude, chip, noDark]);
+  }, [objects, frames, sqm, scope.scope.aperture, scope.kind, scope.power, prefs.minAltitude, chip, noDark]);
 
   if (noDark) return <NoDarkness night={night} frames={frames} site={site} isTonight={isTonight} />;
 

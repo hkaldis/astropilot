@@ -58,7 +58,7 @@ function SignedInJournal() {
   return (
     <div className="flex flex-col gap-10">
       <JournalHeader canExport={s.observations > 0} />
-      <StatsStrip stats={s} estimatedSessions={estimatedSessions} />
+      <StatsStrip stats={s} estimatedSessions={estimatedSessions} firstYear={firstNightYear(list, locations)} />
       {s.achievements?.length ? <AchievementSummary stats={s} /> : null}
       <ProgressSection stats={s} />
       <Section title="Sessions" description="Every night you've logged, newest first.">
@@ -90,14 +90,21 @@ function JournalHeader({ canExport }: { canExport: boolean }) {
   );
 }
 
-function StatsStrip({ stats, estimatedSessions }: { stats: JournalStats; estimatedSessions: number }) {
+/** The year of the first session's night, at its own place (not in this browser's zone). */
+function firstNightYear(list: ApiSession[], locations: ApiLocation[]): string | null {
+  if (!list.length) return null;
+  const first = list.reduce((a, b) => (Date.parse(b.date) < Date.parse(a.date) ? b : a));
+  return sessionNight(first, locations).slice(0, 4);
+}
+
+function StatsStrip({ stats, estimatedSessions, firstYear }: { stats: JournalStats; estimatedSessions: number; firstYear: string | null }) {
   const hours = stats.hoursObserved;
   const hoursOf = (h: number) => `${estimatedSessions > 0 ? "≈" : ""}${hours < 10 ? h.toFixed(1) : Math.round(h)}`;
   const hoursText = <CountUp value={hours} format={hoursOf} />;
   return (
     <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-4">
       {[
-        { label: "Sessions", value: <CountUp value={stats.sessions} />, sub: stats.firstSession ? `since ${new Date(stats.firstSession).getFullYear()}` : null },
+        { label: "Sessions", value: <CountUp value={stats.sessions} />, sub: firstYear ? `since ${firstYear}` : null },
         { label: "Objects", value: <CountUp value={stats.uniqueObjects} />, sub: `${stats.observations} observation${stats.observations === 1 ? "" : "s"}` },
         {
           label: "Hours",

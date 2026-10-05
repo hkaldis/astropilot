@@ -136,7 +136,7 @@ export default function TonightPage() {
             <EventsList site={site} now={now} tz={tz} hour12={hour12} />
           </Section>
           <Section title="Space stations">
-            <IssPasses site={site} tz={tz} hour12={hour12} until={ctx.night.nextNoon} />
+            <IssPasses site={site} tz={tz} hour12={hour12} />
           </Section>
           <Section title="Aurora">
             <AuroraNote site={site} />

@@ -24,7 +24,8 @@ Works without an account (guest location and a typical instrument); an account s
 
 - **Positions & times**: [astronomy-engine](https://github.com/cosinekitty/astronomy) — VSOP87, full lunar theory, IAU 2006
   precession, nutation, aberration and refraction. Nights are anchored to the site's local *solar* time, so twilight, darkness
-  and "tonight" are correct anywhere on Earth (polar day/night included).
+  and "tonight" are correct anywhere on Earth (polar day/night included); twilight is judged on the Sun's geometric altitude.
+  Planet magnitudes follow Mallama & Hilton (2018), as JPL Horizons does (`shared/astro/planets.ts`).
 - **Sky brightness**: Bortle → zenith SQM, airmass extinction, and moonlight from the Krisciunas & Schaefer (1991) model at the
   object's position. A new site's zenith SQM / Bortle is estimated from D. J. Lorenz's World Atlas of Artificial Night Sky
   Brightness (2025, VIIRS) binary tiles (`server/services/lightPollution.ts`, `GET /api/geo/sky-brightness`).
@@ -32,13 +33,16 @@ Works without an account (guest location and a typical instrument); an account s
   de Vries–Rose background scaling), the best magnification the instrument offers, separate bright cores/regions,
   twilight (skycalc's Meinel fit) and moonlight; constants fitted to ~210 observing judgments
   (`shared/astro/visibility.ts`).
-- **Events**: IMO solar-longitude meteor peaks with radiant altitude, topocentric conjunctions/occultations,
-  eclipse visibility over all contacts (`shared/astro/events.ts`); comets from JPL SBDB + Horizons
+- **Events**: IMO J2000 solar-longitude meteor peaks with the radiant's height and the Moon at the site, topocentric
+  conjunctions/occultations, eclipses timed and judged at the site over all contacts (`shared/astro/events.ts`); comets from JPL SBDB + Horizons
   (`server/services/comets.ts`, `shared/astro/comets.ts`); the planets' moons — Jupiter's computed in the
   app with transits, shadow transits, eclipses and occultations, the others from JPL Horizons
   (`shared/astro/moons.ts`, `server/services/moons.ts`).
 - **Optics**: exit-pupil targets per object class, framing and seeing limits (`shared/astro/optics.ts`).
-- **Forecast**: Open-Meteo NWP + CAMS aerosols (+ 7Timer when available), scored by `shared/astro/conditions.ts`.
+- **Forecast**: Open-Meteo NWP + CAMS aerosols (+ 7Timer when available), on true UTC hours at the site's elevation, scored by
+  `shared/astro/conditions.ts`.
+- **Aurora**: NOAA Kp over the site's dark hours against its corrected geomagnetic latitude, interpolated in a grid traced
+  through the IGRF-14 field (`server/services/spaceWeather.ts`, `server/data/cgm-latitude.json`).
 
 ## Development
 

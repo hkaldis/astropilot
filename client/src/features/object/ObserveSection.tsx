@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Filter, Info } from "lucide-react";
-import { filterAdvice, formatMag, formatTime, idealMagnification, rankEyepieces, scopeLimits, type EyepieceChoice, type MoonPos } from "@shared/astro";
+import { filterAdvice, formatMag, formatTime, idealMagnification, rankEyepieces, resolutionArcsec, scopeLimits, type EyepieceChoice, type MoonPos } from "@shared/astro";
 import { useGear } from "@/hooks/useScope";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import type { ActiveScopeState } from "@/features/explore/InstrumentBar";
 import type { NightContext } from "@/features/explore/sky";
 import { FieldView, angleLabel } from "./FieldView";
-import { binocularSpec, fieldShape, moonNotes, opticsTarget, planetFilterAdvice, planetNotes } from "./observing";
+import { fieldShape, moonNotes, opticsTarget, planetFilterAdvice, planetNotes } from "./observing";
 import type { Subject, Tonight } from "./model";
 
 const VERDICT_TONE = { ideal: "excellent", good: "good", usable: "fair", poor: "poor" } as const;
@@ -107,7 +107,10 @@ export function ObserveSection({
   const isDouble = subject.kind === "deep" && subject.obj.type === "double_star";
   const isBino = scope.kind === "binoculars";
   const isEye = scope.kind === "eye";
-  const bino = isBino ? binocularSpec(scope.scope.name) : null;
+  // The binoculars' own power and aperture (from the gear or preset), not just a "10×50" read from the name.
+  const bino = isBino ? { magnification: scope.power ?? 10, aperture: scope.scope.aperture, fieldDeg: 65 / (scope.power ?? 10) } : null;
+  // The closest pair this instrument splits: the eye ~2′, binoculars ~2′ over their power, a telescope its Dawes limit.
+  const pairLimit = resolutionArcsec({ apertureMm: isEye ? 7 : scope.scope.aperture, instrument: scope.kind, power: scope.power });
 
   const fieldDeg = chosen ? chosen.setup.trueField : bino ? bino.fieldDeg : null;
   const objSizeArcmin =
@@ -280,10 +283,18 @@ export function ObserveSection({
                 </>
               )}
               .{" "}
-              {subject.obj.sep < limits.dawes ? (
+              {subject.obj.sep < pairLimit ? (
                 <span className="text-q-poor">
-                  That's below your scope's resolution limit of <span className="num">{limits.dawes.toFixed(2)}″</span> (Dawes) — it won't split.
+                  That's below your {isEye ? "eyes'" : isBino ? "binoculars'" : "scope's"} resolution limit of{" "}
+                  <span className="num">{pairLimit < 10 ? pairLimit.toFixed(2) : Math.round(pairLimit)}″</span>
+                  {isEye || isBino ? "" : " (Dawes)"} — it won't split.
                 </span>
+              ) : isEye ? (
+                <>Wide enough to split with the naked eye — the eye separates a pair about 2′ apart.</>
+              ) : isBino ? (
+                <>
+                  Your binoculars split it: at {Math.round(scope.power ?? 10)}× they separate pairs down to about <span className="num">{Math.round(pairLimit)}″</span>.
+                </>
               ) : (
                 <>
                   Splits cleanly from about <span className="num font-medium">{Math.max(Math.ceil(240 / subject.obj.sep), 1)}×</span>
