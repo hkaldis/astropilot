@@ -74,9 +74,8 @@ server/
 
 ## Hosting
 
-AstroPilot runs for free on [Render](https://render.com) (web service, [`render.yaml`](render.yaml)) with a
-[Neon](https://neon.com) Postgres database; every push to `main` deploys automatically. Photos are stored in
-the database (resized in the browser before upload).
+AstroPilot runs on [Render](https://render.com) from [`render.yaml`](render.yaml): a web service and a
+PostgreSQL database; every push to `main` deploys automatically. Photos are stored in the database.
 A [`Dockerfile`](Dockerfile) is included for other hosts. **[docs/hosting.md](docs/hosting.md)** has the
 one-time move from Replit (data copy with `scripts/move-off-replit.sh`, domain switch) and day-to-day notes.
 

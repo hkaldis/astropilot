@@ -11,7 +11,7 @@ set -euo pipefail
 cd "${REPL_HOME:-$PWD}"
 
 : "${DATABASE_URL:?DATABASE_URL isn't set — run this in the Replit Shell of the AstroPilot Repl.}"
-: "${NEW_DATABASE_URL:?Set NEW_DATABASE_URL to the new database's external URL (e.g. the Neon connection string).}"
+: "${NEW_DATABASE_URL:?Set NEW_DATABASE_URL to the new database's external URL (Render → astropilot-db → Connect → External).}"
 if [ "$DATABASE_URL" = "$NEW_DATABASE_URL" ]; then echo "NEW_DATABASE_URL is the current database — stopping."; exit 1; fi
 for tool in pg_dump pg_restore psql; do
   command -v "$tool" >/dev/null || { echo "$tool isn't available in this Repl. Add the PostgreSQL tools (Tools → Packages → postgresql) and run again."; exit 1; }
@@ -29,9 +29,6 @@ echo "→ Dumping the Replit database ($(pg_dump --version))"
 DUMP="$(mktemp -d)/astropilot.dump"
 pg_dump "$DATABASE_URL" --format=custom --no-owner --no-privileges --file="$DUMP"
 echo "  $(du -h "$DUMP" | cut -f1) dump"
-if [ "$(du -m "$DUMP" | cut -f1)" -gt 400 ]; then
-  echo "  Note: that's large for Neon's free plan (0.5 GB). If the restore stops with a size error, upgrade the Neon plan or ask for help before switching."
-fi
 
 echo "→ Restoring into the new database"
 pg_restore --no-owner --no-privileges --clean --if-exists --exit-on-error --dbname="$NEW_DATABASE_URL" "$DUMP"
@@ -45,4 +42,4 @@ for t in users sessions locations telescopes eyepieces observation_sessions obse
   printf "  %-22s %8s → %-8s %s\n" "$t" "$a" "$b" "$mark"
 done
 rm -f "$DUMP"
-if [ "$ok" = 1 ]; then echo "✓ All data copied. Next: follow docs/hosting.md (create the app on Render, then switch the domain)."; else echo "Some counts differ — don't switch the domain yet; check the messages above."; exit 1; fi
+if [ "$ok" = 1 ]; then echo "✓ All data copied. Next: follow docs/hosting.md to switch astropilot.space to the new host."; else echo "Some counts differ — don't switch the domain yet; check the messages above."; exit 1; fi
