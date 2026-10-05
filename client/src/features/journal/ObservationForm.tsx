@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { useNow } from "@/hooks/useNow";
 import { useCatalog } from "@/hooks/useCatalog";
 import { SOLAR_SYSTEM } from "@shared/astro/planets";
+import { isMoonId } from "@shared/astro/moons";
 import { NativeSelect, ScaleInput, StarRatingInput } from "./controls";
 import { ObjectPicker } from "./ObjectPicker";
 import { photoProblem } from "./api";
@@ -102,7 +103,15 @@ export function ObservationForm({
   const { byId } = useCatalog();
   const objectType =
     v.objectType ??
-    (v.ref ? (SOLAR_SYSTEM.some((p) => p.id === v.ref!.toLowerCase()) ? (v.ref.toLowerCase() === "moon" ? "moon" : "planet") : (byId.get(v.ref.toUpperCase())?.type ?? null)) : null);
+    (v.ref
+      ? SOLAR_SYSTEM.some((p) => p.id === v.ref!.toLowerCase())
+        ? v.ref.toLowerCase() === "moon"
+          ? "moon"
+          : "planet"
+        : isMoonId(v.ref)
+          ? "satellite"
+          : (byId.get(v.ref.toUpperCase())?.type ?? null)
+      : null);
   const mag = computedMagnification(v, gear);
   const hasGear = !!gear && gear.telescopes.length + gear.eyepieces.length > 0;
   const previews = useMemo(() => files.map((f) => ({ f, url: URL.createObjectURL(f) })), [files]);

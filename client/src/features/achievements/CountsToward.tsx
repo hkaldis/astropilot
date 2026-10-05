@@ -7,7 +7,7 @@ import { useJournalStats } from "@/features/journal/api";
 import { familiesFor } from "./model";
 
 /** Collections and catch-all feats are too broad to be worth a chip; keep the lists people work through. */
-const SHOWN = new Set(["messier", "caldwell", "showpieces", "solar", "doubles", "winter", "spring", "summer", "autumn", "southern", "tight-double", "faint"]);
+const SHOWN = new Set(["messier", "caldwell", "showpieces", "solar", "moons", "doubles", "winter", "spring", "summer", "autumn", "southern", "tight-double", "faint"]);
 
 export function CountsToward({ obj }: { obj: { id: string; type: string; m?: number; c?: number; showpiece?: boolean; con?: string; mag?: number; sep?: number; dec?: number } }) {
   const { user } = useAuth();

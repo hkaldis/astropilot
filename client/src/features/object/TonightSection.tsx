@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Compass, Moon as MoonIcon, Gauge } from "lucide-react";
+import { Compass, Moon as MoonIcon, Gauge, Orbit } from "lucide-react";
 import { formatDate, formatNightDate, formatTime, moonQuarters, surfaceBrightnessArcsec } from "@shared/astro";
 import { AltitudeChart, twilightBands, type AltitudeSeries } from "@/components/charts/AltitudeChart";
 import { MoonGlyph } from "@/components/common/Glyphs";
@@ -11,6 +11,9 @@ import { moonPoints, sampleAt, type NightContext } from "@/features/explore/sky"
 import { verdictFor, whereToLook, type Subject, type Tonight } from "./model";
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const arcText = (arcsec: number) => (arcsec < 60 ? `${Math.round(arcsec)}″` : `${(arcsec / 60).toFixed(arcsec < 600 ? 1 : 0)}′`);
+const DIRS = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
+const dirWord = (dx: number, dy: number) => DIRS[Math.round((((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360) / 45) % 8];
 
 function Fact({ icon, title, children }: { icon: React.ReactNode; title: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -29,10 +32,12 @@ export function TonightSection({ subject, tonight, ctx, scope }: { subject: Subj
   const night = ctx.night;
   const nf = ctx.frames;
   const isMoon = subject.kind === "body" && subject.id === "moon";
+  // Planets and their moons are observed from twilight, along the planet's real motion.
+  const bodyLike = subject.kind !== "deep";
   const verdict = verdictFor(tonight, ctx, {
     dec: subject.kind === "deep" ? subject.obj.dec : undefined,
-    isBody: subject.kind === "body",
-    elongation: subject.kind === "body" && subject.id !== "moon" ? tonight.body?.state.elongation : undefined,
+    isBody: bodyLike,
+    elongation: bodyLike && !isMoon ? tonight.body?.state.elongation : undefined,
   });
   const tr = tonight.track;
 
@@ -76,8 +81,8 @@ export function TonightSection({ subject, tonight, ctx, scope }: { subject: Subj
   const bestAlt = tonight.bestAlt ?? tr.maxAlt;
   const look = tonight.bestTime !== null && tonight.bestAz !== null && tr.maxAlt > 0 ? whereToLook(bestAlt, tonight.bestAz) : null;
   const nextPhase = useMemo(() => (isMoon ? (moonQuarters(ctx.now, 30)[0] ?? null) : null), [isMoon, Math.floor(ctx.now / 3_600_000)]);
-  // Moonlight and sky brightness only matter for faint things (deep sky, Uranus, Neptune).
-  const faint = subject.kind === "deep" || (tonight.body?.state.mag ?? -5) > 5;
+  // Moonlight and sky brightness only matter for faint things (deep sky, Uranus, Neptune, planets' moons).
+  const faint = subject.kind === "deep" || (subject.kind === "satellite" ? (tonight.satellite?.mag ?? 99) : (tonight.body?.state.mag ?? -5)) > 5;
 
   // Rise / highest / set, restricted to tonight (sunset → sunrise) and in time order.
   const bodyEvents = (() => {
@@ -123,7 +128,7 @@ export function TonightSection({ subject, tonight, ctx, scope }: { subject: Subj
           minAlt={ctx.minAlt}
           now={ctx.now}
           highlight={tr.window}
-          highlightLabel={subject.kind === "body" ? "observable" : "best window"}
+          highlightLabel={bodyLike ? "observable" : "best window"}
           peak={tonight.peakTime !== null && tr.maxAlt >= 3 ? { t: tonight.peakTime, alt: tr.maxAlt } : null}
           tz={ctx.tz}
           hour12={ctx.hour12}
@@ -206,8 +211,27 @@ export function TonightSection({ subject, tonight, ctx, scope }: { subject: Subj
           )
         )}
 
+        {/* A moon: where it is relative to its planet */}
+        {subject.kind === "satellite" &&
+          tonight.satellite &&
+          (() => {
+            const sat = tonight.satellite;
+            const atStr = formatTime(sat.at, tf);
+            return (
+              <Fact icon={<Orbit className="h-3.5 w-3.5" />} title={`Beside ${subject.parent.name}`}>
+                {sat.typical || !sat.pos
+                  ? `Usually within ${arcText(sat.sep * (Math.PI / 2))} of the planet${sat.loading ? " — working out tonight's position…" : "."}`
+                  : sat.pos.occulted
+                    ? `Hidden behind ${subject.parent.name} at ${atStr} — the slider below shows when it reappears.`
+                    : sat.pos.transit
+                      ? `In front of ${subject.parent.name}'s disk at ${atStr} — hard to pick out until it moves clear.`
+                      : `${arcText(sat.sep)} ${dirWord(sat.pos.dx, sat.pos.dy)} of the planet at ${atStr}.`}
+              </Fact>
+            );
+          })()}
+
         {/* Where to look / planet events */}
-        {subject.kind === "body" && tonight.body ? (
+        {bodyLike && tonight.body ? (
           <Fact icon={<Compass className="h-3.5 w-3.5" />} title={look ? `At ${bestStr}: ${look}` : "Rise and set"}>
             {bodyEvents}
             {tonight.bestAz !== null && look && (

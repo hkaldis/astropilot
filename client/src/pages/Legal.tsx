@@ -34,7 +34,7 @@ function Privacy() {
         <li><strong>OpenStreetMap (Nominatim and map tiles)</strong> — place names and maps for coordinates you choose.</li>
         <li><strong>NOAA SWPC, CelesTrak, SatNOGS and AMSAT</strong> — space weather and space-station orbits, fetched by our server (no personal data sent).</li>
         <li><strong>D. J. Lorenz's light-pollution atlas (GitHub Pages)</strong> — our server downloads the 5° map tile covering a place to estimate its sky darkness (no personal data sent).</li>
-        <li><strong>NASA/JPL Small-Body Database and Horizons</strong> — comet orbits and positions, fetched by our server (no personal data sent).</li>
+        <li><strong>NASA/JPL Small-Body Database and Horizons</strong> — comet orbits and positions, and where the moons of Mars, Saturn, Uranus and Neptune are, fetched by our server (no personal data sent).</li>
         <li><strong>Google</strong> — only if you choose "Continue with Google".</li>
         <li><strong>Stripe</strong> — only if you make a donation; we never see your card details.</li>
         <li>
@@ -102,7 +102,8 @@ function About() {
         <li>
           <strong>Sky events</strong>: meteor-shower peaks from the International Meteor Organization's solar longitudes (with the radiant's altitude for your
           site), conjunctions and occultations computed for your location, and eclipse visibility across all contacts. Comets come from NASA/JPL's Small-Body
-          Database and Horizons.
+          Database and Horizons. Jupiter's moons — with their transits, shadows, eclipses and occultations — are computed in the app (IMCCE's L1 theory); the
+          moons of Mars, Saturn, Uranus and Neptune come from JPL Horizons, and how easy each one is allows for the planet's glare.
         </li>
         <li>
           <strong>The observing forecast</strong> uses Open-Meteo numerical weather models (cloud at three heights, humidity, dew point, wind and jet-stream winds) and

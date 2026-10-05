@@ -100,6 +100,7 @@ export type ViewKind =
   | "nebula"
   | "nebula_large"
   | "open_cluster"
+  | "satellite"
   | "wide";
 
 export function viewKind(o: TargetLike & { id?: string }): ViewKind {
@@ -109,6 +110,8 @@ export function viewKind(o: TargetLike & { id?: string }): ViewKind {
       return "planet";
     case "moon":
       return "moon";
+    case "satellite":
+      return "satellite";
     case "double_star":
       return "double";
     case "globular_cluster":
@@ -145,6 +148,7 @@ const PUPIL: Record<ViewKind, { min: number; ideal: number; max: number; why: st
   nebula: { min: 2.5, ideal: 4, max: 6, why: "a large exit pupil keeps faint nebulosity bright (ideal with a filter)" },
   nebula_large: { min: 4, ideal: 5.5, max: 7, why: "the widest, brightest view for a sprawling nebula" },
   open_cluster: { min: 1.5, ideal: 2.5, max: 4.5, why: "frame the cluster with dark sky around it" },
+  satellite: { min: 0.7, ideal: 1.3, max: 2.5, why: "medium-high power darkens the sky around the moon while keeping it in the field with its planet" },
   wide: { min: 4, ideal: 5.5, max: 7, why: "the widest field available" },
 };
 

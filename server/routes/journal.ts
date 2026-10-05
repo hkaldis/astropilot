@@ -28,6 +28,7 @@ import {
 import type { ApiObservation, ApiSession, JournalStats, SessionConditions } from "@shared/api";
 import { evaluateAchievements, rankFor, type MemberLike, type ObservationEvent } from "@shared/achievements";
 import { SOLAR_SYSTEM } from "@shared/astro/planets";
+import { MOON_IDS } from "@shared/astro/moons";
 import { nightDateOf } from "@shared/astro/night";
 import { A } from "@shared/astro/core";
 import { ah, parse, requireAuth, userId, idParam, HttpError, rateLimit } from "../http";
@@ -142,7 +143,9 @@ const LEGACY_TYPE: Record<string, string> = {
   mixed_nebula: "emission_nebula",
 };
 
-const SOLAR_IDS = new Set<string>(SOLAR_SYSTEM.map((p) => p.id));
+/** Planets, the Moon and the planets' moons: refs that aren't in the deep-sky catalog. */
+const SOLAR_IDS = new Set<string>([...SOLAR_SYSTEM.map((p) => p.id), ...MOON_IDS]);
+const PLANET_IDS = new Set<string>(SOLAR_SYSTEM.map((p) => p.id).filter((id) => id !== "moon"));
 
 /** Catalog lookup that also understands designations ("NGC 224" → M31) for legacy rows. */
 let desigIndex: { size: number; map: Map<string, CatalogEntry> } | null = null;
@@ -578,7 +581,7 @@ async function computeStats(uid: string): Promise<JournalStats> {
     refs.push(info.ref);
     const lower = info.ref.toLowerCase();
     if (SOLAR_IDS.has(lower)) {
-      if (lower !== "moon") planets.push(lower);
+      if (PLANET_IDS.has(lower)) planets.push(lower);
       continue;
     }
     const e = catalogEntry(info.ref);

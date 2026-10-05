@@ -124,3 +124,18 @@ test("achievements: observer rank", () => {
   assert.equal(rankFor(70).title, "Deep-sky Hunter");
   assert.equal(rankFor(1000).next, null);
 });
+
+test("moons: the Galilean four earn bronze; Jupiter during a moon's shadow transit earns Shadow Play", () => {
+  const t = Date.UTC(2026, 9, 5, 16); // Io's shadow is on Jupiter (16:00 UT, 5 Oct 2026)
+  const moon = (ref: string, at: number) => ev(ref, at, { type: "satellite" });
+  const res = evaluateAchievements([ev("jupiter", t), moon("io", t), moon("europa", t), moon("ganymede", t), moon("callisto", t)], catalog);
+  const fam = (id: string) => res.find((f) => f.id === id)!;
+  assert.equal(fam("moons").progress, 4);
+  assert.equal(fam("moons").tiers.find((x) => x.tier === "bronze")!.earned, true);
+  assert.equal(fam("moons").total, 20);
+  assert.equal(fam("shadow-play").tiers[0].earned, true);
+  // Moons are not deep-sky objects, and a shadow-free moment earns nothing.
+  assert.equal(fam("solar").progress, 1);
+  const later = evaluateAchievements([ev("jupiter", Date.UTC(2026, 9, 5, 3))], catalog);
+  assert.equal(later.find((f) => f.id === "shadow-play")!.tiers[0].earned, false);
+});

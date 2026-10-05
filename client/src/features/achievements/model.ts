@@ -1,14 +1,12 @@
 /** Achievement view-model: tiers, "up next" ranking and tonight's suggestions from the live sky. */
 import { useMemo } from "react";
-import { A, evaluateTarget, moonQuarters, planetaryEvents, type RankedTarget } from "@shared/astro";
+import { A, MOON_BY_ID, evaluateTarget, isMoonId, maxElongation, moonQuarters, planetaryEvents, satelliteDetectability, type RankedTarget, type SolarSystemId } from "@shared/astro";
 import { FAMILY_BY_ID, familyMembers, type AchievementGroup } from "@shared/achievements";
 import type { AchievementFamily, AchievementTierResult } from "@shared/api";
 import type { CatalogObject } from "@shared/data/types";
-import { SOLAR_SYSTEM } from "@shared/astro/planets";
 import { useCatalog } from "@/hooks/useCatalog";
 import { useActiveScope } from "@/hooks/useScope";
-import { evaluateBody, useNightContext, type NightContext } from "@/features/explore/sky";
-import { isSolarSystemId } from "@/features/explore/sky";
+import { evaluateBody, isSolarSystemId, useNightContext, type BodyTonight, type NightContext } from "@/features/explore/sky";
 
 export const GROUPS: { id: AchievementGroup; title: string; blurb: string }[] = [
   { id: "programs", title: "Observing programs", blurb: "Lists to work through — from your first Messier objects to the jewels of the far south." },
@@ -84,13 +82,37 @@ function catalogSuggestions(f: AchievementFamily, objects: CatalogObject[], seen
   return ranked.slice(0, MAX_SUGGESTIONS).map((r) => ({ id: r.object.id, name: r.object.name, difficulty: r.detect.difficulty, bestTime: r.bestTime, score: r.score }));
 }
 
-function solarSuggestions(seen: Set<string>, ctx: NightContext, aperture: number): Suggestion[] {
+/** The family's own planets or moons that are up tonight; a moon is rated beside its planet at a typical distance from it. */
+function solarSuggestions(ids: string[], seen: Set<string>, ctx: NightContext, aperture: number): Suggestion[] {
   const out: Suggestion[] = [];
-  for (const b of SOLAR_SYSTEM) {
-    if (seen.has(b.id.toUpperCase()) || !isSolarSystemId(b.id)) continue;
-    const ev = evaluateBody(b.id, ctx, aperture);
-    if (!ev.visible) continue;
-    out.push({ id: b.id, name: b.name, difficulty: ev.detect?.difficulty ?? "easy", bestTime: ev.bestTime, score: ev.track.maxAlt });
+  const bodies = new Map<SolarSystemId, BodyTonight>();
+  const body = (id: SolarSystemId) => {
+    if (!bodies.has(id)) bodies.set(id, evaluateBody(id, ctx, aperture));
+    return bodies.get(id)!;
+  };
+  for (const id of ids) {
+    if (seen.has(id.toUpperCase())) continue;
+    if (isMoonId(id)) {
+      const m = MOON_BY_ID[id];
+      const ev = body(m.parent);
+      const i = ev.track.maxIdx;
+      if (!ev.visible || i < 0) continue;
+      const moon = ctx.frames.moon[i];
+      const d = satelliteDetectability(m.mag, maxElongation(m, ev.state.distanceAu) * (2 / Math.PI), ev.state.mag, ev.meta.name, {
+        sqmZenith: ctx.sqm,
+        apertureMm: aperture,
+        alt: Math.max(ev.track.maxAlt, 1),
+        moon: moon && ev.track.moonSepAtBest !== null ? { alt: moon.alt, phaseAngle: ctx.frames.moonPhaseAngle, separation: ev.track.moonSepAtBest } : null,
+        sunAlt: ctx.frames.sunAlt[i] ?? null,
+      });
+      if (d.difficulty === "out of reach" || d.difficulty === "very hard") continue;
+      // Easiest first, then the higher planet.
+      out.push({ id, name: m.name, difficulty: d.difficulty, bestTime: ev.bestTime, score: 10 * d.index + ev.track.maxAlt });
+    } else if (isSolarSystemId(id)) {
+      const ev = body(id);
+      if (!ev.visible) continue;
+      out.push({ id, name: ev.meta.name, difficulty: ev.detect?.difficulty ?? "easy", bestTime: ev.bestTime, score: ev.track.maxAlt });
+    }
   }
   return out.sort((a, b) => b.score - a.score).slice(0, MAX_SUGGESTIONS);
 }
@@ -144,7 +166,7 @@ export function useUpNext(fams: AchievementFamily[] | undefined, seenRefs: strin
       .filter((x): x is NonNullable<typeof x> => !!x);
     const scored = candidates.map((c) => {
       const def = FAMILY_BY_ID.get(c.family.id);
-      const suggestions = !ctx ? [] : def?.solar ? solarSuggestions(seen, ctx, aperture) : def?.member && objects.length ? catalogSuggestions(c.family, objects, seen, ctx, aperture) : [];
+      const suggestions = !ctx ? [] : def?.solar ? solarSuggestions(def.solar, seen, ctx, aperture) : def?.member && objects.length ? catalogSuggestions(c.family, objects, seen, ctx, aperture) : [];
       const hint = suggestions.length ? null : calendarHint(c.family, ctx?.now ?? Date.now());
       // Close to the next tier first; doable tonight is a big plus; huge remaining counts sink.
       const score = c.frac + (suggestions.length ? 0.6 : 0) - Math.min(0.4, c.remaining / 250) + (c.family.progress === 0 && c.family.group !== "feats" ? -0.2 : 0);

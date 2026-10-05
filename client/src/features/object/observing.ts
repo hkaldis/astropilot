@@ -1,5 +1,5 @@
 /** Optics helpers for the object page: targets, field shapes, Galilean moons, planet notes. */
-import { A, type BodyState, type FilterAdvice, type NightInfo, type TargetLike } from "@shared/astro";
+import { A, MOON_BY_ID, galileanPositions, maxElongation, type BodyState, type FilterAdvice, type MoonPos, type NightInfo, type TargetLike } from "@shared/astro";
 import type { CatalogObject } from "@shared/data/types";
 import type { FieldShape } from "./FieldView";
 import type { Subject, Tonight } from "./model";
@@ -9,58 +9,41 @@ export type OpticsTarget = TargetLike & { id?: string; name?: string };
 export function opticsTarget(subject: Subject, tonight: Tonight): { target: OpticsTarget; sizeArcmin?: number } {
   if (subject.kind === "deep") return { target: subject.obj };
   const st = tonight.body!.state;
+  if (subject.kind === "satellite") {
+    // Frame the planet and the moon together: high power, but a field wide enough for both.
+    const sep = tonight.satellite?.sep ?? maxElongation(subject.meta, st.distanceAu);
+    return { target: { id: subject.id, name: subject.name, type: "satellite", mag: tonight.satellite?.mag ?? subject.meta.mag }, sizeArcmin: (2.4 * sep + st.diameter) / 60 };
+  }
   return { target: { id: subject.id, name: subject.name, type: subject.type, mag: st.mag }, sizeArcmin: st.diameter / 60 };
 }
 
 /** True when the lit side of a planet/Moon faces west (it's east of the Sun: an evening object). */
 export function litWest(subject: Subject, ms: number, night: NightInfo): boolean {
-  if (subject.kind !== "body") return true;
-  if (subject.id === "moon") return night.moon.elongation < 180;
-  const lon = A.PairLongitude(subject.meta.body, A.Body.Sun, new Date(ms));
+  if (subject.kind === "deep") return true;
+  if (subject.kind === "body" && subject.id === "moon") return night.moon.elongation < 180;
+  const body = subject.kind === "satellite" ? subject.parent.body : subject.meta.body;
+  const lon = A.PairLongitude(body, A.Body.Sun, new Date(ms));
   return lon < 180;
 }
 
-const AU_LIGHT_DAYS = 0.0057755183;
-
-/** Galilean moon offsets from Jupiter in arcseconds (dx east, dy north), light-time corrected. */
-export function galileanMoons(ms: number): { name: string; dx: number; dy: number; hidden: boolean }[] {
-  const date = new Date(ms);
-  const j = A.GeoVector(A.Body.Jupiter, date, true);
-  const dist = Math.hypot(j.x, j.y, j.z);
-  const u = [j.x / dist, j.y / dist, j.z / dist];
-  // East = pole × line of sight; north = line of sight × east.
-  let e = [-u[1], u[0], 0];
-  const en = Math.hypot(e[0], e[1]) || 1;
-  e = [e[0] / en, e[1] / en, 0];
-  const n = [u[1] * e[2] - u[2] * e[1], u[2] * e[0] - u[0] * e[2], u[0] * e[1] - u[1] * e[0]];
-  const moons = A.JupiterMoons(new Date(ms - dist * AU_LIGHT_DAYS * 86_400_000));
-  const RAD = 206_264.806;
-  const jupRadiusArcsec = (71_492 / (dist * 149_597_870.7)) * RAD;
-  return (
-    [
-      ["Io", moons.io],
-      ["Europa", moons.europa],
-      ["Ganymede", moons.ganymede],
-      ["Callisto", moons.callisto],
-    ] as const
-  ).map(([name, m]) => {
-    const dx = ((m.x * e[0] + m.y * e[1] + m.z * e[2]) / dist) * RAD;
-    const dy = ((m.x * n[0] + m.y * n[1] + m.z * n[2]) / dist) * RAD;
-    const behind = m.x * u[0] + m.y * u[1] + m.z * u[2] > 0;
-    return { name, dx, dy, hidden: behind && Math.hypot(dx, dy) < jupRadiusArcsec };
-  });
+/** Moons for the field view, named, with the page's own moon highlighted. */
+function fieldMoons(positions: MoonPos[] | null, highlight?: string) {
+  return positions?.map((p) => ({ name: MOON_BY_ID[p.id].name, dx: p.dx, dy: p.dy, hidden: p.occulted || p.eclipse === "total", highlight: p.id === highlight }));
 }
 
-export function fieldShape(subject: Subject, tonight: Tonight, night: NightInfo, at: number): FieldShape {
-  if (subject.kind === "body") {
+export function fieldShape(subject: Subject, tonight: Tonight, night: NightInfo, at: number, moonsAt?: ((t: number) => MoonPos[] | null) | null): FieldShape {
+  if (subject.kind !== "deep") {
+    // A moon's page shows its planet, with every moon placed and this one marked.
     const st = tonight.body!.state;
+    const planetId = subject.kind === "satellite" ? subject.parent.id : subject.id;
+    const positions = moonsAt ? moonsAt(at) : planetId === "jupiter" ? galileanPositions(at) : null;
     return {
       kind: "disk",
       diameterArcsec: st.diameter,
-      illumination: subject.id === "moon" ? night.moon.illumination : st.illumination,
+      illumination: subject.kind === "body" && subject.id === "moon" ? night.moon.illumination : st.illumination,
       litWest: litWest(subject, at, night),
-      ringTilt: subject.id === "saturn" ? st.ringTilt : undefined,
-      moons: subject.id === "jupiter" ? galileanMoons(at) : undefined,
+      ringTilt: planetId === "saturn" ? st.ringTilt : undefined,
+      moons: fieldMoons(positions, subject.kind === "satellite" ? subject.id : undefined),
     };
   }
   const o: CatalogObject = subject.obj;
@@ -135,7 +118,7 @@ export function planetNotes(id: string, st: BodyState, night: NightInfo): string
     case "jupiter":
       return [
         `${d.toFixed(0)}″ disk — two dark equatorial belts show at 50×; festoons and the Great Red Spot need 150×+ and steady air.`,
-        "The four Galilean moons change position nightly — the field view shows where they are tonight.",
+        "The four Galilean moons change position nightly — the Moons section shows where they are, hour by hour, and when their shadows cross the disk.",
       ];
     case "saturn": {
       const tilt = Math.abs(st.ringTilt ?? 0);
@@ -145,7 +128,7 @@ export function planetNotes(id: string, st: BodyState, night: NightInfo): string
           : tilt < 12
             ? `The rings are narrowly open (${tilt.toFixed(1)}°); the shadow of the globe on the rings shows at 150×.`
             : `The rings are well open (${tilt.toFixed(1)}°) — look for the Cassini Division at 100×+.`,
-        "Titan (mag 8.3) is visible in any telescope; Rhea, Tethys and Dione need a 100 mm (4-inch) scope or larger.",
+        "Titan (mag 8.3) is visible in any telescope; Rhea, Tethys and Dione need a 100 mm (4-inch) scope or larger — the Moons section shows where each one is tonight.",
       ];
     }
     case "uranus":
@@ -155,4 +138,28 @@ export function planetNotes(id: string, st: BodyState, night: NightInfo): string
     default:
       return [];
   }
+}
+
+/** What to look for, and how, when the target is one of a planet's moons (plain sentences). */
+export function moonNotes(subject: Extract<Subject, { kind: "satellite" }>, tonight: Tonight): string[] {
+  const parent = subject.parent.name;
+  const id = subject.id;
+  const notes: string[] = [];
+  if (id === "io" || id === "europa" || id === "ganymede" || id === "callisto")
+    notes.push(
+      `Any binoculars show it as a star beside ${parent}; a telescope at 100×+ shows it as a tiny disk, and its shadow as a black dot when it crosses the planet.`,
+      "The Moons section lists tonight's transits, shadow transits, eclipses and occultations — tap one to see it.",
+    );
+  else if (id === "titan") notes.push("A small telescope shows it as an 8th-magnitude star; larger scopes hint at its orange colour.", "It circles Saturn every 16 days, from about 3′ east to 3′ west.");
+  else if (id === "iapetus") notes.push(`Look for it when it's west of ${parent}: it shows its bright side and is about two magnitudes brighter than in the east.`);
+  else if (id === "phobos" || id === "deimos")
+    notes.push(
+      `Only near opposition, with a large scope at 300×+. Put ${parent} just outside the field (or behind an occulting bar) so its glare doesn't swamp the moon.`,
+      `Catch it near its greatest distance from ${parent}.`,
+    );
+  else if (subject.parent.id === "uranus" || id === "triton")
+    notes.push(`Needs a dark, steady night and high power (200×+). Sketch the field around ${parent} and look again an hour later: the moon moves with the planet, background stars don't.`);
+  else notes.push(`Use high power to darken the background and shrink ${parent}'s glare; it's easiest near its greatest distance from the planet.`);
+  if (tonight.detect && "needsMm" in tonight.detect && tonight.detect.needsMm) notes.push(`From this sky it takes roughly a ${tonight.detect.needsMm} mm telescope.`);
+  return notes;
 }

@@ -34,7 +34,9 @@ Works without an account (guest location and a typical instrument); an account s
   (`shared/astro/visibility.ts`).
 - **Events**: IMO solar-longitude meteor peaks with radiant altitude, topocentric conjunctions/occultations,
   eclipse visibility over all contacts (`shared/astro/events.ts`); comets from JPL SBDB + Horizons
-  (`server/services/comets.ts`, `shared/astro/comets.ts`).
+  (`server/services/comets.ts`, `shared/astro/comets.ts`); the planets' moons — Jupiter's computed in the
+  app with transits, shadow transits, eclipses and occultations, the others from JPL Horizons
+  (`shared/astro/moons.ts`, `server/services/moons.ts`).
 - **Optics**: exit-pupil targets per object class, framing and seeing limits (`shared/astro/optics.ts`).
 - **Forecast**: Open-Meteo NWP + CAMS aerosols (+ 7Timer when available), scored by `shared/astro/conditions.ts`.
 
@@ -67,7 +69,7 @@ shared/
   api.ts            API contracts
 server/
   routes/           one module per feature
-  services/         forecast, space weather, satellites, light pollution, comets
+  services/         forecast, space weather, satellites, light pollution, comets, moons
   photoStore.ts     photo storage (Postgres by default; Replit Object Storage while on Replit)
   migrate.ts        additive, idempotent schema migration run on boot
 ```
@@ -91,5 +93,5 @@ Replit **Shell**, then **Deploy → Republish**.
 Catalog data: OpenNGC by Mattia Verga (CC BY-SA 4.0). Star chart data: d3-celestial by Olaf Frohn (BSD-3-Clause), Hipparcos.
 Weather: Open-Meteo (CC BY 4.0). Space weather: NOAA SWPC. Orbits: CelesTrak (SatNOGS and AMSAT as fallbacks). Maps: © OpenStreetMap contributors.
 Light pollution: World Atlas of Artificial Night Sky Brightness, D. J. Lorenz (2025), from VIIRS data by the Earth Observation
-Group, Colorado School of Mines — https://djlorenz.github.io/astronomy/lp/. Comets: NASA/JPL Small-Body Database and Horizons.
+Group, Colorado School of Mines — https://djlorenz.github.io/astronomy/lp/. Comets and the moons of Mars, Saturn, Uranus and Neptune: NASA/JPL Small-Body Database and Horizons.
 Meteor showers: International Meteor Organization working list.

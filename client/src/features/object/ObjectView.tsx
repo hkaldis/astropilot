@@ -2,14 +2,20 @@ import { useEffect, useMemo } from "react";
 import { Link, useLocation } from "wouter";
 import { ArrowLeft, Search, Star } from "lucide-react";
 import {
+  MOON_BY_ID,
   formatAngleSize,
   formatDec,
   formatMag,
   formatNightDate,
   formatRA,
+  maxElongation,
   rankEyepieces,
+  satelliteDetectability,
+  separation,
+  separationOf,
   surfaceBrightnessArcsec,
   type BodyState,
+  type MoonPos,
 } from "@shared/astro";
 import type { CatalogObject } from "@shared/data/types";
 import { useCatalog } from "@/hooks/useCatalog";
@@ -23,12 +29,14 @@ import { TYPE_LABEL } from "@/lib/objects";
 import { InstrumentBar, instrumentPhrase, skySourcePhrase } from "@/features/explore/InstrumentBar";
 import { NoSite } from "@/features/explore/NoSite";
 import { constellationName } from "@/features/explore/constellations";
-import { isSolarSystemId, useNightContext } from "@/features/explore/sky";
+import { frameIndex, isSolarSystemId, sampleAt, useNightContext } from "@/features/explore/sky";
+import { useMoonSystem } from "@/features/moons/useMoonSystem";
+import { MoonSystemPanel } from "@/features/moons/MoonSystemPanel";
 import { ObjectActions } from "./ObjectActions";
 import { ObserveSection, OpticsFootnote } from "./ObserveSection";
 import { TonightSection } from "./TonightSection";
 import { YearStrip, yearAltitudes } from "./YearStrip";
-import { horizonClass, resolveSubject, tonightFor, type Subject } from "./model";
+import { horizonClass, resolveSubject, systemPlanetOf, tonightFor, type Subject, type Tonight } from "./model";
 import { opticsTarget } from "./observing";
 import { CountsToward } from "@/features/achievements/CountsToward";
 import { nearestBrightStar, sepWords, useNamedStars } from "./finder";
@@ -80,7 +88,7 @@ function NotFound({ id, suggestions }: { id: string; suggestions: { id: string; 
         description={
           suggestions.length
             ? "Did you mean one of these?"
-            : "It isn't in our catalog of Messier, Caldwell, bright NGC/IC objects, double stars and the planets. Try searching by another name or designation."
+            : "It isn't in our catalog of Messier, Caldwell, bright NGC/IC objects, double stars, the planets and their moons. Try searching by another name or designation."
         }
         action={
           <div className="flex flex-col items-center gap-4">
@@ -173,6 +181,35 @@ function BodyStats({ id, st }: { id: string; st: BodyState }) {
   );
 }
 
+const arcText = (arcsec: number) => (arcsec < 60 ? `${Math.round(arcsec)}″` : `${(arcsec / 60).toFixed(arcsec < 600 ? 1 : 0)}′`);
+
+/** A planet's moon: brightness and distance from the planet tonight, size, orbit and discovery. */
+function MoonStats({ subject, tonight }: { subject: Extract<Subject, { kind: "satellite" }>; tonight: Tonight }) {
+  const m = subject.meta;
+  const st = tonight.body?.state;
+  const sat = tonight.satellite;
+  const apparent = st ? (2 * m.radiusKm) / (st.distanceAu * 149_597_870.7) * 206_264.8 : null;
+  const period = m.periodDays < 2 ? `${(m.periodDays * 24).toFixed(1)} h` : `${m.periodDays.toFixed(m.periodDays < 10 ? 2 : 1)} days`;
+  const items: { label: string; value: React.ReactNode; sub?: React.ReactNode }[] = [
+    { label: "Magnitude", value: formatMag(sat?.mag ?? m.mag), sub: sat && !sat.typical ? "tonight" : "typical" },
+    {
+      label: `From ${subject.parent.name}`,
+      value: sat && !sat.typical ? arcText(sat.sep) : "—",
+      sub: st ? `at most ${arcText(maxElongation(m, st.distanceAu))}` : undefined,
+    },
+    { label: "Diameter", value: `${Math.round(m.radiusKm * 2).toLocaleString()} km`, sub: apparent !== null ? `${apparent.toFixed(apparent < 0.1 ? 3 : 2)}″ across` : undefined },
+    { label: "Orbit", value: period, sub: `${Math.round(m.aKm).toLocaleString()} km out${m.retrograde ? ", backwards" : ""}` },
+    { label: "Discovered", value: String(m.discovered.year), sub: m.discovered.by },
+  ];
+  return (
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
+      {items.map((i) => (
+        <StatItem key={i.label} {...i} />
+      ))}
+    </dl>
+  );
+}
+
 function FinderText({ o }: { o: CatalogObject }) {
   const stars = useNamedStars();
   const hint = nearestBrightStar(stars.data, o.ra, o.dec);
@@ -202,20 +239,52 @@ function SubjectPage({ subject }: { subject: Subject }) {
   const { ctx, now } = useNightContext(10);
   const aperture = scope.scope.aperture;
 
+  // A planet with moons, or a moon: the moons through tonight (sunset to sunrise).
+  const sysPlanet = systemPlanetOf(subject);
+  const range = ctx ? ([ctx.night.sunset ?? ctx.night.noon, ctx.night.sunrise ?? ctx.night.nextNoon] as [number, number]) : null;
+  const system = useMoonSystem(sysPlanet, range?.[0] ?? null, range?.[1] ?? null);
+
   const tonight = useMemo(
-    () => (ctx ? tonightFor(subject, ctx, aperture) : null),
-    // Recompute when the night, sky or instrument changes — not every minute.
+    () => (ctx ? tonightFor(subject, ctx, aperture, system) : null),
+    // Recompute when the night, sky, instrument or moon positions change — not every minute.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [subject, ctx?.frames, ctx?.sqm, ctx?.minAlt, ctx?.site.key, aperture],
+    [subject, ctx?.frames, ctx?.sqm, ctx?.minAlt, ctx?.site.key, aperture, system],
   );
 
   const year = useMemo(() => {
     if (!ctx) return null;
     if (subject.kind === "deep") return yearAltitudes(ctx.site, now, { ra: subject.obj.ra, dec: subject.obj.dec });
-    if (subject.id === "moon") return null;
-    return yearAltitudes(ctx.site, now, { body: subject.meta.body });
+    if (subject.kind === "body" && subject.id === "moon") return null;
+    return yearAltitudes(ctx.site, now, { body: subject.kind === "satellite" ? subject.parent.body : subject.meta.body });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subject, ctx?.site.key, Math.floor(now / 86_400_000)]);
+
+  // Moons: how easy each is in this instrument at a given moment, and where the slider starts.
+  const planetTrack = tonight?.body ?? null;
+  const rateMoon = useMemo(() => {
+    if (!ctx || !planetTrack) return undefined;
+    const nf = ctx.frames;
+    return (p: MoonPos, t: number) => {
+      const alt = sampleAt(planetTrack.track, t)?.alt;
+      if (alt === undefined || alt <= 0) return null;
+      const i = frameIndex(nf, t);
+      const mo = nf.moon[i];
+      const st = planetTrack.state;
+      return satelliteDetectability(p.mag ?? MOON_BY_ID[p.id].mag, separationOf(p), st.mag, planetTrack.meta.name, {
+        sqmZenith: ctx.sqm,
+        apertureMm: aperture,
+        alt: Math.max(alt, 1),
+        moon: mo ? { alt: mo.alt, phaseAngle: nf.moonPhaseAngle, separation: separation(st.raJ2000, st.decJ2000, mo.ra, mo.dec) } : null,
+        sunAlt: nf.sunAlt[i] ?? null,
+      });
+    };
+  }, [ctx, planetTrack, aperture]);
+  const altAt = useMemo(() => (planetTrack ? (t: number) => sampleAt(planetTrack.track, t)?.alt ?? null : undefined), [planetTrack]);
+  const startAt = useMemo(() => {
+    if (!range) return 0;
+    return now >= range[0] && now <= range[1] ? now : (planetTrack?.peakTime ?? range[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range?.[0], planetTrack?.peakTime]);
 
   // Pre-fill for the journal: the eyepiece AstroPilot recommends — only from the user's own kit on their own telescope.
   const suggestion = useMemo(() => {
@@ -230,9 +299,10 @@ function SubjectPage({ subject }: { subject: Subject }) {
     };
   }, [subject, tonight, scope.source, scope.scope, scope.eyepieces, scope.barlows, scope.telescopeId]);
 
-  const typeLabel = TYPE_LABEL[subject.type] ?? subject.type;
+  const typeLabel = subject.kind === "satellite" ? `Moon of ${subject.parent.name}` : (TYPE_LABEL[subject.type] ?? subject.type);
   const conAbbr = subject.kind === "deep" ? subject.obj.con : tonight?.body?.state.constellation;
-  const designations = subject.kind === "deep" ? subject.obj.designations.filter((d) => d.replace(/\s/g, "") !== subject.name.replace(/\s/g, "")) : [];
+  const designations =
+    subject.kind === "deep" ? subject.obj.designations.filter((d) => d.replace(/\s/g, "") !== subject.name.replace(/\s/g, "")) : subject.kind === "satellite" ? [subject.meta.designation] : [];
   const circumpolar = ctx && subject.kind === "deep" && horizonClass(ctx.site.lat, subject.obj.dec) === "circumpolar";
 
   return (
@@ -246,7 +316,7 @@ function SubjectPage({ subject }: { subject: Subject }) {
             {subject.kind === "body" && subject.id === "moon" && ctx ? (
               <MoonGlyph elongation={ctx.night.moon.elongation} size={40} southern={ctx.site.lat < 0} />
             ) : (
-              <TypeGlyph type={subject.type} id={subject.id} className={subject.kind === "body" ? "h-8 w-8 text-gold" : "h-8 w-8"} />
+              <TypeGlyph type={subject.type} id={subject.kind === "satellite" ? subject.parent.id : subject.id} className={subject.kind !== "deep" ? "h-8 w-8 text-gold" : "h-8 w-8"} />
             )}
           </div>
           <div className="min-w-0 animate-rise">
@@ -270,7 +340,15 @@ function SubjectPage({ subject }: { subject: Subject }) {
         <CountsToward obj={subject.kind === "deep" ? subject.obj : { id: subject.id, type: subject.type }} />
         <ObjectActions refId={subject.id} name={subject.name} suggestion={suggestion} />
         <div className="border-t pt-5">
-          {subject.kind === "deep" ? <DeepStats o={subject.obj} /> : tonight?.body ? <BodyStats id={subject.id} st={tonight.body.state} /> : <Skel className="h-12 w-full" />}
+          {subject.kind === "deep" ? (
+            <DeepStats o={subject.obj} />
+          ) : subject.kind === "satellite" ? (
+            tonight ? <MoonStats subject={subject} tonight={tonight} /> : <Skel className="h-12 w-full" />
+          ) : tonight?.body ? (
+            <BodyStats id={subject.id} st={tonight.body.state} />
+          ) : (
+            <Skel className="h-12 w-full" />
+          )}
         </div>
       </header>
 
@@ -284,8 +362,31 @@ function SubjectPage({ subject }: { subject: Subject }) {
               <Section title={`Tonight from ${ctx.site.name}`} description={formatNightDate(ctx.night.date, "long")}>
                 {tonight ? <TonightSection subject={subject} tonight={tonight} ctx={ctx} scope={scope} /> : <Skel className="h-64" />}
               </Section>
+              {system && tonight?.body && range && (
+                <Section
+                  title={subject.kind === "satellite" ? "Where to find it" : "Moons"}
+                  description={
+                    subject.kind === "satellite"
+                      ? `${subject.name} beside ${subject.parent.name} tonight — slide through the night, or press play.`
+                      : `Where ${subject.name}'s moons are tonight — slide through the night, or press play.`
+                  }
+                >
+                  <MoonSystemPanel
+                    system={system}
+                    planet={{ ...tonight.body.state, id: tonight.body.id, name: tonight.body.meta.name }}
+                    range={range}
+                    initial={startAt}
+                    now={now}
+                    tz={ctx.tz}
+                    hour12={ctx.hour12}
+                    highlight={subject.kind === "satellite" ? subject.id : undefined}
+                    rate={rateMoon}
+                    altAt={altAt}
+                  />
+                </Section>
+              )}
               <Section title="How to observe it" description={`With ${instrumentPhrase(scope)}`}>
-                {tonight && <ObserveSection key={`${subject.id}|${scope.telescopeId ?? scope.presetId}`} subject={subject} tonight={tonight} ctx={ctx} scope={scope} />}
+                {tonight && <ObserveSection key={`${subject.id}|${scope.telescopeId ?? scope.presetId}`} subject={subject} tonight={tonight} ctx={ctx} scope={scope} moonsAt={system?.at ?? null} />}
                 <OpticsFootnote scope={scope} />
               </Section>
             </div>
@@ -302,6 +403,17 @@ function SubjectPage({ subject }: { subject: Subject }) {
                   <div className="flex flex-col gap-3 text-sm">
                     {subject.obj.desc ? <p className="leading-relaxed">{subject.obj.desc}</p> : <p className="text-muted-foreground">No description yet.</p>}
                     <FinderText o={subject.obj} />
+                  </div>
+                ) : subject.kind === "satellite" ? (
+                  <div className="flex flex-col gap-3 text-sm">
+                    <p className="leading-relaxed">{subject.meta.blurb}</p>
+                    <p className="text-muted-foreground">
+                      Discovered by {subject.meta.discovered.by} in {subject.meta.discovered.year}. It travels with{" "}
+                      <Link href={`/object/${subject.parent.id}`} className="link">
+                        {subject.parent.name}
+                      </Link>
+                      , so find the planet first — the sky chart and its page show where.
+                    </p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3 text-sm">

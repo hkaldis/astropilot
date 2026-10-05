@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { CalendarClock, CalendarDays, Check, Sparkles, Trash2, Undo2 } from "lucide-react";
 import {
+  MOON_BY_ID,
   PLANET_BY_ID,
   addDays,
   currentNightDate,
@@ -10,11 +11,15 @@ import {
   evaluateTarget,
   formatNightDate,
   formatTime,
+  isMoonId,
+  maxElongation,
   nightFrames,
   nightOf,
   planSequence,
   rankTargets,
+  satelliteDetectability,
   sqmForBortle,
+  type MoonId,
   type NightFrames,
   type NightInfo,
   type RankedTarget,
@@ -58,6 +63,24 @@ function bodyTarget(id: SolarSystemId, ctx: { frames: NightFrames; night: NightI
     object: { id, name: b.meta.name, type: id === "moon" ? "moon" : "planet", ra: st.raJ2000, dec: st.decJ2000, mag: st.mag, size: [st.diameter / 60] },
     score: b.visible ? 100 : 0,
     rawScore: b.visible ? 100 : 0,
+    track: b.track,
+    detect,
+    bestTime: b.bestTime,
+    reasons: [],
+  };
+}
+
+/** A planet's moon as a ranked target: its planet's track, rated for the moon's typical brightness and distance from the planet. */
+function moonTarget(id: MoonId, ctx: { frames: NightFrames; night: NightInfo; site: ObservingSite; minAlt: number; sqm: number }, apertureMm: number): RankedTarget {
+  const meta = MOON_BY_ID[id];
+  const b = evaluateBody(meta.parent as SolarSystemId, ctx, apertureMm);
+  const sep = maxElongation(meta, b.state.distanceAu) * (2 / Math.PI);
+  const detect = satelliteDetectability(meta.mag, sep, b.state.mag, PLANET_BY_ID[meta.parent].name, { sqmZenith: ctx.sqm, apertureMm, alt: Math.max(b.track.maxAlt, 1) });
+  const ok = b.visible && detect.difficulty !== "out of reach";
+  return {
+    object: { id, name: meta.name, type: "satellite", ra: b.state.raJ2000, dec: b.state.decJ2000, mag: meta.mag },
+    score: ok ? 100 : 0,
+    rawScore: ok ? 100 : 0,
     track: b.track,
     detect,
     bestTime: b.bestTime,
@@ -118,6 +141,7 @@ export default function PlanPage() {
       .map((t): PlanItem | null => {
         const id = t.ref.toLowerCase();
         if (Object.prototype.hasOwnProperty.call(PLANET_BY_ID, id)) return { target: t, r: bodyTarget(id as SolarSystemId, bodyCtx, ctx.apertureMm), body: true };
+        if (isMoonId(id)) return { target: t, r: moonTarget(id as MoonId, bodyCtx, ctx.apertureMm), body: true };
         const o = byId.get(t.ref.toUpperCase());
         return o ? { target: t, r: evaluateTarget(o, astro.frames, ctx), body: false } : null;
       })

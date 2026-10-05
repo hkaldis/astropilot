@@ -7,6 +7,7 @@ import catalogData from "@shared/data/catalog.json";
 import { db } from "./db";
 import { celestialObjects } from "@shared/schema";
 import { SOLAR_SYSTEM } from "@shared/astro/planets";
+import { MOON_BY_ID, isMoonId } from "@shared/astro/moons";
 import { HttpError } from "./http";
 
 export interface CatalogEntry {
@@ -35,11 +36,15 @@ export function catalog() {
   return cache;
 }
 
-/** Resolve a catalog reference ("M31", "ngc7000", "jupiter") to a display entry. */
+/** Resolve a catalog reference ("M31", "ngc7000", "jupiter", "titan") to a display entry. */
 export function resolveRef(ref: string): { ref: string; name: string; type: string; con?: string } | null {
   const key = ref.trim();
   const ss = SOLAR_SYSTEM.find((p) => p.id === key.toLowerCase());
   if (ss) return { ref: ss.id, name: ss.name, type: ss.id === "moon" ? "moon" : "planet" };
+  if (isMoonId(key)) {
+    const m = MOON_BY_ID[key.toLowerCase() as keyof typeof MOON_BY_ID];
+    return { ref: m.id, name: m.name, type: "satellite" };
+  }
   const o = catalog().byId.get(key.toUpperCase());
   if (o) return { ref: o.id, name: o.name, type: o.type, con: o.con };
   return null;
@@ -61,6 +66,7 @@ const LEGACY_CATEGORY: Record<string, string> = {
   star_cloud: "asterism",
   planet: "planet",
   moon: "moon",
+  satellite: "moon", // natural satellites share the legacy "moon" category
 };
 
 /**
@@ -101,6 +107,7 @@ export function legacyRef(catalogId: string | null | undefined): string | null {
   if (/^luna$/i.test(c) || /^moon$/i.test(c)) return "moon";
   const ss = SOLAR_SYSTEM.find((p) => p.id === c.toLowerCase());
   if (ss) return ss.id;
+  if (isMoonId(c)) return c.toLowerCase();
   return resolveRef(c)?.ref ?? c;
 }
 

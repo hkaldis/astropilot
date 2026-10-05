@@ -1,12 +1,22 @@
 /** Resolve an object-page id to a catalog object or a solar-system body, and describe its night. */
 import {
+  MOON_BY_ID,
+  MOONS,
   PLANET_BY_ID,
   airmass,
   compassPoint,
   evaluateTarget,
   formatTime,
+  isMoonId,
+  maxElongation,
+  satelliteDetectability,
+  separation,
+  separationOf,
   skyBrightnessAt,
   type DetectResult,
+  type MoonId,
+  type MoonMeta,
+  type MoonPos,
   type ObjectTrack,
   type PlanetMeta,
   type SolarSystemId,
@@ -19,7 +29,19 @@ import type { QualityKey } from "@/lib/objects";
 
 export type Subject =
   | { kind: "deep"; id: string; name: string; type: string; obj: CatalogObject }
-  | { kind: "body"; id: SolarSystemId; name: string; type: "planet" | "moon"; meta: PlanetMeta };
+  | { kind: "body"; id: SolarSystemId; name: string; type: "planet" | "moon"; meta: PlanetMeta }
+  /** A planet's moon: it rises and sets with its planet; how visible it is depends on its own brightness and the planet's glare. */
+  | { kind: "satellite"; id: MoonId; name: string; type: "satellite"; meta: MoonMeta; parent: PlanetMeta };
+
+/** Planets and moons: observed in twilight too, tracked along the planet's real motion. */
+export const isBodyLike = (s: Subject): s is Extract<Subject, { kind: "body" | "satellite" }> => s.kind !== "deep";
+
+/** The planet whose moons a page shows (a planet with moons, or a moon's planet), else null. */
+export function systemPlanetOf(s: Subject): string | null {
+  if (s.kind === "satellite") return s.parent.id;
+  if (s.kind === "body" && MOONS.some((m) => m.parent === s.id)) return s.id;
+  return null;
+}
 
 export type Resolution =
   | { status: "found"; subject: Subject }
@@ -32,6 +54,10 @@ export function resolveSubject(raw: string, objects: CatalogObject[], byId: Map<
   if (Object.prototype.hasOwnProperty.call(PLANET_BY_ID, lower)) {
     const meta = PLANET_BY_ID[lower as SolarSystemId];
     return { status: "found", subject: { kind: "body", id: meta.id, name: meta.name, type: meta.id === "moon" ? "moon" : "planet", meta } };
+  }
+  if (isMoonId(lower)) {
+    const meta = MOON_BY_ID[lower as MoonId];
+    return { status: "found", subject: { kind: "satellite", id: meta.id, name: meta.name, type: "satellite", meta, parent: PLANET_BY_ID[meta.parent] } };
   }
   const obj = byId.get(id.toUpperCase());
   if (obj) return { status: "found", subject: { kind: "deep", id: obj.id, name: obj.name, type: obj.type, obj } };
@@ -53,9 +79,10 @@ export function resolveSubject(raw: string, objects: CatalogObject[], byId: Map<
       .slice(0, 6)
       .map(({ o }) => ({ id: o.id, name: o.name, type: o.type }));
   }
-  const bodies = Object.values(PLANET_BY_ID)
-    .filter((p) => q && norm(p.name).startsWith(q.slice(0, 3)))
-    .map((p) => ({ id: p.id, name: p.name, type: p.id === "moon" ? "moon" : "planet" }));
+  const bodies = [
+    ...Object.values(PLANET_BY_ID).map((p) => ({ id: p.id as string, name: p.name, type: p.id === "moon" ? "moon" : "planet" })),
+    ...MOONS.map((m) => ({ id: m.id as string, name: m.name, type: "satellite" })),
+  ].filter((p) => q && norm(p.name).startsWith(q.slice(0, 3)));
   return { status: "missing", suggestions: [...bodies, ...ranked].slice(0, 6) };
 }
 
@@ -79,10 +106,20 @@ export interface Tonight {
   /** Where to look at the best time. */
   bestAlt: number | null;
   bestAz: number | null;
+  /**
+   * Moons: where it is at `at` (its best time, or the planet's highest when it isn't up in a dark sky),
+   * and the brightness and distance from the planet used for `detect`. Without positions (`typical`), its
+   * typical distance stands in; `loading` says whether they are still on their way.
+   */
+  satellite?: { pos: MoonPos | null; at: number | null; mag: number; sep: number; typical: boolean; loading: boolean };
 }
 
-export function tonightFor(subject: Subject, ctx: NightContext, apertureMm: number): Tonight {
+/** Where a planet's moons are: positions at any moment, and whether they are still loading. */
+type MoonSource = { at: (t: number) => MoonPos[] | null; status?: "ready" | "loading" | "error" };
+
+export function tonightFor(subject: Subject, ctx: NightContext, apertureMm: number, system?: MoonSource | null): Tonight {
   const nf = ctx.frames;
+  if (subject.kind === "satellite") return satelliteTonight(subject, ctx, apertureMm, system ?? null);
   if (subject.kind === "deep") {
     const r = evaluateTarget(subject.obj, nf, { sqm: ctx.sqm, apertureMm, minAlt: ctx.minAlt });
     const best = sampleAt(r.track, r.bestTime);
@@ -121,6 +158,66 @@ export function tonightFor(subject: Subject, ctx: NightContext, apertureMm: numb
     score: null,
     bestAlt: best ? altAt(b.track, b.bestTime) : null,
     bestAz: best?.az ?? null,
+  };
+}
+
+/**
+ * A moon tonight: its planet's track (they rise and set together), with the moon's own visibility at the
+ * moment it is easiest — scanning the night for the best mix of altitude, a dark sky and distance from
+ * the planet's glare (a morning planet is highest in twilight, when a faint moon is lost). Until
+ * positions load, its typical distance (about two-thirds of the greatest) stands in.
+ */
+function satelliteTonight(subject: Extract<Subject, { kind: "satellite" }>, ctx: NightContext, apertureMm: number, system: MoonSource | null): Tonight {
+  const nf = ctx.frames;
+  const b = evaluateBody(subject.parent.id, ctx, apertureMm);
+  const [darkStart, darkEnd] = bodyWindow(ctx.night, nf);
+  const typicalSep = maxElongation(subject.meta, b.state.distanceAu) * (2 / Math.PI);
+  const rate = (i: number) => {
+    const p = b.track.points[i];
+    const t = nf.times[i];
+    const pos = system?.at(t)?.find((x) => x.id === subject.id) ?? null;
+    const m = nf.moon[i];
+    const detect = satelliteDetectability(pos?.mag ?? subject.meta.mag, pos ? separationOf(pos) : typicalSep, b.state.mag, subject.parent.name, {
+      sqmZenith: ctx.sqm,
+      apertureMm,
+      alt: Math.max(p.alt, 1),
+      moon: m ? { alt: m.alt, phaseAngle: nf.moonPhaseAngle, separation: separation(b.state.raJ2000, b.state.decJ2000, m.ra, m.dec) } : null,
+      sunAlt: nf.sunAlt[i] ?? null,
+    });
+    return { i, t, pos, detect, alt: p.alt };
+  };
+  let best: ReturnType<typeof rate> | null = null;
+  for (let i = 0; i < nf.times.length && i < b.track.points.length; i++) {
+    if (b.track.points[i].alt < 8 || nf.sunAlt[i] >= -6) continue;
+    const r = rate(i);
+    if (r.pos && (r.pos.occulted || r.pos.eclipse === "total")) continue;
+    if (!best || r.detect.index > best.detect.index + 0.05 || (r.detect.index > best.detect.index - 0.05 && r.alt > best.alt)) best = r;
+  }
+  // Never up in a dark-enough sky: describe it at the planet's highest moment.
+  if (!best && b.track.maxIdx >= 0 && b.track.maxAlt > 0) best = rate(b.track.maxIdx);
+  const bestTime = best?.t ?? b.peakTime;
+  // Not up at all tonight: still say where the moon is, at the planet's highest (or the middle of the night).
+  const at = bestTime ?? nf.times[Math.floor(nf.times.length / 2)] ?? null;
+  const pos = best ? best.pos : at !== null ? (system?.at(at)?.find((x) => x.id === subject.id) ?? null) : null;
+  const p = best ? b.track.points[best.i] : null;
+  // The Moon's light at the moon's own best moment, which needn't be the planet's highest.
+  const m = best ? nf.moon[best.i] : null;
+  const track = m ? { ...b.track, moonAltAtBest: m.alt, moonSepAtBest: separation(b.state.raJ2000, b.state.decJ2000, m.ra, m.dec) } : b.track;
+  return {
+    track,
+    points: b.track.points,
+    detect: best?.detect ?? null,
+    bestTime,
+    peakTime: b.peakTime,
+    darkStart,
+    darkEnd,
+    skyNoMoon: best && b.track.maxAlt > 0 ? skyBrightnessAt(ctx.sqm, Math.max(best.alt, 1), null) : null,
+    skyWithMoon: best?.detect.skySB ?? null,
+    body: b,
+    score: null,
+    bestAlt: p?.alt ?? null,
+    bestAz: p?.az ?? null,
+    satellite: { pos, at, mag: pos?.mag ?? subject.meta.mag, sep: pos ? separationOf(pos) : typicalSep, typical: !pos, loading: !pos && system?.status === "loading" },
   };
 }
 

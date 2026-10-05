@@ -10,6 +10,7 @@
  */
 import { A } from "./astro/core";
 import { moonPhaseName } from "./astro/night";
+import { MOON_IDS, galileanShadowAt } from "./astro/moons";
 
 export type Tier = "bronze" | "silver" | "gold" | "platinum";
 export type AchievementGroup = "programs" | "deepsky" | "feats" | "habits";
@@ -112,7 +113,7 @@ export interface Rank {
 
 const SOLAR = ["moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"];
 const NEBULA = new Set(["emission_nebula", "reflection_nebula", "cluster_nebula", "supernova_remnant", "dark_nebula"]);
-const DEEP_SKY = (t: string | null | undefined) => !!t && t !== "planet" && t !== "moon" && t !== "double_star";
+const DEEP_SKY = (t: string | null | undefined) => !!t && t !== "planet" && t !== "moon" && t !== "satellite" && t !== "double_star";
 const list = (...ids: string[]) => {
   const set = new Set(ids.map((s) => s.toUpperCase()));
   return (o: MemberLike) => set.has(o.id.toUpperCase());
@@ -203,6 +204,21 @@ function duringLunarEclipse(t: number): boolean {
 
 const planetBody: Record<string, A.Body> = { mars: A.Body.Mars, jupiter: A.Body.Jupiter, saturn: A.Body.Saturn };
 
+const shadowCache = new Map<number, boolean>();
+/** Whether one of Jupiter's moons cast its shadow on the planet at `t` (to the minute). */
+function jovianShadowAt(t: number): boolean {
+  const key = Math.round(t / 60_000);
+  let hit = shadowCache.get(key);
+  if (hit === undefined) {
+    // A logged time is rarely exact: a shadow within ten minutes of it counts.
+    hit = [-10, -5, 0, 5, 10].some((m) => galileanShadowAt(t + m * 60_000));
+    if (shadowCache.size > 5000) shadowCache.clear();
+    shadowCache.set(key, hit);
+  }
+  return hit;
+}
+const JOVIAN = new Set(["jupiter", "io", "europa", "ganymede", "callisto"]);
+
 // --- Definitions ---------------------------------------------------------------------------------
 
 export const FAMILIES: FamilyDef[] = [
@@ -259,6 +275,20 @@ export const FAMILIES: FamilyDef[] = [
       { n: 4, tier: "bronze" },
       { n: 6, tier: "silver" },
       { n: "all", tier: "gold", label: "Grand tour" },
+    ],
+  },
+  {
+    id: "moons",
+    unit: "moons",
+    group: "programs",
+    title: "Moons of the Planets",
+    blurb: "From Jupiter's four to Titan, Triton and the moons of Uranus — every moon within a backyard telescope's reach.",
+    solar: MOON_IDS,
+    goals: [
+      { n: 4, tier: "bronze" },
+      { n: 8, tier: "silver" },
+      { n: 12, tier: "gold" },
+      { n: "all", tier: "platinum", label: "Every moon within reach" },
     ],
   },
   {
@@ -511,6 +541,21 @@ export const FAMILIES: FamilyDef[] = [
       let n = 0;
       return (e) => {
         if (n === 0 && e.ref?.toLowerCase() === "moon" && duringLunarEclipse(e.t)) n = 1;
+        return n;
+      };
+    },
+    goals: [{ n: 1, tier: "gold" }],
+  },
+  {
+    id: "shadow-play",
+    group: "feats",
+    title: "Shadow Play",
+    blurb: "Jupiter while one of its moons casts a black shadow on the cloud tops.",
+    hint: "Jupiter's page lists tonight's shadow transits; log Jupiter (or the moon) while one is under way.",
+    make: () => {
+      let n = 0;
+      return (e) => {
+        if (n === 0 && JOVIAN.has(e.ref?.toLowerCase() ?? "") && jovianShadowAt(e.t)) n = 1;
         return n;
       };
     },

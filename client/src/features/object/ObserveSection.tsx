@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Filter, Info } from "lucide-react";
-import { filterAdvice, formatMag, formatTime, idealMagnification, rankEyepieces, scopeLimits, type EyepieceChoice } from "@shared/astro";
+import { filterAdvice, formatMag, formatTime, idealMagnification, rankEyepieces, scopeLimits, type EyepieceChoice, type MoonPos } from "@shared/astro";
 import { useGear } from "@/hooks/useScope";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import type { ActiveScopeState } from "@/features/explore/InstrumentBar";
 import type { NightContext } from "@/features/explore/sky";
 import { FieldView, angleLabel } from "./FieldView";
-import { binocularSpec, fieldShape, opticsTarget, planetFilterAdvice, planetNotes } from "./observing";
+import { binocularSpec, fieldShape, moonNotes, opticsTarget, planetFilterAdvice, planetNotes } from "./observing";
 import type { Subject, Tonight } from "./model";
 
 const VERDICT_TONE = { ideal: "excellent", good: "good", usable: "fair", poor: "poor" } as const;
@@ -65,7 +65,20 @@ function ownedFilterName(kind: string, filters: { name: string; type: string }[]
   return filters.find((f) => re.test(f.type) || re.test(f.name))?.name ?? null;
 }
 
-export function ObserveSection({ subject, tonight, ctx, scope }: { subject: Subject; tonight: Tonight; ctx: NightContext; scope: ActiveScopeState }) {
+export function ObserveSection({
+  subject,
+  tonight,
+  ctx,
+  scope,
+  moonsAt,
+}: {
+  subject: Subject;
+  tonight: Tonight;
+  ctx: NightContext;
+  scope: ActiveScopeState;
+  /** Moon positions around a planet, for the field view. */
+  moonsAt?: ((t: number) => MoonPos[] | null) | null;
+}) {
   const { user } = useAuth();
   const gear = useGear();
   const { target, sizeArcmin } = useMemo(() => opticsTarget(subject, tonight), [subject, tonight]);
@@ -79,11 +92,17 @@ export function ObserveSection({ subject, tonight, ctx, scope }: { subject: Subj
   const [sel, setSel] = useState(0);
   const chosen = options[Math.min(sel, options.length - 1)];
   const at = tonight.bestTime ?? ctx.now;
-  const shape = useMemo(() => fieldShape(subject, tonight, ctx.night, at), [subject, tonight, ctx.night, at]);
+  const shape = useMemo(() => fieldShape(subject, tonight, ctx.night, at, moonsAt), [subject, tonight, ctx.night, at, moonsAt]);
   const advice =
-    target.type === "double_star"
-      ? { best: "none" as const, label: "No filter", why: "Filters only dim the stars and shift their colours — enjoy the pair unfiltered." }
-      : ((subject.kind === "body" ? planetFilterAdvice(subject.id) : null) ?? filterAdvice(target));
+    subject.kind === "satellite"
+      ? {
+          best: "none" as const,
+          label: "No filter",
+          why: `A filter dims ${subject.name} along with ${subject.parent.name}. Use high power to darken the background instead — and if the planet's glare hides the moon, nudge ${subject.parent.name} just outside the field.`,
+        }
+      : target.type === "double_star"
+        ? { best: "none" as const, label: "No filter", why: "Filters only dim the stars and shift their colours — enjoy the pair unfiltered." }
+        : ((subject.kind === "body" ? planetFilterAdvice(subject.id) : null) ?? filterAdvice(target));
   const owned = user && gear.data ? ownedFilterName(advice.best, gear.data.filters) : null;
   const isDouble = subject.kind === "deep" && subject.obj.type === "double_star";
   const isBino = scope.kind === "binoculars";
@@ -91,30 +110,40 @@ export function ObserveSection({ subject, tonight, ctx, scope }: { subject: Subj
   const bino = isBino ? binocularSpec(scope.scope.name) : null;
 
   const fieldDeg = chosen ? chosen.setup.trueField : bino ? bino.fieldDeg : null;
-  const objSizeArcmin = subject.kind === "deep" ? subject.obj.size?.[0] : (tonight.body?.state.diameter ?? 0) / 60;
+  const objSizeArcmin =
+    subject.kind === "deep" ? subject.obj.size?.[0] : subject.kind === "satellite" ? sizeArcmin : (tonight.body?.state.diameter ?? 0) / 60;
   const name = subject.kind === "body" && subject.id === "moon" ? "The Moon" : subject.name;
 
   let framing: string | null = null;
   if (fieldDeg && objSizeArcmin && !isDouble) {
     const fill = objSizeArcmin / (fieldDeg * 60);
     framing =
-      fill > 1.05
-        ? `${name} is ${angleLabel(objSizeArcmin * 60)} across — bigger than this ${fieldText(fieldDeg)} field, so you'll see part of it at a time.`
-        : fill > 0.6
-          ? `${name} fills most of the field — a snug fit.`
-          : fill > 0.15
-            ? `${name} sits comfortably in the field with dark sky around it.`
-            : `${name} is small in this field — ${subject.kind === "body" ? "more power shows more detail if the air is steady" : "look for it near the centre"}.`;
+      subject.kind === "satellite"
+        ? fill > 1.05
+          ? `At its farthest, ${name} can drift outside this ${fieldText(fieldDeg)} field — centre ${subject.parent.name} and sweep a little either side.`
+          : `${subject.parent.name} and ${name} fit in this field together.`
+        : fill > 1.05
+          ? `${name} is ${angleLabel(objSizeArcmin * 60)} across — bigger than this ${fieldText(fieldDeg)} field, so you'll see part of it at a time.`
+          : fill > 0.6
+            ? `${name} fills most of the field — a snug fit.`
+            : fill > 0.15
+              ? `${name} sits comfortably in the field with dark sky around it.`
+              : `${name} is small in this field — ${subject.kind === "body" ? "more power shows more detail if the air is steady" : "look for it near the centre"}.`;
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_auto]">
+    // Two columns where there's room: tablets (no sidebar) and wide screens — not the narrow lg column beside the sidebar.
+    <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-1 xl:grid-cols-[minmax(0,1fr)_auto]">
       <div className="min-w-0">
         {isEye ? (
           <div>
             <div className="eyebrow">Naked eye</div>
             <p className="mt-2 text-sm text-muted-foreground">
-              {subject.kind === "body"
+              {subject.kind === "satellite"
+                ? subject.parent.id === "jupiter"
+                  ? `Lost in ${subject.parent.name}'s glare for most eyes, though sharp-eyed observers have glimpsed the outer moons. Any binoculars show all four as tiny stars beside the planet.`
+                  : `Far beyond naked-eye reach — a telescope shows it as a faint star near ${subject.parent.name}.`
+                : subject.kind === "body"
                 ? subject.id === "moon"
                   ? "Bright and obvious — the naked eye shows the maria; binoculars already reveal the largest craters along the terminator."
                   : !tonight.detect || tonight.detect.difficulty === "out of reach"
@@ -263,6 +292,19 @@ export function ObserveSection({ subject, tonight, ctx, scope }: { subject: Subj
                 </>
               )}
             </p>
+          </div>
+        )}
+
+        {/* A planet's moon: what to look for */}
+        {subject.kind === "satellite" && (
+          <div className="mt-5 border-t pt-4">
+            <div className="eyebrow">What to look for</div>
+            <p className="mt-1.5 text-sm">{subject.meta.blurb}</p>
+            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+              {moonNotes(subject, tonight).map((n, i) => (
+                <li key={i}>{n}</li>
+              ))}
+            </ul>
           </div>
         )}
 

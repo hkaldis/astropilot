@@ -8,7 +8,15 @@ import { cn } from "@/lib/utils";
 export type FieldShape =
   | { kind: "extended"; type: string; major: number; minor: number; pa?: number | null } // arcmin
   | { kind: "point" }
-  | { kind: "disk"; diameterArcsec: number; illumination: number; litWest: boolean; ringTilt?: number; moons?: { name: string; dx: number; dy: number; hidden?: boolean }[] };
+  | {
+      kind: "disk";
+      diameterArcsec: number;
+      illumination: number;
+      litWest: boolean;
+      ringTilt?: number;
+      /** Moons around the planet (arcsec east/north); `highlight` marks the one the page is about. */
+      moons?: { name: string; dx: number; dy: number; hidden?: boolean; highlight?: boolean }[];
+    };
 
 const NICE_ARCSEC = [1, 2, 5, 10, 15, 20, 30, 60, 120, 300, 600, 900, 1200, 1800, 3600, 7200, 18000];
 
@@ -47,8 +55,9 @@ function Disk({ cx, cy, r, shape }: { cx: number; cy: number; r: number; shape: 
       <circle cx={cx} cy={cy} r={r} className="fill-muted-foreground/35" />
       {lit > 0.995 ? <circle cx={cx} cy={cy} r={r} className="fill-gold" /> : lit > 0.005 ? <path d={phasePath(cx, cy, r, lit, shape.litWest)} className="fill-gold" /> : null}
       {tilt !== undefined && (
-        // the near half of the rings passes in front of the globe
-        <path d={`M ${cx - rx} ${cy} A ${rx} ${ry} 0 0 0 ${cx + rx} ${cy}`} fill="none" className="stroke-gold/75" strokeWidth={sw} />
+        // The near half of the rings passes in front of the globe: south of it when we see the north face
+        // (tilt > 0), north of it when we see the south face.
+        <path d={`M ${cx - rx} ${cy} A ${rx} ${ry} 0 0 ${tilt >= 0 ? 0 : 1} ${cx + rx} ${cy}`} fill="none" className="stroke-gold/75" strokeWidth={sw} />
       )}
     </g>
   );
@@ -137,9 +146,10 @@ export function FieldView({ fieldDeg, shape, size = 248, className, label }: { f
           if (m.hidden || Math.hypot(mx - c, my - c) > R) return null;
           return (
             <g key={m.name}>
+              {m.highlight && <circle cx={mx} cy={my} r={4.2} fill="none" className="stroke-primary" strokeWidth={1.2} />}
               <circle cx={mx} cy={my} r={1.4} className="fill-foreground" />
-              <text x={mx} y={my - 5} textAnchor="middle" className="fill-muted-foreground text-[8px]">
-                {m.name.slice(0, 2)}
+              <text x={mx} y={my - 5} textAnchor="middle" className={m.highlight ? "fill-primary text-[8.5px] font-semibold" : "fill-muted-foreground text-[8px]"}>
+                {m.highlight ? m.name : m.name.slice(0, 2)}
               </text>
             </g>
           );

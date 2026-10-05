@@ -891,3 +891,12 @@ export const orbitElements = pgTable("orbit_elements", {
   source: varchar("source", { length: 32 }),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Moons of Mars, Saturn, Uranus and Neptune from JPL Horizons, refreshed by server/services/moons.ts.
+export const moonEphemerides = pgTable("moon_ephemerides", {
+  planet: varchar("planet", { length: 16 }).primaryKey(),
+  t0: timestamp("t0", { withTimezone: true }).notNull(),
+  stepS: integer("step_s").notNull(),
+  data: jsonb("data").notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+});

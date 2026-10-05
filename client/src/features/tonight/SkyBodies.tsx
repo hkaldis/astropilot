@@ -1,6 +1,22 @@
 import { useMemo } from "react";
 import { Link } from "wouter";
-import { SOLAR_SYSTEM, bodyAltAz, bodyState, bodyEvents, moonPosition, observerOf, formatTime, formatMag, compassPoint, type NightFrames, type NightInfo } from "@shared/astro";
+import {
+  A,
+  MOON_BY_ID,
+  SOLAR_SYSTEM,
+  bodyAltAz,
+  bodyState,
+  bodyEvents,
+  galileanEvents,
+  moonPosition,
+  observerOf,
+  formatTime,
+  formatMag,
+  compassPoint,
+  type MoonEvent,
+  type NightFrames,
+  type NightInfo,
+} from "@shared/astro";
 import type { ObservingSite } from "@shared/api";
 import { TypeGlyph, MoonGlyph } from "@/components/common/Glyphs";
 import { cn } from "@/lib/utils";
@@ -22,6 +38,55 @@ interface Row {
   constellation: string;
   illumination: number;
   color: string;
+}
+
+const EVENT_WORD: Record<MoonEvent["kind"], string> = {
+  shadow: "'s shadow on the disk",
+  transit: " crosses the disk",
+  eclipse: " eclipsed",
+  occultation: " behind Jupiter",
+};
+
+/**
+ * Tonight's Galilean-moon events while Jupiter is up in a dark-enough sky: shadow transits first (the
+ * favourite sight), then transits, eclipses and occultations — and a double shadow transit called out.
+ */
+function JupiterMoonEvents({ start, end, site, tz, hour12 }: { start: number; end: number; site: ObservingSite; tz?: string; hour12?: boolean }) {
+  const items = useMemo(() => {
+    const obs = observerOf(site);
+    const up = (t: number) => bodyAltAz(A.Body.Jupiter, t, obs).alt > 8;
+    const evs = galileanEvents(start, end).filter((e) => up(((e.start ?? start) + (e.end ?? end)) / 2));
+    const shadows = evs.filter((e) => e.kind === "shadow");
+    let double: [number, number] | null = null;
+    for (let i = 0; i < shadows.length && !double; i++)
+      for (let j = i + 1; j < shadows.length; j++) {
+        const a = Math.max(shadows[i].start ?? start, shadows[j].start ?? start);
+        const b = Math.min(shadows[i].end ?? end, shadows[j].end ?? end);
+        if (b > a) double = [a, b];
+      }
+    const rank = { shadow: 0, transit: 1, eclipse: 2, occultation: 3 } as const;
+    return { list: evs.sort((a, b) => rank[a.kind] - rank[b.kind] || (a.start ?? start) - (b.start ?? start)).slice(0, 3), double };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [start, end, site.lat, site.lon]);
+  if (!items.list.length) return null;
+  const fmt = (t: number | null) => formatTime(t, { tz, hour12 });
+  const span = (e: MoonEvent) => (e.start !== null && e.end !== null ? `${fmt(e.start)}–${fmt(e.end)}` : e.start !== null ? `from ${fmt(e.start)}` : e.end !== null ? `until ${fmt(e.end)}` : "all night");
+  return (
+    <div className="mt-0.5 text-xs text-muted-foreground">
+      {items.double && (
+        <span className="font-medium text-gold">
+          Double shadow transit {fmt(items.double[0])}–{fmt(items.double[1])} ·{" "}
+        </span>
+      )}
+      {items.list.map((e, i) => (
+        <span key={`${e.moon}-${e.kind}-${e.start}`}>
+          {i > 0 && " · "}
+          {MOON_BY_ID[e.moon].name}
+          {EVENT_WORD[e.kind]} <span className="num">{span(e)}</span>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 /** Planets visible during this night with when and how high. */
@@ -75,6 +140,9 @@ export function PlanetsTonight({ night, site, tz, hour12, isTonight, now }: { ni
     return out.sort((a, b) => Number(b.upInDark) - Number(a.upInDark) || a.mag - b.mag);
   }, [night, site]);
   const clock = nightClock(night, isTonight, now, tz, hour12);
+  // The planets' observing time: civil dusk to civil dawn.
+  const windowStart = night.civilDusk ?? night.sunset;
+  const windowEnd = night.civilDawn ?? night.sunrise;
   // Rise, highest and set during the night, in time order.
   const when = (r: Row) => {
     const ev: NightEvent[] = [];
@@ -100,6 +168,7 @@ export function PlanetsTonight({ night, site, tz, hour12, isTonight, now }: { ni
               <span className="num text-xs text-muted-foreground">mag {formatMag(r.mag)} · {r.diameter.toFixed(r.diameter < 10 ? 1 : 0)}″</span>
             </div>
             <div className="text-xs text-muted-foreground">{when(r)}</div>
+            {r.id === "jupiter" && windowStart !== null && windowEnd !== null && <JupiterMoonEvents start={windowStart} end={windowEnd} site={site} tz={tz} hour12={hour12} />}
           </div>
         </Link>
       ))}

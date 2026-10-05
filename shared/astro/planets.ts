@@ -43,7 +43,11 @@ export interface BodyState {
   elongation: number; // degrees from the Sun
   distanceAu: number;
   constellation: string;
-  ringTilt?: number; // Saturn, degrees
+  /**
+   * Saturn: the ring opening B, degrees — Earth's latitude above the ring plane, positive when we see the
+   * rings' north face (2009–2025), negative when we see the south face (2025–2038).
+   */
+  ringTilt?: number;
 }
 
 export function bodyState(id: SolarSystemId, ms: number, site: Site): BodyState {
@@ -70,7 +74,8 @@ export function bodyState(id: SolarSystemId, ms: number, site: Site): BodyState 
     elongation: elong,
     distanceAu: pos.dist,
     constellation: constellationOf(j2000.ra, j2000.dec),
-    ringTilt: id === "saturn" ? illum.ring_tilt : undefined,
+    // astronomy-engine reports the tilt with the opposite sign (−26.6° in June 2017, when the north face was open).
+    ringTilt: id === "saturn" && illum.ring_tilt !== undefined ? -illum.ring_tilt : undefined,
   };
 }
 

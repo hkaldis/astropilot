@@ -1,6 +1,7 @@
 /** Search the deep-sky catalog and the Solar System to pick what was observed. */
 import { useMemo, useState } from "react";
-import { SOLAR_SYSTEM } from "@shared/astro/planets";
+import { PLANET_BY_ID, SOLAR_SYSTEM } from "@shared/astro/planets";
+import { MOONS } from "@shared/astro/moons";
 import type { CatalogObject } from "@shared/data/types";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { TypeGlyph } from "@/components/common/Glyphs";
@@ -34,14 +35,25 @@ function toCandidate(o: CatalogObject): Candidate {
   };
 }
 
-const SOLAR: Candidate[] = SOLAR_SYSTEM.map((p, i) => ({
-  ref: p.id,
-  name: p.name,
-  type: p.id === "moon" ? "moon" : "planet",
-  sub: p.id === "moon" ? "Earth's Moon" : "Planet",
-  keys: [norm(p.id), norm(p.name)],
-  rank: i,
-}));
+const SOLAR: Candidate[] = [
+  ...SOLAR_SYSTEM.map((p, i) => ({
+    ref: p.id,
+    name: p.name,
+    type: p.id === "moon" ? "moon" : "planet",
+    sub: p.id === "moon" ? "Earth's Moon" : "Planet",
+    keys: [norm(p.id), norm(p.name)],
+    rank: i,
+  })),
+  // The planets' moons, after the planets (a search for "Saturn" lists Saturn first, then Titan…).
+  ...MOONS.map((m, i) => ({
+    ref: m.id,
+    name: m.name,
+    type: "satellite",
+    sub: `Moon of ${PLANET_BY_ID[m.parent].name} · ${m.designation}`,
+    keys: [norm(m.id), norm(m.name), norm(m.designation), norm(PLANET_BY_ID[m.parent].name)],
+    rank: 20 + i,
+  })),
+];
 
 function score(c: Candidate, q: string): number {
   let best = Infinity;

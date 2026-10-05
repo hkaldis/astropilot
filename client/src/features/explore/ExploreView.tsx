@@ -1,12 +1,13 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "wouter";
+import { Link, useSearchParams } from "wouter";
 import { Check, Search, SlidersHorizontal, X, Sparkles } from "lucide-react";
-import { SOLAR_SYSTEM, altAzOf, eqjVector, evaluateTarget, formatNightDate, horizonFrame, sunAltitude } from "@shared/astro";
+import { MOONS, PLANET_BY_ID, SOLAR_SYSTEM, altAzOf, eqjVector, evaluateTarget, formatMag, formatNightDate, horizonFrame, sunAltitude } from "@shared/astro";
 import type { CatalogObject } from "@shared/data/types";
 import { useCatalog } from "@/hooks/useCatalog";
 import { useActiveScope } from "@/hooks/useScope";
 import { useSite } from "@/hooks/useSite";
 import { EmptyState, PageHeader, Skel, usePageTitle } from "@/components/common/Page";
+import { TypeGlyph } from "@/components/common/Glyphs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -211,6 +212,12 @@ export function ExploreView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bodies, q, filters, !!ctx]);
 
+  // Planets' moons: found by name, by "moons", or by their planet's name.
+  const shownMoons = useMemo(() => {
+    if (!q) return [];
+    return MOONS.filter((m) => norm(m.name).startsWith(q) || (q.length >= 4 && "moons".startsWith(q)) || norm(PLANET_BY_ID[m.parent].name) === q);
+  }, [q]);
+
   // Constellations present in the catalog, for the select.
   const constellations = useMemo(() => {
     const counts = new Map<string, number>();
@@ -337,6 +344,26 @@ export function ExploreView() {
             {q ? "Solar system" : "Planets & Moon tonight"}
           </h2>
           <PlanetStrip bodies={shownBodies} ctx={ctx} />
+        </section>
+      )}
+      {shownMoons.length > 0 && (
+        <section className="mt-6" aria-labelledby="moons-h">
+          <h2 id="moons-h" className="eyebrow mb-2">
+            Moons
+          </h2>
+          <ul className="flex flex-wrap gap-2">
+            {shownMoons.map((m, i) => (
+              <li key={m.id} className="animate-fade" style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}>
+                <Link href={`/object/${m.id}`} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors hover:bg-accent/60">
+                  <TypeGlyph type="satellite" className="h-4 w-4 text-gold" />
+                  <span className="font-medium">{m.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {PLANET_BY_ID[m.parent].name} · mag <span className="num">{formatMag(m.mag)}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
       {ctx && !q && <CometStrip ctx={ctx} variant="strip" title="Comets tonight" className="mt-6" />}

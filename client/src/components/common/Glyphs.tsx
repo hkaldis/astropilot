@@ -122,6 +122,15 @@ export function TypeGlyph({ type, className, id }: { type: string; className?: s
           <path d="M15.5 3.5a8.5 8.5 0 1 0 5 13.5A7 7 0 0 1 15.5 3.5z" fill={stroke} />
         </svg>
       );
+    case "satellite":
+      // A planet's moon: a small world on its orbit around a larger one.
+      return (
+        <svg viewBox="0 0 24 24" className={c} aria-hidden="true">
+          <circle cx="10" cy="13" r="6" fill={stroke} opacity="0.35" />
+          <ellipse cx="11.5" cy="12" rx="10" ry="4.2" transform="rotate(-24 11.5 12)" fill="none" stroke={stroke} strokeWidth="1" strokeDasharray="1.6 1.8" opacity="0.65" />
+          <circle cx="19.2" cy="7.4" r="2.5" fill={stroke} />
+        </svg>
+      );
     default:
       // nebulae and remnants
       return (

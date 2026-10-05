@@ -16,6 +16,7 @@ export const TYPE_LABEL: Record<string, string> = {
   star_cloud: "Star cloud",
   planet: "Planet",
   moon: "Moon",
+  satellite: "Planetary moon",
 };
 
 export const TYPE_PLURAL: Record<string, string> = {
@@ -34,6 +35,7 @@ export const TYPE_PLURAL: Record<string, string> = {
   star_cloud: "Star clouds",
   planet: "Planets",
   moon: "Moon",
+  satellite: "Planetary moons",
 };
 
 /** Broad groups used for filters. */

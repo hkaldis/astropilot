@@ -63,6 +63,31 @@ function EclipseGlyph({ className }: { className?: string }) {
   );
 }
 
+/** A planet with its moons strung along its equator, as in the eyepiece. */
+function MoonsGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2" fill="currentColor" opacity="0.85" />
+      {[2.6, 6.4, 17.8, 21.6].map((x, i) => (
+        <circle key={x} cx={x} cy={12 + (i % 2 ? -0.7 : 0.6)} r={i === 1 ? 1.25 : 1} fill="currentColor" />
+      ))}
+    </svg>
+  );
+}
+
+/** Jupiter with a moon's black shadow on its disk. */
+function ShadowGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <circle cx="11" cy="12" r="8" fill="#d9b88f" />
+      <rect x="3" y="9.4" width="16" height="1.6" fill="#9a6f4a" opacity="0.8" />
+      <rect x="3" y="13.2" width="16" height="1.4" fill="#a07650" opacity="0.7" />
+      <circle cx="13.5" cy="11.2" r="1.4" fill="#141414" />
+      <circle cx="21.2" cy="10.4" r="1.3" fill="currentColor" />
+    </svg>
+  );
+}
+
 function HorizonGlyph({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
@@ -86,6 +111,10 @@ export function familyGlyph(id: string, size = "h-5 w-5"): ReactNode {
       return <Gem className={c} />;
     case "solar":
       return <PlanetGlyph id="saturn" className="h-7 w-7" />;
+    case "moons":
+      return <MoonsGlyph className="h-6 w-6" />;
+    case "shadow-play":
+      return <ShadowGlyph className="h-6 w-6" />;
     case "doubles":
       return <TypeGlyph type="double_star" className={c} />;
     case "constellations":

@@ -2,7 +2,7 @@
  * Everything selectable on the chart, addressed by a string ref:
  *   "body:jupiter" | "body:moon" | "body:sun" | "dso:M31" | "star:Vega" | "con:Ori" | "anon:<index>"
  */
-import { altAzOf, constellationOf, eqjVector, PLANET_BY_ID, SOLAR_SYSTEM, type AltAz, type SolarSystemId } from "@shared/astro";
+import { altAzOf, constellationOf, eqjVector, isMoonId, MOON_BY_ID, PLANET_BY_ID, SOLAR_SYSTEM, type AltAz, type MoonId, type SolarSystemId } from "@shared/astro";
 import { CONSTELLATION_NAMES } from "@shared/data/constellations-meta";
 import type { CatalogObject } from "@shared/data/types";
 import { TYPE_LABEL } from "@/lib/objects";
@@ -168,6 +168,7 @@ export function refForFocus(focus: string | null, ctx: ObjectContext): string | 
   const lower = f.toLowerCase();
   if (lower === "sun") return "body:sun";
   if (PLANET_BY_ID[lower as SolarSystemId]) return `body:${lower}`;
+  if (isMoonId(lower)) return `body:${MOON_BY_ID[lower as MoonId].parent}`; // a planet's moon: point at its planet
   const d = ctx.dsoById.get(f.toUpperCase()) ?? ctx.dsoById.get(f.replace(/\s+/g, "").toUpperCase());
   if (d) return `dso:${d.o.id}`;
   const s = ctx.data.names?.find((n) => n.name.toLowerCase() === lower);
