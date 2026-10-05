@@ -15,12 +15,16 @@ astropilot.space (where the domain is registered) and, for donations, your Strip
 
 ### 1. Create the app on Render
 
-1. Sign in at [render.com](https://render.com) with the GitHub account **hkaldis**.
+1. Sign in at [render.com](https://render.com) with the GitHub account **hkaldis**. The free **Hobby**
+   workspace plan is enough (it includes the two custom domains astropilot.space needs).
 2. **New → Blueprint**, pick the repository **hkaldis/astropilot**, and apply it. This creates
-   - `astropilot` — the web app (Starter plan: always on), in Frankfurt;
-   - `astropilot-db` — PostgreSQL 16 (basic-256mb), in Frankfurt.
-   Check current prices on render.com/pricing (at the time of writing about $14.50 a month in total:
-   $7 for the app, $6 for the database plus about $0.30 per GB of database storage).
+   - `astropilot` — the web app (0.5 CPU / 512 MB, always on), in Frankfurt;
+   - `astropilot-db` — PostgreSQL 16 (0.1 CPU / 256 MB, 5 GB of storage that grows by itself when
+     it's 90% full), in Frankfurt.
+
+   Cost, per render.com/pricing in October 2026: about **$14.50 a month** — $7 for the app, $6 for the
+   database and $1.50 for its 5 GB of storage ($0.30 per GB). Traffic up to 5 GB a month is included
+   (then $0.15 per GB); app files are compressed and cached, so a first visit downloads well under 1 MB.
 3. Render asks for the secrets. Copy them from **Replit → Secrets**:
    - `SESSION_SECRET` — use the *same* value as on Replit, so nobody is signed out;
    - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` — the same values as on Replit;
@@ -69,7 +73,9 @@ Repl for a few weeks as a fallback, then delete it.
 
 - **Deploys:** push to `main` → Render builds and deploys (watch it under the service's *Events*).
   The database is upgraded automatically and additively on start (`server/migrate.ts`).
-- **Backups:** Render backs up the Postgres database daily (see the database's *Recovery* tab).
+- **Backups:** Render backs up the database continuously: *astropilot-db → Recovery → Point-in-Time
+  Recovery* restores it to any moment of the past 3 days (7 days on the Pro workspace plan). For a copy
+  to keep, use *Create export* on the same page and download it (exports are kept for 7 days).
 - **Logs:** the service's *Logs* tab.
 - **Environment:** `DATABASE_URL`, `SESSION_SECRET` (required); `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`
   (Google sign-in); `STRIPE_SECRET_KEY` (donations); `APP_URL` (public address, for Stripe return links);

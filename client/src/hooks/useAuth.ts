@@ -18,7 +18,7 @@ export function useAuth() {
 
 export function useFeatures(): ApiFeatures {
   const q = useQuery<ApiFeatures>({ queryKey: ["/api/features"], staleTime: 10 * 60_000 });
-  return q.data ?? { google: false, photos: false, donations: false };
+  return q.data ?? { google: false, photos: false, donations: false, host: null };
 }
 
 function onSignedIn(user: ApiUser) {

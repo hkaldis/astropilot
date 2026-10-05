@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { PageHeader, usePageTitle } from "@/components/common/Page";
+import { useFeatures } from "@/hooks/useAuth";
 
 const UPDATED = "4 October 2026";
 
@@ -7,7 +8,14 @@ function Prose({ children }: { children: React.ReactNode }) {
   return <div className="prose prose-sm max-w-2xl text-foreground/90 dark:prose-invert prose-headings:font-semibold prose-headings:text-foreground prose-a:text-primary prose-strong:text-foreground prose-li:my-0.5">{children}</div>;
 }
 
+const HOSTING = {
+  render: { name: "Render", where: " (servers in the EU, Frankfurt)" },
+  replit: { name: "Replit", where: "" },
+} as const;
+
 function Privacy() {
+  const { host } = useFeatures();
+  const hosting = host ? HOSTING[host] : { name: "Our hosting provider", where: "" };
   return (
     <Prose>
       <p>Last updated: {UPDATED}</p>
@@ -29,7 +37,9 @@ function Privacy() {
         <li><strong>NASA/JPL Small-Body Database and Horizons</strong> — comet orbits and positions, fetched by our server (no personal data sent).</li>
         <li><strong>Google</strong> — only if you choose "Continue with Google".</li>
         <li><strong>Stripe</strong> — only if you make a donation; we never see your card details.</li>
-        <li><strong>Render</strong> — hosting, the database and photo storage (servers in the EU, Frankfurt).</li>
+        <li>
+          <strong>{hosting.name}</strong> — hosting, the database and photo storage{hosting.where}.
+        </li>
       </ul>
       <h2>Your control</h2>
       <p>

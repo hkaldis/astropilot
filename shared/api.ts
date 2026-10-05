@@ -28,6 +28,8 @@ export interface ApiFeatures {
   google: boolean;
   photos: boolean;
   donations: boolean;
+  /** Where this server runs, so the privacy page names the right hosting provider. */
+  host: "render" | "replit" | null;
 }
 
 export interface ApiLocation {
