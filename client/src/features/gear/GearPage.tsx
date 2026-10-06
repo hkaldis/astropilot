@@ -38,7 +38,7 @@ function GearSkeleton() {
   return (
     <div className="flex flex-col gap-8">
       <Skel className="h-12 w-56" />
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <Skel className="h-44" />
         <Skel className="h-44" />
       </div>
@@ -212,9 +212,9 @@ function MyGear() {
         }
       >
         {tels.length ? (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {tels.map((t, i) => (
-              <div key={t.id} className="grid animate-rise" style={stagger(i, 70)}>
+              <div key={t.id} className="grid animate-rise grid-cols-1" style={stagger(i, 70)}>
                 <TelescopeCard
                   t={t}
                   isDefault={t.id === defaultId}

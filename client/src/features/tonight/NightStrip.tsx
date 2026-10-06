@@ -116,7 +116,7 @@ export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestW
           <div className="sticky left-0 z-10 shrink-0 bg-card" style={{ width: LABEL_W }}>
             <svg width={LABEL_W} height={H} aria-hidden="true">
               {ROWS.map((r, i) => (
-                <text key={r.key} x={0} y={rowY[i] + r.h / 2 + 4} className="fill-muted-foreground text-[11px]">
+                <text key={r.key} x={0} y={rowY[i] + r.h / 2 + 4} className="fill-muted-foreground text-[12px] sm:text-[11px]">
                   {r.label}
                 </text>
               ))}
@@ -139,7 +139,7 @@ export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestW
             {/* hour labels */}
             {colTimes.map((t, i) =>
               i % (colW < 40 ? 2 : 1) === 0 ? (
-                <text key={t} x={i * colW + 3} y={13} className="num fill-muted-foreground text-[10.5px]">
+                <text key={t} x={i * colW + 3} y={13} className="num fill-muted-foreground text-[11.5px] sm:text-[10.5px]">
                   {fmt(t)}
                 </text>
               ) : null,
@@ -149,7 +149,7 @@ export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestW
             {bestWindow && (
               <g key={`best-${bestWindow.start}`} className="animate-fade" style={{ animationDelay: "0.45s" }}>
                 <rect x={x(bestWindow.start)} y={rowY[0] - 2} width={Math.max(2, x(bestWindow.end) - x(bestWindow.start))} height={H - rowY[0]} rx={8} fill="hsl(var(--primary))" opacity={0.07} />
-                <text x={x(bestWindow.start) + 6} y={rowY[0] + 17} className="fill-primary text-[10.5px] font-medium">
+                <text x={x(bestWindow.start) + 6} y={rowY[0] + 17} className="fill-primary text-[11.5px] font-medium sm:text-[10.5px]">
                   best window
                 </text>
               </g>
@@ -173,7 +173,7 @@ export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestW
                     <rect x={cx + 2} y={rowY[row] + 0.5} width={colW - 4} height={ROWS[row].h - 1} rx={3.5} fill="none" stroke={`hsl(var(${TONE_VAR[tone]}))`} strokeOpacity={0.7} strokeDasharray="2 2" />
                   )}
                   {label && colW >= 30 && (
-                    <text x={cx + colW / 2} y={rowY[row] + ROWS[row].h / 2 + 3.5} textAnchor="middle" className={cn("num text-[10px]", faded ? "fill-muted-foreground" : "fill-foreground")}>
+                    <text x={cx + colW / 2} y={rowY[row] + ROWS[row].h / 2 + 3.5} textAnchor="middle" className={cn("num text-[11px] sm:text-[10px]", faded ? "fill-muted-foreground" : "fill-foreground")}>
                       {label}
                     </text>
                   )}

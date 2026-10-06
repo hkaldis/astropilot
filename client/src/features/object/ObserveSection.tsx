@@ -395,10 +395,10 @@ function PairView({ sep, pa, mag1, mag2 }: { sep: number; pa?: number; mag1?: nu
         )}
         <circle cx={c} cy={c} r={r(mag1)} className="fill-gold" />
         <circle cx={x2} cy={y2} r={r(mag2)} className="fill-foreground" />
-        <text x={c} y={14} textAnchor="middle" className="fill-muted-foreground text-[9px] font-medium">
+        <text x={c} y={14} textAnchor="middle" className="fill-muted-foreground text-[10px] font-medium sm:text-[9px]">
           N
         </text>
-        <text x={12} y={c} dy="0.32em" className="fill-muted-foreground text-[9px] font-medium">
+        <text x={12} y={c} dy="0.32em" className="fill-muted-foreground text-[10px] font-medium sm:text-[9px]">
           E
         </text>
       </svg>

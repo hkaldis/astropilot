@@ -99,6 +99,25 @@
     /* Motion: entrances decelerate (ease-out-quint); drawn lines ease in and out. */
     --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    /*
+      Small type (text-2xs, text-xs, text-sm) is a step larger on phones, read at arm's length:
+      12 / 13 / 15 px with their line heights, against 11 / 12 / 14 px from 640 px up. Only the text
+      grows; spacing, icons and controls keep their sizes.
+    */
+    --text-2xs: 0.75rem;
+    --text-xs: 0.8125rem;
+    --text-xs-lh: 1.125rem;
+    --text-sm: 0.9375rem;
+    --text-sm-lh: 1.375rem;
+  }
+  @media (min-width: 640px) {
+    :root {
+      --text-2xs: 0.6875rem;
+      --text-xs: 0.75rem;
+      --text-xs-lh: 1rem;
+      --text-sm: 0.875rem;
+      --text-sm-lh: 1.25rem;
+    }
   }
 
   * {

@@ -110,7 +110,7 @@ export function YearStrip({ months, minAlt, className }: { months: YearMonth[]; 
                   <div className={cn("mb-1 h-0.5 w-2/3 rounded bg-muted-foreground/30", i === 0 && "bg-foreground/60")} />
                 )}
               </div>
-              <span className={cn("text-[10px] leading-none", i === 0 ? "font-semibold text-foreground" : "text-muted-foreground")}>{MONTHS[m.month].slice(0, 3)}</span>
+              <span className={cn("text-[11px] leading-none sm:text-[10px]", i === 0 ? "font-semibold text-foreground" : "text-muted-foreground")}>{MONTHS[m.month].slice(0, 3)}</span>
             </div>
           );
         })}

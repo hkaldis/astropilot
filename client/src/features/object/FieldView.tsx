@@ -131,7 +131,7 @@ export function FieldView({ fieldDeg, shape, size = 248, className, label }: { f
         <g>
           <circle cx={ix} cy={iy} r={RI} className="fill-surface-2 stroke-border dark:fill-sky-night" strokeWidth={1.2} />
           <Disk cx={ix} cy={iy} r={ri} shape={shape} />
-          <text x={ix} y={iy + RI + 11} textAnchor="middle" className="num fill-muted-foreground text-[9px]">
+          <text x={ix} y={iy + RI + 11} textAnchor="middle" className="num fill-muted-foreground text-[10px] sm:text-[9px]">
             detail ×{zoom >= 10 ? Math.round(zoom / 5) * 5 : Math.round(zoom)}
           </text>
         </g>
@@ -148,7 +148,7 @@ export function FieldView({ fieldDeg, shape, size = 248, className, label }: { f
             <g key={m.name}>
               {m.highlight && <circle cx={mx} cy={my} r={4.2} fill="none" className="stroke-primary" strokeWidth={1.2} />}
               <circle cx={mx} cy={my} r={1.4} className="fill-foreground" />
-              <text x={mx} y={my - 5} textAnchor="middle" className={m.highlight ? "fill-primary text-[8.5px] font-semibold" : "fill-muted-foreground text-[8px]"}>
+              <text x={mx} y={my - 5} textAnchor="middle" className={m.highlight ? "fill-primary text-[9.5px] font-semibold sm:text-[8.5px]" : "fill-muted-foreground text-[9px] sm:text-[8px]"}>
                 {m.highlight ? m.name : m.name.slice(0, 2)}
               </text>
             </g>
@@ -178,10 +178,10 @@ export function FieldView({ fieldDeg, shape, size = 248, className, label }: { f
           <circle cx={c} cy={c} r={R} fill={`url(#vig-${uid})`} />
         </g>
         <circle cx={c} cy={c} r={R} fill="none" className="stroke-border" strokeWidth={1.5} />
-        <text x={c} y={9} textAnchor="middle" className="fill-muted-foreground text-[9px] font-medium">
+        <text x={c} y={9} textAnchor="middle" className="fill-muted-foreground text-[10px] font-medium sm:text-[9px]">
           N
         </text>
-        <text x={4} y={c} dy="0.32em" className="fill-muted-foreground text-[9px] font-medium">
+        <text x={4} y={c} dy="0.32em" className="fill-muted-foreground text-[10px] font-medium sm:text-[9px]">
           E
         </text>
         {inset}
@@ -189,7 +189,7 @@ export function FieldView({ fieldDeg, shape, size = 248, className, label }: { f
           <line x1={0} x2={scalePx} y1={0} y2={0} className="stroke-muted-foreground" strokeWidth={1.2} />
           <line x1={0} x2={0} y1={-3} y2={3} className="stroke-muted-foreground" />
           <line x1={scalePx} x2={scalePx} y1={-3} y2={3} className="stroke-muted-foreground" />
-          <text x={scalePx / 2} y={13} textAnchor="middle" className="num fill-muted-foreground text-[9px]">
+          <text x={scalePx / 2} y={13} textAnchor="middle" className="num fill-muted-foreground text-[10px] sm:text-[9px]">
             {angleLabel(scaleArcsec)}
           </text>
         </g>

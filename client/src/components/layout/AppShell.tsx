@@ -208,7 +208,7 @@ function MobileTabs() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={cn("relative flex flex-col items-center gap-1 py-2.5 text-[0.68rem] transition-colors", active ? "text-primary" : "text-muted-foreground")}
+                className={cn("relative flex flex-col items-center gap-1 py-2.5 text-[0.75rem] transition-colors", active ? "text-primary" : "text-muted-foreground")}
                 aria-current={active ? "page" : undefined}
               >
                 {active && <span className="absolute inset-x-0 top-0 mx-auto h-0.5 w-8 origin-center animate-grow-x rounded-full bg-primary" aria-hidden="true" />}
@@ -217,7 +217,7 @@ function MobileTabs() {
               </Link>
             );
           })}
-          <button onClick={() => setMore(true)} className={cn("flex flex-col items-center gap-1 py-2.5 text-[0.68rem]", moreActive ? "text-primary" : "text-muted-foreground")}>
+          <button onClick={() => setMore(true)} className={cn("flex flex-col items-center gap-1 py-2.5 text-[0.75rem]", moreActive ? "text-primary" : "text-muted-foreground")}>
             <MoreHorizontal className="h-5 w-5" />
             More
           </button>

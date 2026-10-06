@@ -247,7 +247,7 @@ export function AltitudeChart({
             {[0, 30, 60, 90].map((a) => (
               <g key={a}>
                 <line x1={M.l} x2={M.l + pw} y1={y(a)} y2={y(a)} className={a === 0 ? "stroke-muted-foreground/45" : "stroke-foreground/[0.07]"} strokeWidth={1} />
-                <text x={M.l - 6} y={y(a)} dy="0.32em" textAnchor="end" className="num fill-muted-foreground text-[10px]">
+                <text x={M.l - 6} y={y(a)} dy="0.32em" textAnchor="end" className="num fill-muted-foreground text-[11px] sm:text-[10px]">
                   {a}°
                 </text>
               </g>
@@ -255,7 +255,7 @@ export function AltitudeChart({
             {ticks.map((t) => (
               <g key={t}>
                 <line x1={x(t)} x2={x(t)} y1={M.t + ph} y2={M.t + ph + 4} className="stroke-muted-foreground/45" />
-                <text x={x(t)} y={H - 5} textAnchor="middle" className="num fill-muted-foreground text-[10px]">
+                <text x={x(t)} y={H - 5} textAnchor="middle" className="num fill-muted-foreground text-[11px] sm:text-[10px]">
                   {fmt.label(t)}
                 </text>
               </g>
@@ -265,7 +265,7 @@ export function AltitudeChart({
             {yMin !== null && (
               <g>
                 <line x1={M.l} x2={M.l + pw} y1={yMin} y2={yMin} className="stroke-muted-foreground/60" strokeDasharray="3 4" strokeWidth={1} />
-                <text x={M.l + pw - 4} y={yMin - 4} textAnchor="end" className="num fill-muted-foreground text-[10px]">
+                <text x={M.l + pw - 4} y={yMin - 4} textAnchor="end" className="num fill-muted-foreground text-[11px] sm:text-[10px]">
                   {minAlt}° min
                 </text>
               </g>
@@ -318,7 +318,7 @@ export function AltitudeChart({
                 if (!top || top.alt < 4) return null;
                 const lx = Math.min(Math.max(x(top.t), M.l + 18), M.l + pw - 18);
                 return (
-                  <text key={`${s.id}-l`} x={lx} y={y(top.alt) - 6} textAnchor="middle" className="fill-gold/90 text-[10px]">
+                  <text key={`${s.id}-l`} x={lx} y={y(top.alt) - 6} textAnchor="middle" className="fill-gold/90 text-[11px] sm:text-[10px]">
                     {s.label}
                   </text>
                 );
@@ -326,7 +326,7 @@ export function AltitudeChart({
 
             {/* Highlight label (bottom edge, clear of the peak and "now" labels) */}
             {highlight && x(highlight[1]) - x(highlight[0]) > 70 && (
-              <text x={(x(highlight[0]) + x(highlight[1])) / 2} y={M.t + ph - 6} textAnchor="middle" className="fill-primary/80 text-[9px] uppercase tracking-[0.12em]">
+              <text x={(x(highlight[0]) + x(highlight[1])) / 2} y={M.t + ph - 6} textAnchor="middle" className="fill-primary/80 text-[10px] uppercase tracking-[0.12em] sm:text-[9px]">
                 {highlightLabel}
               </text>
             )}
@@ -345,7 +345,7 @@ export function AltitudeChart({
                     x={Math.min(Math.max(px, M.l + 40), M.l + pw - 40)}
                     y={below ? py + 17 : py - 9}
                     textAnchor="middle"
-                    className="num fill-foreground text-[11px] font-medium"
+                    className="num fill-foreground text-[12px] font-medium sm:text-[11px]"
                     style={{ paintOrder: "stroke", stroke: "hsl(var(--background) / 0.7)", strokeWidth: 3 }}
                   >
                     {Math.round(peak.alt)}° · {fmt.time(peak.t)}

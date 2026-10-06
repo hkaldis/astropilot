@@ -7,7 +7,8 @@ export const fmtPupil = (p: number) => `${p.toFixed(1)} mm`;
 export const fmtFRatio = (f: number) => `f/${trimZero(f.toFixed(1))}`;
 export const fmtArcsec = (a: number) => `${a < 1 ? a.toFixed(2) : a.toFixed(1)}″`;
 export const fmtMm = (mm: number) => `${trimZero(mm.toFixed(mm < 10 ? 1 : 0))} mm`;
-export const fmtFocal = (mm: number) => `${trimZero(String(Math.round(mm * 10) / 10))} mm`;
+/** "1200 mm", with a no-break space so a line never splits a value from its unit. */
+export const fmtFocal = (mm: number) => `${trimZero(String(Math.round(mm * 10) / 10))}\u00a0mm`;
 export const fmtFactor = (f: number) => `${trimZero(String(Math.round(f * 100) / 100))}×`;
 
 /** True field: degrees when ≥ 1°, arcminutes below. */

@@ -74,9 +74,12 @@ function BestText({ r, rc, compact }: { r: RankedTarget<CatalogObject>; rc: RowC
   // The refined transit when that's the best moment, so every page shows the same time; the altitude then.
   const time = formatTime(shownBestTime(r.bestTime, t, rc.darkStart, rc.darkEnd), { tz: rc.tz, hour12: rc.hour12 });
   const alt = Math.round(altAt(t, r.bestTime));
+  // Compact (phones): a tight separator keeps it no wider than the sparkline above it.
   return compact ? (
-    <span className="num">
-      {time} · {alt}°
+    <span className="num whitespace-nowrap">
+      {time}
+      <span className="mx-px text-muted-foreground">·</span>
+      {alt}°
     </span>
   ) : (
     <span>
@@ -124,8 +127,12 @@ export const ResultRow = memo(function ResultRow({ item, rc }: { item: ExploreIt
 
         <span className="min-w-0">
           <span className="flex min-w-0 items-baseline gap-2">
-            <span className="truncate font-medium">{o.name}</span>
-            {o.showpiece && <Star className="h-3 w-3 shrink-0 translate-y-[1px] fill-gold text-gold" aria-label="Showpiece" />}
+            {/* Phones wrap a long name rather than cut it (the star follows its last word); wider screens keep one line. */}
+            <span className="min-w-0 font-medium sm:truncate">
+              {o.name}
+              {o.showpiece && <Star className="ml-1.5 inline h-3 w-3 translate-y-[-1px] fill-gold text-gold sm:hidden" aria-label="Showpiece" />}
+            </span>
+            {o.showpiece && <Star className="hidden h-3 w-3 shrink-0 translate-y-[1px] fill-gold text-gold sm:block" aria-label="Showpiece" />}
             {des.length > 0 && <span className="num hidden shrink-0 truncate text-xs text-muted-foreground sm:inline">{des.join(" · ")}</span>}
           </span>
           <span className="mt-0.5 block truncate text-xs text-muted-foreground">

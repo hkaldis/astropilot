@@ -145,14 +145,14 @@ export function KitChart({ analysis: a, className }: { analysis: KitAnalysis; cl
 
           {/* axis */}
           {ticks.map((t) => (
-            <text key={t} x={x(t)} y={axisY} textAnchor="middle" className="num fill-muted-foreground text-[10px]">
+            <text key={t} x={x(t)} y={axisY} textAnchor="middle" className="num fill-muted-foreground text-[11px] sm:text-[10px]">
               {t}×
             </text>
           ))}
-          <text x={minX} y={axisY} textAnchor="middle" className="num fill-muted-foreground text-[10px] font-medium">
+          <text x={minX} y={axisY} textAnchor="middle" className="num fill-muted-foreground text-[11px] font-medium sm:text-[10px]">
             {fmtMag(a.minUseful)} min
           </text>
-          <text x={maxX} y={axisY} textAnchor="middle" className="num fill-muted-foreground text-[10px] font-medium">
+          <text x={maxX} y={axisY} textAnchor="middle" className="num fill-muted-foreground text-[11px] font-medium sm:text-[10px]">
             {fmtMag(a.maxUseful)} max
           </text>
         </svg>

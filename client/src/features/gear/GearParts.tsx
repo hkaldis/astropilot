@@ -205,10 +205,10 @@ export function TelescopeCard({
             {telescopeTypeLabel(t.type)}
             {selected && onSelect && <span className="text-primary">· shown below</span>}
           </div>
-          <h3 className="mt-1 truncate text-base font-semibold leading-snug">{t.name}</h3>
+          <h3 className="mt-1 break-words text-base font-semibold leading-snug">{t.name}</h3>
           <p className="num mt-0.5 text-sm text-muted-foreground">
             {scopeSubtitle(t)}
-            {t.obstructionRatio ? ` · ${Math.round(t.obstructionRatio)}% obstruction` : ""}
+            {t.obstructionRatio ? ` · ${Math.round(t.obstructionRatio)}%\u00a0obstruction` : ""}
           </p>
         </div>
         <div className="pointer-events-auto -mr-2 -mt-1 flex shrink-0 items-center">

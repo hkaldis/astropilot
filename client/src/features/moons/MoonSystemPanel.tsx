@@ -378,7 +378,7 @@ export function MoonSystemPanel({
                         x={labels.get(p.id)!.x}
                         y={labels.get(p.id)!.y}
                         textAnchor={labels.get(p.id)!.anchor}
-                        className={cn("text-[10px]", hl ? "fill-primary font-semibold" : "fill-muted-foreground")}
+                        className={cn("text-[11px] sm:text-[10px]", hl ? "fill-primary font-semibold" : "fill-muted-foreground")}
                         style={{ paintOrder: "stroke", stroke: "hsl(var(--background) / 0.6)", strokeWidth: 3 }}
                       >
                         {meta.name}
@@ -396,7 +396,7 @@ export function MoonSystemPanel({
                   // Clear of the compass rose (top left) and the horizon note (top right).
                   const ey = clamp(y, left ? ROSE_BOX[3] + 6 : planetUp ? 14 : 28, H - 14);
                   return (
-                    <text key={`out-${p.id}`} x={ex} y={ey + 3} textAnchor={left ? "start" : "end"} className={cn("text-[9.5px]", p.id === highlight ? "fill-primary font-semibold" : "fill-muted-foreground")}>
+                    <text key={`out-${p.id}`} x={ex} y={ey + 3} textAnchor={left ? "start" : "end"} className={cn("text-[10.5px] sm:text-[9.5px]", p.id === highlight ? "fill-primary font-semibold" : "fill-muted-foreground")}>
                       {left ? `← ${system.moons.find((m) => m.id === p.id)?.name}` : `${system.moons.find((m) => m.id === p.id)?.name} →`}
                     </text>
                   );
@@ -404,7 +404,7 @@ export function MoonSystemPanel({
               {/* compass rose */}
               <g aria-hidden="true">
                 <path d={`M ${rose.x} ${rose.y + sy * 9} L ${rose.x} ${rose.y} L ${rose.x + sx * 9} ${rose.y}`} fill="none" className="stroke-muted-foreground" strokeOpacity={0.6} strokeWidth={1} />
-                <g className="fill-muted-foreground text-[9px] font-medium" textAnchor="middle" dominantBaseline="central">
+                <g className="fill-muted-foreground text-[10px] font-medium sm:text-[9px]" textAnchor="middle" dominantBaseline="central">
                   <text x={rose.x} y={rose.y + sy * 15.5}>
                     N
                   </text>
@@ -414,7 +414,7 @@ export function MoonSystemPanel({
                 </g>
               </g>
               {!planetUp && (
-                <text x={W - 10} y={14} textAnchor="end" className="fill-q-poor text-[10px]">
+                <text x={W - 10} y={14} textAnchor="end" className="fill-q-poor text-[11px] sm:text-[10px]">
                   {planet.name} is below the horizon
                 </text>
               )}
