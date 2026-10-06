@@ -22,7 +22,7 @@ import { useGearMutations, type GearItem } from "./useGearMutations";
 const ADD_MENU: { kind: GearKind; label: string; icon: typeof Telescope }[] = [
   { kind: "telescopes", label: "Telescope or binoculars", icon: Telescope },
   { kind: "eyepieces", label: "Eyepiece", icon: Eye },
-  { kind: "barlows", label: "Barlow or reducer", icon: ZoomIn },
+  { kind: "barlows", label: "Barlow, reducer or corrector", icon: ZoomIn },
   { kind: "filters", label: "Filter", icon: Aperture },
   { kind: "cameras", label: "Camera", icon: Camera },
 ];
@@ -298,7 +298,7 @@ function MyGear() {
       </Section>
 
       <Section
-        title="Barlows & reducers"
+        title="Barlows, reducers & correctors"
         action={
           g.barlows.length > 0 && (
             <Button size="sm" variant="outline" onClick={() => openAdd("barlows")}>
@@ -313,11 +313,11 @@ function MyGear() {
           <SmallEmpty
             action={
               <Button variant="outline" onClick={() => openAdd("barlows")}>
-                <Plus /> Add Barlow or reducer
+                <Plus /> Add Barlow, reducer or corrector
               </Button>
             }
           >
-            A 2× Barlow doubles every eyepiece's power; a focal reducer widens the view. AstroPilot includes them when it picks an eyepiece.
+            A 2× Barlow doubles every eyepiece's power; a focal reducer widens the view; a coma corrector (a Paracorr, say) sharpens the edge of the field. AstroPilot includes them when it picks an eyepiece.
           </SmallEmpty>
         )}
       </Section>

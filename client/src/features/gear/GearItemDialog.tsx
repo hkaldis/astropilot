@@ -594,7 +594,7 @@ function PresetList({
 const PLACEHOLDER: Record<GearKind, string> = {
   telescopes: "Search, e.g. 200P, C8, ED80, Seestar",
   eyepieces: "Search, e.g. Hyperion 13, Plössl 25, zoom",
-  barlows: "Search, e.g. 2×, Powermate, reducer",
+  barlows: "Search, e.g. 2×, Powermate, reducer, Paracorr",
   filters: "Search, e.g. OIII, UHC, moon",
   cameras: "Search, e.g. 533, 2600, Canon",
 };
@@ -665,7 +665,7 @@ function KindFields({ kind, draft, set, err, autoName, autoFocus }: { kind: Gear
     case "barlows":
       return (
         <>
-          <Field id="gear-factor" label="Factor" error={err.factor} hint="2 for a 2× Barlow; below 1 for a focal reducer (e.g. 0.63).">
+          <Field id="gear-factor" label="Factor" error={err.factor} hint="2 for a 2× Barlow; below 1 for a focal reducer (e.g. 0.63); about 1 for a coma corrector (a Paracorr adds 15%: 1.15).">
             <NumInput id="gear-factor" value={draft.factor} onChange={set("factor")} unit="×" placeholder="2" error={err.factor} autoFocus={autoFocus} />
           </Field>
           {nameField}

@@ -33,7 +33,7 @@ export function useGearMutations() {
 export const KIND_LABEL: Record<GearKind, { one: string; many: string; add: string }> = {
   telescopes: { one: "telescope", many: "Telescopes", add: "Add telescope" },
   eyepieces: { one: "eyepiece", many: "Eyepieces", add: "Add eyepiece" },
-  barlows: { one: "Barlow or reducer", many: "Barlows & reducers", add: "Add Barlow or reducer" },
+  barlows: { one: "Barlow, reducer or corrector", many: "Barlows, reducers & correctors", add: "Add Barlow, reducer or corrector" },
   filters: { one: "filter", many: "Filters", add: "Add filter" },
   cameras: { one: "camera", many: "Cameras", add: "Add camera" },
 };

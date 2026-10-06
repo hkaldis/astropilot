@@ -125,7 +125,7 @@ const OBS_COLUMN: Record<GearKind, string> = {
 const LABEL: Record<GearKind, string> = {
   telescopes: "Telescope",
   eyepieces: "Eyepiece",
-  barlows: "Barlow or reducer",
+  barlows: "Barlow, reducer or corrector",
   filters: "Filter",
   cameras: "Camera",
 };
