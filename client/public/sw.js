@@ -16,7 +16,7 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(SHELL)
-      .then((c) => c.addAll(["/", "/favicon.svg", "/manifest.webmanifest"]))
+      .then((c) => c.addAll(["/", "/favicon.svg?v=2", "/manifest.webmanifest"]))
       .catch(() => undefined)
       .then(() => self.skipWaiting()),
   );

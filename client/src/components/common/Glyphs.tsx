@@ -3,12 +3,14 @@ import { cn } from "@/lib/utils";
 
 /**
  * AstroPilot mark: a crescent orbit with a guiding star.
- * `intro` draws it in once (orbit, then the star); `glow` lets the guiding star softly shine.
+ * `intro` draws it in once (orbit, then the star); `glow` lets the guiding star softly shine. Every so often
+ * the comet laps its ring (the .logo-* animations in index.css).
  */
 export function Logo({ className, withText = true, intro = false, glow = false }: { className?: string; withText?: boolean; intro?: boolean; glow?: boolean }) {
   const uid = useId().replace(/:/g, "");
   const gid = `ap-g-${uid}`;
   const halo = `ap-h-${uid}`;
+  const trail = `ap-t-${uid}`;
   const draw = intro ? { pathLength: 1, strokeDasharray: 1, className: "animate-draw" } : {};
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
@@ -24,11 +26,24 @@ export function Logo({ className, withText = true, intro = false, glow = false }
               <stop offset="1" style={{ stopColor: "hsl(var(--gold))", stopOpacity: 0 }} />
             </radialGradient>
           )}
+          {/* Fades away behind the head, along the orbit it follows while it laps the ring. */}
+          <linearGradient id={trail} gradientUnits="userSpaceOnUse" x1="18.24" y1="24.92" x2="22.6" y2="9.6">
+            <stop offset="0" style={{ stopColor: "hsl(var(--primary))", stopOpacity: 0 }} />
+            <stop offset="1" style={{ stopColor: "hsl(var(--gold))" }} />
+          </linearGradient>
         </defs>
         <circle cx="16" cy="16" r="14.5" fill="none" stroke={`url(#${gid})`} strokeWidth="1.5" opacity="0.9" {...draw} />
-        <path d="M9 22.5c3.8-1.2 9.5-5.4 13.4-12.2" fill="none" stroke={`url(#${gid})`} strokeWidth="2.2" strokeLinecap="round" {...draw} style={intro ? { animationDelay: "0.25s" } : undefined} />
-        {glow && <circle cx="22.6" cy="9.6" r="6.5" fill={`url(#${halo})`} className="animate-breathe" />}
-        <circle cx="22.6" cy="9.6" r="2.3" fill="hsl(var(--gold))" className={intro ? "origin-box origin-center animate-pop" : undefined} style={intro ? { animationDelay: "0.85s" } : undefined} />
+        {/* The comet: its tail, the trail it leaves while lapping the ring, and its head. */}
+        <g className="logo-comet">
+          <path className="logo-trail" d="M18.24 24.92A9.19 9.19 0 0 0 22.6 9.6" fill="none" stroke={`url(#${trail})`} strokeWidth="2.2" strokeLinecap="round" />
+          <g className="logo-tail">
+            <path d="M9 22.5c3.8-1.2 9.5-5.4 13.4-12.2" fill="none" stroke={`url(#${gid})`} strokeWidth="2.2" strokeLinecap="round" {...draw} style={intro ? { animationDelay: "0.25s" } : undefined} />
+          </g>
+          <g className="logo-head">
+            {glow && <circle cx="22.6" cy="9.6" r="6.5" fill={`url(#${halo})`} className="animate-breathe" />}
+            <circle cx="22.6" cy="9.6" r="2.3" fill="hsl(var(--gold))" className={intro ? "origin-box origin-center animate-pop" : undefined} style={intro ? { animationDelay: "0.85s" } : undefined} />
+          </g>
+        </g>
         <circle cx="10.5" cy="11" r="0.9" fill="hsl(var(--foreground))" fillOpacity="0.8" className={intro ? "animate-fade" : undefined} style={intro ? { animationDelay: "1.1s" } : undefined} />
         <circle cx="20.5" cy="21.5" r="0.7" fill="hsl(var(--foreground))" fillOpacity="0.6" className={intro ? "animate-fade" : undefined} style={intro ? { animationDelay: "1.25s" } : undefined} />
       </svg>

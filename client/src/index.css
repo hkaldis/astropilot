@@ -246,6 +246,88 @@ html.night-vision body::after {
   }
 }
 
+/*
+  The logo's comet laps its ring now and then: counter-clockwise, the way it's drawn travelling, its tail
+  bending into a trail along the orbit, before it settles back in place with a brief flare. 2.6 s of every
+  26 s, the first lap a few seconds after the page opens. Reduced motion stops it with everything else.
+*/
+.logo-comet,
+.logo-tail,
+.logo-trail,
+.logo-head {
+  animation-duration: 26s;
+  animation-delay: 3s;
+  animation-iteration-count: infinite;
+}
+.logo-comet {
+  transform-box: view-box;
+  transform-origin: 16px 16px;
+  animation-name: logo-orbit;
+}
+.logo-tail {
+  animation-name: logo-tail;
+  animation-timing-function: linear;
+}
+.logo-trail {
+  opacity: 0;
+  animation-name: logo-trail;
+  animation-timing-function: linear;
+}
+.logo-head {
+  transform-box: view-box;
+  transform-origin: 22.6px 9.6px;
+  animation-name: logo-flare;
+}
+@keyframes logo-orbit {
+  0% {
+    transform: rotate(0deg);
+    animation-timing-function: cubic-bezier(0.62, 0, 0.32, 1);
+  }
+  10%,
+  100% {
+    transform: rotate(-360deg);
+  }
+}
+@keyframes logo-tail {
+  0% {
+    opacity: 1;
+  }
+  1.4%,
+  8% {
+    opacity: 0;
+  }
+  10%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes logo-trail {
+  0% {
+    opacity: 0;
+  }
+  1.6%,
+  7.6% {
+    opacity: 1;
+  }
+  9.4%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes logo-flare {
+  0%,
+  7.8% {
+    transform: scale(1);
+  }
+  8.9% {
+    transform: scale(1.35);
+  }
+  10%,
+  100% {
+    transform: scale(1);
+  }
+}
+
 /* Leaflet controls in our palette */
 .leaflet-container {
   background: hsl(var(--surface-2));
