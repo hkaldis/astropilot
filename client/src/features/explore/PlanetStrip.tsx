@@ -1,8 +1,10 @@
 import { Link } from "wouter";
-import { formatMag, formatTime } from "@shared/astro";
+import { PLANET_BY_ID, formatMag, formatTime, type MoonMeta } from "@shared/astro";
 import { MoonGlyph, TypeGlyph } from "@/components/common/Glyphs";
+import { Badge } from "@/components/ui/badge";
+import { DIFFICULTY_TONE } from "@/lib/objects";
 import { cn } from "@/lib/utils";
-import type { BodyTonight, NightContext } from "./sky";
+import type { BodyTonight, MoonTonight, NightContext } from "./sky";
 
 function bodyLine(b: BodyTonight) {
   const parts =
@@ -74,6 +76,49 @@ export function PlanetStrip({ bodies, ctx, className }: { bodies: BodyTonight[];
           </li>
         );
       })}
+    </ul>
+  );
+}
+
+/** Why a moon can't be seen tonight when its planet can't be, else how hard it is (as the deep-sky rows say it). */
+function MoonBadge({ t }: { t: MoonTonight }) {
+  const tr = t.planet.track;
+  const off = tr.noDarkness ? "Sky too bright" : tr.maxAlt < 0 ? "Not up" : !tr.window ? "Too low" : null;
+  if (off) return <Badge variant="outline">{off}</Badge>;
+  const d = t.detect.difficulty;
+  return (
+    <Badge variant={DIFFICULTY_TONE[d] ?? "outline"} title={t.detect.note}>
+      {d.charAt(0).toUpperCase() + d.slice(1)}
+    </Badge>
+  );
+}
+
+/** The planets' moons as chips: name, planet and tonight's difficulty (without a site, the catalog brightness). */
+export function MoonChips({ moons, className }: { moons: { meta: MoonMeta; tonight: MoonTonight | null }[]; className?: string }) {
+  if (!moons.length) return null;
+  return (
+    <ul
+      className={cn("scrollbar-none -mx-4 flex snap-x gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0", className)}
+      aria-label="The planets' moons"
+    >
+      {moons.map(({ meta, tonight }, i) => (
+        <li key={meta.id} className="shrink-0 snap-start animate-fade" style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}>
+          <Link href={`/object/${meta.id}`} className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border py-1.5 pl-2.5 pr-2 text-sm transition-colors hover:bg-accent/60">
+            <TypeGlyph type="satellite" className="h-4 w-4 text-gold" />
+            <span className="font-medium">{meta.name}</span>
+            <span className="mr-0.5 text-xs text-muted-foreground">
+              {PLANET_BY_ID[meta.parent].name}
+              {!tonight && (
+                <>
+                  {" "}
+                  · mag <span className="num">{formatMag(meta.mag)}</span>
+                </>
+              )}
+            </span>
+            {tonight && <MoonBadge t={tonight} />}
+          </Link>
+        </li>
+      ))}
     </ul>
   );
 }

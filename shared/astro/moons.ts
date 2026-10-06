@@ -492,6 +492,17 @@ export function maxElongation(m: MoonMeta, planetDistanceAu: number): number {
   return (m.aKm / (planetDistanceAu * AU_KM)) * ARCSEC;
 }
 
+/** A moon's typical distance from its planet (arcsec): two-thirds of the greatest, its average on the sky. */
+export const typicalSeparation = (m: MoonMeta, planetDistanceAu: number) => maxElongation(m, planetDistanceAu) * (2 / Math.PI);
+
+/**
+ * How easy a planet's moon is at its typical distance from the planet: for lists and summaries (Explore,
+ * Tonight, Plan, achievements). The moon's own page follows its real position through the night.
+ */
+export function typicalMoonDetect(m: MoonMeta, planet: { mag: number; distanceAu: number; name: string }, input: DetectInput): SatelliteDetect {
+  return satelliteDetectability(m.mag, typicalSeparation(m, planet.distanceAu), planet.mag, planet.name, input);
+}
+
 // -------------------------------------------------------------------------------------------------
 // Can it be seen? A faint point beside a bright planet.
 // -------------------------------------------------------------------------------------------------

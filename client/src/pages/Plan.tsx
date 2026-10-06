@@ -12,12 +12,10 @@ import {
   formatNightDate,
   formatTime,
   isMoonId,
-  maxElongation,
   nightFrames,
   nightOf,
   planSequence,
   rankTargets,
-  satelliteDetectability,
   sqmForBortle,
   type MoonId,
   type NightFrames,
@@ -39,7 +37,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { InstrumentPicker } from "@/features/tonight/BestTargets";
 import { DarkCalendar } from "@/features/plan/DarkCalendar";
-import { BODY_SUN_LIMIT, bodyWindow, evaluateBody } from "@/features/explore/sky";
+import { BODY_SUN_LIMIT, bodyWindow, evaluateBody, evaluateMoon } from "@/features/explore/sky";
 import { DIFFICULTY_TONE, TYPE_LABEL } from "@/lib/objects";
 import { cn } from "@/lib/utils";
 import { stagger } from "@/lib/motion";
@@ -71,16 +69,14 @@ function bodyTarget(id: SolarSystemId, ctx: { frames: NightFrames; night: NightI
 }
 
 /** A planet's moon as a ranked target: its planet's track, rated for the moon's typical brightness and distance from the planet. */
-function moonTarget(id: MoonId, ctx: { frames: NightFrames; night: NightInfo; site: ObservingSite; minAlt: number; sqm: number }, apertureMm: number): RankedTarget {
+function moonTarget(id: MoonId, ctx: { frames: NightFrames; night: NightInfo; site: ObservingSite; minAlt: number; sqm: number }, optics: ReturnType<typeof ratingOptics>): RankedTarget {
   const meta = MOON_BY_ID[id];
-  const b = evaluateBody(meta.parent as SolarSystemId, ctx, apertureMm);
-  const sep = maxElongation(meta, b.state.distanceAu) * (2 / Math.PI);
-  const detect = satelliteDetectability(meta.mag, sep, b.state.mag, PLANET_BY_ID[meta.parent].name, { sqmZenith: ctx.sqm, apertureMm, alt: Math.max(b.track.maxAlt, 1) });
-  const ok = b.visible && detect.difficulty !== "out of reach";
+  const b = evaluateBody(meta.parent as SolarSystemId, ctx, optics.apertureMm);
+  const { detect, visible } = evaluateMoon(meta, b, ctx, optics);
   return {
     object: { id, name: meta.name, type: "satellite", ra: b.state.raJ2000, dec: b.state.decJ2000, mag: meta.mag },
-    score: ok ? 100 : 0,
-    rawScore: ok ? 100 : 0,
+    score: visible ? 100 : 0,
+    rawScore: visible ? 100 : 0,
     track: b.track,
     detect,
     bestTime: b.bestTime,
@@ -141,7 +137,7 @@ export default function PlanPage() {
       .map((t): PlanItem | null => {
         const id = t.ref.toLowerCase();
         if (Object.prototype.hasOwnProperty.call(PLANET_BY_ID, id)) return { target: t, r: bodyTarget(id as SolarSystemId, bodyCtx, ctx.apertureMm), body: true };
-        if (isMoonId(id)) return { target: t, r: moonTarget(id as MoonId, bodyCtx, ctx.apertureMm), body: true };
+        if (isMoonId(id)) return { target: t, r: moonTarget(id as MoonId, bodyCtx, ratingOptics(scope)), body: true };
         const o = byId.get(t.ref.toUpperCase());
         return o ? { target: t, r: evaluateTarget(o, astro.frames, ctx), body: false } : null;
       })

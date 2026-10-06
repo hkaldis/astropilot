@@ -9,6 +9,7 @@ import {
   currentNightDate,
   formatDate,
   formatTime,
+  isMoonId,
   nightFrames,
   nightOf,
   sunAltitude,
@@ -123,6 +124,7 @@ function SkyChart({ site: obsSite }: { site: ObservingSite }) {
       if (t.status === "dismissed") continue;
       const id = t.ref.toLowerCase();
       if (PLANET_BY_ID[id as SolarSystemId]) s.add(`body:${id}`);
+      else if (isMoonId(id)) s.add(`moon:${id}`);
       else {
         const d = dsoById.get(t.ref.toUpperCase());
         if (d) s.add(`dso:${d.o.id}`);
@@ -283,10 +285,10 @@ function SkyChart({ site: obsSite }: { site: ObservingSite }) {
               tz={tz}
               hour12={hour12}
               isTarget={targetRefs.has(selectedObj.ref)}
-              canSaveTarget={selectedObj.kind === "dso" || (selectedObj.kind === "body" && selectedObj.bodyId !== "sun")}
+              canSaveTarget={selectedObj.kind === "dso" || selectedObj.kind === "moon" || (selectedObj.kind === "body" && selectedObj.bodyId !== "sun")}
               signedIn={isAuthenticated}
               savingTarget={saveTarget.isPending}
-              onSaveTarget={() => saveTarget.mutate(selectedObj.dso ? selectedObj.dso.id : String(selectedObj.bodyId))}
+              onSaveTarget={() => saveTarget.mutate(selectedObj.dso?.id ?? selectedObj.moonId ?? String(selectedObj.bodyId))}
               onCentre={() => centreOnRef(selectedObj.ref)}
               onClose={() => setSelected(null)}
               className="fixed inset-x-3 bottom-[calc(4.6rem+env(safe-area-inset-bottom,0px))] z-30 max-h-[52dvh] overflow-y-auto animate-fade-in lg:static lg:inset-auto lg:z-auto lg:max-h-none lg:overflow-visible"

@@ -2,7 +2,7 @@
  * Canvas renderer for the dome chart. Draws one frame from precomputed projections and returns
  * the hit targets (screen position + radius) used for tap/hover picking.
  */
-import { altAzOf } from "@shared/astro";
+import { altAzOf, isMoonId, MOON_BY_ID, moonsOf, type MoonId } from "@shared/astro";
 import type { ConstellationLabel, NamedStar, SkyDso, StarField } from "./data";
 import { type Affine, type MilkyWayRaster, type MwTexture, type PointProj, type Scene, horVector, planeOf, pxPerDegAt } from "./engine";
 import { type HSL, type SkyTheme, domeColor, hsla, hslToRgb, mixHsl, starTint } from "./theme";
@@ -758,13 +758,18 @@ export function renderSky(I: RenderInput): { picks: Pickable[]; stats: RenderSta
   // ---- Sun, Moon and planets ---------------------------------------------------------------------
   if (layers.planets) {
     const sunHor = horVector(scene.sun.alt, scene.sun.az);
+    // A planet's moon is drawn as its planet (a few arcminutes away at most): selecting it, or saving it as a
+    // target, marks the planet, and the label names both.
+    const selId = I.selected?.startsWith("moon:") ? I.selected.slice(5).toLowerCase() : null;
+    const selMoon = selId && isMoonId(selId) ? MOON_BY_ID[selId as MoonId] : null;
     for (const body of scene.bodies) {
       const ref = `body:${body.id}`;
-      const isSel = ref === I.selected;
+      const moonSel = selMoon?.parent === body.id ? selMoon : null;
+      const isSel = ref === I.selected || !!moonSel;
       const isHov = ref === I.hovered;
-      const isTgt = layers.targets && I.targets.has(ref);
+      const isTgt = layers.targets && (I.targets.has(ref) || moonsOf(body.id).some((m) => I.targets.has(`moon:${m.id}`)));
       if (body.alt < minAlt) {
-        if (isSel) ghost = { alt: body.alt, az: body.az, name: body.name };
+        if (isSel) ghost = { alt: body.alt, az: body.az, name: moonSel?.name ?? body.name };
         continue;
       }
       const [u, v] = planeOf(body.alt, body.az);
@@ -805,7 +810,7 @@ export function renderSky(I: RenderInput): { picks: Pickable[]; stats: RenderSta
       if (isSel) marks.push({ x, y, r: r + 6, kind: "selected" });
       else if (isHov) marks.push({ x, y, r: r + 4, kind: "hover" });
       labels.queue({
-        text: body.id === "moon" ? `Moon ${Math.round(body.illumination * 100)}%` : body.name,
+        text: body.id === "moon" ? `Moon ${Math.round(body.illumination * 100)}%` : moonSel ? `${body.name} · ${moonSel.name}` : body.name,
         x,
         y,
         gap: r + 4,

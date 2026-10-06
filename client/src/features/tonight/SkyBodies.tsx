@@ -9,7 +9,9 @@ import {
   bodyEvents,
   galileanEvents,
   moonPosition,
+  moonsOf,
   observerOf,
+  sqmForBortle,
   formatTime,
   formatMag,
   compassPoint,
@@ -19,6 +21,8 @@ import {
 } from "@shared/astro";
 import type { ObservingSite } from "@shared/api";
 import { TypeGlyph, MoonGlyph } from "@/components/common/Glyphs";
+import { ratingOptics, useActiveScope } from "@/hooks/useScope";
+import { evaluateBody, evaluateMoon, type MoonTonight } from "@/features/explore/sky";
 import { cn } from "@/lib/utils";
 import { stagger } from "@/lib/motion";
 import { capitalize, joinNightEvents, moonEvents, moonEventsText, nightClock, nightSpan, type NightEvent } from "./useTonight";
@@ -89,8 +93,37 @@ function JupiterMoonEvents({ start, end, site, tz, hour12 }: { start: number; en
   );
 }
 
+/** The planets' moons within reach of the instrument, easiest first (rated as on Explore, at the planet's best moment). */
+function MoonsInReach({ moons }: { moons: MoonTonight[] }) {
+  if (!moons.length) return null;
+  const shown = moons.slice(0, 5);
+  return (
+    <div className="mt-0.5 text-xs text-muted-foreground">
+      Moons within reach: <span className="text-foreground/90">{shown.map((m) => m.meta.name).join(", ")}</span>
+      {moons.length > shown.length && ` and ${moons.length - shown.length} more`}
+    </div>
+  );
+}
+
 /** Planets visible during this night with when and how high. */
-export function PlanetsTonight({ night, site, tz, hour12, isTonight, now }: { night: NightInfo; site: ObservingSite; tz?: string; hour12?: boolean; isTonight: boolean; now: number }) {
+export function PlanetsTonight({
+  night,
+  frames,
+  site,
+  tz,
+  hour12,
+  isTonight,
+  now,
+}: {
+  night: NightInfo;
+  frames: NightFrames;
+  site: ObservingSite;
+  tz?: string;
+  hour12?: boolean;
+  isTonight: boolean;
+  now: number;
+}) {
+  const scope = useActiveScope();
   const rows = useMemo(() => {
     // Planets show from the end of civil twilight (sunset on white nights); never under the midnight sun.
     const start = night.civilDusk ?? night.sunset ?? (night.sunNeverSets ? null : night.noon);
@@ -139,6 +172,20 @@ export function PlanetsTonight({ night, site, tz, hour12, isTonight, now }: { ni
     }
     return out.sort((a, b) => Number(b.upInDark) - Number(a.upInDark) || a.mag - b.mag);
   }, [night, site]);
+  // Each planet's moons that the active instrument can show tonight (the planet counts as up above 8°, as here).
+  const moons = useMemo(() => {
+    const out = new Map<string, MoonTonight[]>();
+    const sqm = site.sqm ?? sqmForBortle(site.bortle);
+    const optics = ratingOptics(scope);
+    for (const p of SOLAR_SYSTEM) {
+      const list = moonsOf(p.id);
+      if (!list.length) continue;
+      const planet = evaluateBody(p.id, { frames, site, night, minAlt: 8, sqm }, optics.apertureMm);
+      out.set(p.id, list.map((m) => evaluateMoon(m, planet, { frames, sqm }, optics)).filter((m) => m.visible).sort((a, b) => b.detect.index - a.detect.index));
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [night, frames, site, scope.scope.aperture, scope.kind, scope.power]);
   const clock = nightClock(night, isTonight, now, tz, hour12);
   // The planets' observing time: civil dusk to civil dawn.
   const windowStart = night.civilDusk ?? night.sunset;
@@ -168,6 +215,7 @@ export function PlanetsTonight({ night, site, tz, hour12, isTonight, now }: { ni
               <span className="num text-xs text-muted-foreground">mag {formatMag(r.mag)} · {r.diameter.toFixed(r.diameter < 10 ? 1 : 0)}″</span>
             </div>
             <div className="text-xs text-muted-foreground">{when(r)}</div>
+            <MoonsInReach moons={moons.get(r.id) ?? []} />
             {r.id === "jupiter" && windowStart !== null && windowEnd !== null && <JupiterMoonEvents start={windowStart} end={windowEnd} site={site} tz={tz} hour12={hour12} />}
           </div>
         </Link>

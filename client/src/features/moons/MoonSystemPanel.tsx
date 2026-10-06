@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { Minus, Pause, Play, Plus, RotateCcw } from "lucide-react";
-import { formatMag, formatTime, planetDisk, poleAngle, separationOf, type MoonEvent, type MoonEventKind, type MoonId, type MoonPos, type SatelliteDetect } from "@shared/astro";
+import { formatMag, formatTime, planetDisk, poleAngle, type MoonEvent, type MoonEventKind, type MoonId, type MoonPos, type SatelliteDetect } from "@shared/astro";
 import { Skel } from "@/components/common/Page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { store } from "@/lib/storage";
 import { stagger } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { MoonSystem } from "./useMoonSystem";
+import { whereText } from "./where";
 
 type View = "sky" | "mirror" | "inverted";
 const VIEWS: { id: View; label: string; hint: string }[] = [
@@ -33,16 +34,6 @@ const DISK: Record<string, [string, string]> = {
 
 const ZOOMS = [1, 3, 9];
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
-const DIRS = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
-const direction = (dx: number, dy: number) => DIRS[Math.round((((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360) / 45) % 8];
-const angleText = (arcsec: number) => (arcsec < 60 ? `${Math.round(arcsec)}″` : `${(arcsec / 60).toFixed(arcsec < 600 ? 1 : 0)}′`);
-
-function whereText(p: MoonPos, planet: string) {
-  if (p.occulted) return `Behind ${planet}`;
-  if (p.eclipse === "total") return `In ${planet}'s shadow`;
-  if (p.transit) return `Crossing in front of ${planet}`;
-  return `${angleText(separationOf(p))} ${direction(p.dx, p.dy)}${p.eclipse === "partial" ? " · partly eclipsed" : ""}`;
-}
 
 const EVENT_TEXT: Record<MoonEventKind, (moon: string, planet: string) => string> = {
   transit: (m, p) => `${m} crosses in front of ${p}`,

@@ -11,8 +11,8 @@ Live at [astropilot.space](https://astropilot.space).
 | Area | What it does |
 |---|---|
 | **Tonight** | One clear verdict for the night (0–100) from an astronomy-specific forecast: cloud at three heights, seeing (jet-stream & wind shear), transparency (humidity, cirrus, aerosols), dew risk, darkness and moonlight. Hour-by-hour strip, 7-night outlook, best targets, planets, Moon, events, ISS passes and aurora (Kp). |
-| **Sky chart** | Live all-sky planisphere for your exact location and time, with stars, constellations, planets, Moon and deep-sky objects; time slider and search. |
-| **Explore** | ~1,000 objects (all Messier and Caldwell, bright NGC/IC from OpenNGC, classic doubles) ranked for *your* sky darkness, telescope and tonight's Moon. |
+| **Sky chart** | Live all-sky planisphere for your exact location and time, with stars, constellations, planets, Moon, the planets' moons and deep-sky objects; time slider and search. |
+| **Explore** | ~1,000 objects (all Messier and Caldwell, bright NGC/IC from OpenNGC, classic doubles) ranked for *your* sky darkness, telescope and tonight's Moon, plus the planets and the moons your instrument can reach tonight. |
 | **Object pages** | Tonight's altitude curve, honest difficulty for your sky, the eyepiece and filter to use (with a true-field framing preview), best months, finder notes. |
 | **Plan** | Your target list scheduled into a run order that makes the most of the dark hours. |
 | **Journal** | 15-second observation logging, sessions, Messier/Caldwell progress, achievements (computed from the log, retroactive), stats and CSV export. |

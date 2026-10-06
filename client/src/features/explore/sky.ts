@@ -14,14 +14,18 @@ import {
   nightOf,
   separation,
   sqmForBortle,
+  typicalMoonDetect,
   PLANET_BY_ID,
   type BodyNightEvents,
   type BodyState,
   type DetectResult,
+  type InstrumentKind,
+  type MoonMeta,
   type NightFrames,
   type NightInfo,
   type ObjectTrack,
   type PlanetMeta,
+  type SatelliteDetect,
   type Site,
   type SolarSystemId,
   type TrackPoint,
@@ -373,6 +377,37 @@ export function evaluateBody(id: SolarSystemId, ctx: Pick<NightContext, "frames"
   }
   const visible = track.window !== null && (!detect || detect.difficulty !== "out of reach");
   return { id, meta, state, events, track, detect, visible, bestTime, peakTime: peakTime(track, ...bodyWindow(night, nf)) };
+}
+
+export interface MoonTonight {
+  meta: MoonMeta;
+  planet: BodyTonight;
+  detect: SatelliteDetect;
+  /** Its planet is observable tonight and the moon is within reach of the instrument. */
+  visible: boolean;
+}
+
+/**
+ * A planet's moon tonight, from its planet's evaluation: rated at the planet's best moment (its altitude,
+ * the Moon's light, twilight) for the moon's typical distance from the planet.
+ */
+export function evaluateMoon(
+  meta: MoonMeta,
+  planet: BodyTonight,
+  ctx: Pick<NightContext, "frames" | "sqm">,
+  optics: { apertureMm: number; instrument?: InstrumentKind; power?: number | null },
+): MoonTonight {
+  const nf = ctx.frames;
+  const i = planet.track.maxIdx;
+  const m = i >= 0 ? nf.moon[i] : null;
+  const detect = typicalMoonDetect(meta, { mag: planet.state.mag, distanceAu: planet.state.distanceAu, name: planet.meta.name }, {
+    sqmZenith: ctx.sqm,
+    ...optics,
+    alt: Math.max(planet.track.maxAlt, 1),
+    moon: m ? { alt: m.alt, phaseAngle: nf.moonPhaseAngle, separation: separation(planet.state.raJ2000, planet.state.decJ2000, m.ra, m.dec) } : null,
+    sunAlt: i >= 0 ? nf.sunAlt[i] : null,
+  });
+  return { meta, planet, detect, visible: planet.visible && detect.difficulty !== "out of reach" };
 }
 
 /** Altitude samples of the Moon across the night (for charts). */

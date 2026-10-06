@@ -129,7 +129,7 @@ export default function TonightPage() {
             <MoonPanel night={ctx.night} frames={ctx.frames} site={site} tz={tz} hour12={hour12} now={now} isTonight={ctx.isTonight} />
           </Section>
           <Section title="Planets">
-            <PlanetsTonight night={ctx.night} site={site} tz={tz} hour12={hour12} isTonight={ctx.isTonight} now={now} />
+            <PlanetsTonight night={ctx.night} frames={ctx.frames} site={site} tz={tz} hour12={hour12} isTonight={ctx.isTonight} now={now} />
           </Section>
           {!noDark && <TonightComets site={site} night={ctx.night} frames={ctx.frames} minAlt={prefs.minAltitude ?? 20} tz={tz} hour12={hour12} />}
           <Section title="Coming up">

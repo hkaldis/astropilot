@@ -1,15 +1,15 @@
 /**
  * Everything selectable on the chart, addressed by a string ref:
- *   "body:jupiter" | "body:moon" | "body:sun" | "dso:M31" | "star:Vega" | "con:Ori" | "anon:<index>"
+ *   "body:jupiter" | "body:moon" | "body:sun" | "moon:titan" | "dso:M31" | "star:Vega" | "con:Ori" | "anon:<index>"
  */
-import { altAzOf, constellationOf, eqjVector, isMoonId, MOON_BY_ID, PLANET_BY_ID, SOLAR_SYSTEM, type AltAz, type MoonId, type SolarSystemId } from "@shared/astro";
+import { altAzOf, constellationOf, eqjVector, isMoonId, MOON_BY_ID, MOONS, PLANET_BY_ID, SOLAR_SYSTEM, type AltAz, type MoonId, type SolarSystemId } from "@shared/astro";
 import { CONSTELLATION_NAMES } from "@shared/data/constellations-meta";
 import type { CatalogObject } from "@shared/data/types";
 import { TYPE_LABEL } from "@/lib/objects";
 import type { SkyData, SkyDso } from "./data";
 import type { Scene } from "./engine";
 
-export type RefKind = "body" | "dso" | "star" | "anon" | "con";
+export type RefKind = "body" | "moon" | "dso" | "star" | "anon" | "con";
 
 export interface SkyObject {
   ref: string;
@@ -24,7 +24,9 @@ export interface SkyObject {
   mag?: number | null;
   con?: string; // IAU abbreviation
   dso?: CatalogObject;
+  /** The body drawn on the chart: for a planet's moon, its planet (the moon is a few arcminutes away at most). */
   bodyId?: SolarSystemId | "sun";
+  moonId?: MoonId;
 }
 
 export interface ObjectContext {
@@ -45,6 +47,11 @@ export function resolveRef(ref: string | null, ctx: ObjectContext): SkyObject | 
       const meta = PLANET_BY_ID[id as SolarSystemId];
       if (!meta) return null;
       return { ref, kind, name: meta.name, sub: id === "moon" ? "Earth's Moon" : "Planet", glyph: id === "moon" ? "moon" : "planet", bodyId: meta.id };
+    }
+    case "moon": {
+      if (!isMoonId(id)) return null;
+      const m = MOON_BY_ID[id.toLowerCase() as MoonId];
+      return { ref, kind, name: m.name, sub: `Moon of ${PLANET_BY_ID[m.parent].name}`, glyph: "satellite", mag: m.mag, bodyId: m.parent, moonId: m.id };
     }
     case "dso": {
       const d = ctx.dsoById.get(id.toUpperCase());
@@ -98,6 +105,8 @@ export interface SearchEntry {
   sub: string;
   glyph: string;
   keys: string[];
+  /** Secondary keys (a moon's planet and designation): they find it, ranked below anything named that way. */
+  also?: string[];
   boost: number;
 }
 
@@ -114,6 +123,11 @@ export function buildSearchIndex(dsos: SkyDso[], data: SkyData): SearchEntry[] {
     out.push({ ref: `body:${p.id}`, name: p.name, sub: p.id === "moon" ? "Moon" : "Planet", glyph: p.id === "moon" ? "moon" : "planet", keys: [norm(p.name)], boost: 8 });
   }
   out.push({ ref: "body:sun", name: "Sun", sub: "Our star", glyph: "sun", keys: ["sun"], boost: 2 });
+  // The planets' moons; a planet's name (or "Saturn VI") also finds them, brightest first, after everything else.
+  for (const m of MOONS) {
+    const planet = PLANET_BY_ID[m.parent].name;
+    out.push({ ref: `moon:${m.id}`, name: m.name, sub: `Moon of ${planet} · mag ${m.mag.toFixed(1)}`, glyph: "satellite", keys: [norm(m.name)], also: [norm(planet), norm(m.designation)], boost: 5 - m.mag * 0.1 });
+  }
   for (const d of dsos) {
     const o = d.o;
     const keys = new Set<string>([norm(o.id), norm(o.name), ...o.designations.map(norm)]);
@@ -153,6 +167,7 @@ export function searchSky(index: SearchEntry[], query: string, limit = 8): Searc
       else if (q.length >= 3 && k.includes(q)) s = 40 - Math.min(15, k.length - q.length);
       if (s > best) best = s;
     }
+    if (!best && e.also?.some((k) => k.startsWith(q))) best = 30;
     if (best > 0) scored.push({ e, s: best + e.boost });
   }
   scored.sort((a, b) => b.s - a.s || a.e.name.localeCompare(b.e.name));
@@ -164,11 +179,11 @@ export function refForFocus(focus: string | null, ctx: ObjectContext): string | 
   if (!focus) return null;
   const f = focus.trim();
   if (!f) return null;
-  if (/^(body|dso|star|con|anon):/.test(f)) return resolveRef(f, ctx) ? f : null;
+  if (/^(body|moon|dso|star|con|anon):/.test(f)) return resolveRef(f, ctx) ? f : null;
   const lower = f.toLowerCase();
   if (lower === "sun") return "body:sun";
   if (PLANET_BY_ID[lower as SolarSystemId]) return `body:${lower}`;
-  if (isMoonId(lower)) return `body:${MOON_BY_ID[lower as MoonId].parent}`; // a planet's moon: point at its planet
+  if (isMoonId(lower)) return `moon:${lower}`;
   const d = ctx.dsoById.get(f.toUpperCase()) ?? ctx.dsoById.get(f.replace(/\s+/g, "").toUpperCase());
   if (d) return `dso:${d.o.id}`;
   const s = ctx.data.names?.find((n) => n.name.toLowerCase() === lower);

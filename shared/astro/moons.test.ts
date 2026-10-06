@@ -2,17 +2,22 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   MOONS,
+  MOON_BY_ID,
   galileanEvents,
   galileanPositions,
   galileanShadowAt,
   isMoonId,
+  maxElongation,
   moonsOf,
   poleAngle,
   satelliteDetectability,
   seriesEvents,
   seriesPositions,
+  typicalMoonDetect,
+  typicalSeparation,
   type MoonSeriesSet,
 } from "./moons";
+import { sqmForBortle } from "./visibility";
 
 const at = (iso: string) => Date.parse(iso);
 
@@ -131,6 +136,24 @@ test("visibility beside a bright planet follows observers' experience", () => {
   const phobos = satelliteDetectability(11.3, 20, -2.0, "Mars", { ...sky, apertureMm: 200 });
   assert.ok(["very hard", "out of reach"].includes(phobos.difficulty), phobos.difficulty);
   assert.ok((phobos.needsMm ?? 0) > 200);
+});
+
+test("tonight's lists rate each moon at its typical distance from the planet, through the chosen instrument", () => {
+  const callisto = MOON_BY_ID.callisto;
+  assert.ok(Math.abs(typicalSeparation(callisto, 4.6) / maxElongation(callisto, 4.6) - 2 / Math.PI) < 1e-12);
+  const sky = { sqmZenith: sqmForBortle(5), alt: 50 };
+  const jupiter = { mag: -2.5, distanceAu: 4.6, name: "Jupiter" };
+  const saturn = { mag: 0.5, distanceAu: 8.7, name: "Saturn" };
+  const neptune = { mag: 7.8, distanceAu: 28.9, name: "Neptune" };
+  const bino = { apertureMm: 50, instrument: "binoculars" as const, power: 10 };
+  const dob8 = { apertureMm: 203, instrument: "telescope" as const };
+  // 10×50 binoculars show the four Galilean moons, and Titan with some effort; any telescope shows Titan.
+  for (const id of ["io", "europa", "ganymede", "callisto"] as const) assert.equal(typicalMoonDetect(MOON_BY_ID[id], jupiter, { ...sky, ...bino }).difficulty, "easy");
+  assert.notEqual(typicalMoonDetect(MOON_BY_ID.titan, saturn, { ...sky, ...bino }).difficulty, "out of reach");
+  assert.equal(typicalMoonDetect(MOON_BY_ID.titan, saturn, { ...sky, ...dob8 }).difficulty, "easy");
+  // Triton is within reach of an 8-inch scope, not of an 80 mm one.
+  assert.notEqual(typicalMoonDetect(MOON_BY_ID.triton, neptune, { ...sky, ...dob8 }).difficulty, "out of reach");
+  assert.equal(typicalMoonDetect(MOON_BY_ID.triton, neptune, { ...sky, apertureMm: 80, instrument: "telescope" }).difficulty, "out of reach");
 });
 
 test("pole angle: Saturn's axis points close to celestial north from Earth", () => {

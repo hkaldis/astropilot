@@ -22,6 +22,7 @@ import {
 import {
   A,
   HOUR_MS,
+  MOON_BY_ID,
   PLANET_BY_ID,
   compassPoint,
   formatAngleSize,
@@ -29,9 +30,13 @@ import {
   formatMag,
   formatNightDate,
   formatTime,
+  maxElongation,
   moonPhaseName,
+  moonsOf,
   objectTrack,
   observerOf,
+  separationOf,
+  type MoonPos,
   type NightFrames,
   type NightInfo,
   type ObjectTrack,
@@ -42,6 +47,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { bodyTrack } from "@/features/explore/sky";
 import { horizonClass } from "@/features/object/model";
+import { useMoonSystem } from "@/features/moons/useMoonSystem";
+import { angleText, direction } from "@/features/moons/where";
 import type { Scene } from "./engine";
 import { conName, positionOf, type SkyObject } from "./objects";
 import type { Layers } from "./render";
@@ -203,6 +210,11 @@ export function InfoPanel(p: InfoProps) {
   const fmt = (t: number | null | undefined) => formatTime(t ?? null, { tz, hour12 });
   const pos = positionOf(obj, scene);
   const body = obj.bodyId && obj.bodyId !== "sun" ? scene.bodies.find((b) => b.id === obj.bodyId) : undefined;
+  // A planet's moon is shown at its planet; where it sits next to it at the chart's time (Jupiter's computed
+  // here, the others' from JPL Horizons), over the whole day so any time on the bar is covered.
+  const moon = obj.moonId ? MOON_BY_ID[obj.moonId] : null;
+  const system = useMoonSystem(moon ? moon.parent : null, night.noon, night.nextNoon);
+  const moonPos = moon ? (system?.at(scene.t)?.find((x) => x.id === moon.id) ?? null) : null;
 
   // Rise / highest / set around tonight.
   const events = useMemo(
@@ -222,10 +234,16 @@ export function InfoPanel(p: InfoProps) {
   const daylight = (t: number | null) => [dayHint(t), "in daylight"].filter(Boolean).join(" · ");
 
   const up = pos ? pos.alt > 0 : false;
-  const desc = obj.dso?.desc ?? (obj.bodyId && obj.bodyId !== "sun" ? PLANET_BY_ID[obj.bodyId].blurb : null);
+  const desc = obj.dso?.desc ?? moon?.blurb ?? (obj.bodyId && obj.bodyId !== "sun" ? PLANET_BY_ID[obj.bodyId].blurb : null);
+  const page = obj.dso?.id ?? obj.moonId ?? (obj.bodyId !== "sun" ? obj.bodyId : undefined);
 
   const facts: { label: string; value: ReactNode }[] = [];
-  if (body) {
+  if (moon && body) {
+    facts.push({ label: "Magnitude", value: formatMag(moonPos?.mag ?? moon.mag) });
+    facts.push({ label: "Orbits in", value: moon.periodDays < 2 ? `${Math.round(moon.periodDays * 24)} hours` : `${moon.periodDays.toFixed(1)} days` });
+    facts.push({ label: "Found", value: String(moon.discovered.year) });
+    facts.push({ label: "In", value: conName(body.constellation) });
+  } else if (body) {
     facts.push({ label: "Magnitude", value: formatMag(body.mag) });
     facts.push({ label: body.id === "moon" ? "Size" : "Disk", value: body.id === "moon" ? `${(body.diameter / 60).toFixed(1)}′` : `${body.diameter.toFixed(1)}″` });
     if (["moon", "mercury", "venus", "mars"].includes(body.id)) facts.push({ label: "Lit", value: `${Math.round(body.illumination * 100)}%` });
@@ -280,6 +298,12 @@ export function InfoPanel(p: InfoProps) {
             )}
           </div>
         </div>
+      )}
+
+      {moon && body && (
+        <p className="text-sm">
+          <MoonWhere pos={moonPos} planet={body.name} loading={system?.status === "loading"} maxArcsec={maxElongation(moon, body.distanceAu)} />
+        </p>
       )}
 
       {obj.bodyId === "sun" ? (
@@ -340,9 +364,9 @@ export function InfoPanel(p: InfoProps) {
         <Button variant="outline" size="sm" onClick={p.onCentre} className="h-9">
           <Crosshair /> Centre
         </Button>
-        {obj.dso && (
+        {page && (
           <Button asChild variant="outline" size="sm" className="h-9">
-            <Link href={`/object/${encodeURIComponent(obj.dso.id)}`}>
+            <Link href={`/object/${encodeURIComponent(page)}`}>
               Object page <ArrowRight />
             </Link>
           </Button>
@@ -368,6 +392,21 @@ export function InfoPanel(p: InfoProps) {
   );
 }
 
+/** Where a planet's moon is next to its planet at the chart's time, or how far it strays when that isn't known. */
+function MoonWhere({ pos, planet, loading, maxArcsec }: { pos: MoonPos | null; planet: string; loading: boolean; maxArcsec: number }) {
+  if (!pos) return <span className="text-muted-foreground">{loading ? `Finding it next to ${planet}…` : `Within ${angleText(maxArcsec)} of ${planet}.`}</span>;
+  if (pos.occulted) return <>Hidden behind {planet} at this time.</>;
+  if (pos.eclipse === "total") return <>In {planet}'s shadow at this time — it can't be seen.</>;
+  if (pos.transit) return <>Crossing in front of {planet}'s disk.</>;
+  return (
+    <>
+      <span className="num font-semibold">{angleText(separationOf(pos))}</span> {direction(pos.dx, pos.dy)} of {planet}
+      {pos.eclipse === "partial" ? ", partly eclipsed" : ""}
+      <span className="text-muted-foreground"> — look next to the planet.</span>
+    </>
+  );
+}
+
 /** Tiny quarter-circle altitude gauge: horizon → zenith. */
 function AltGauge({ alt }: { alt: number }) {
   const a = Math.max(-10, Math.min(90, alt));
@@ -385,7 +424,7 @@ function AltGauge({ alt }: { alt: number }) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Planets & Moon now
+// The Moon, the planets and their moons now
 // ---------------------------------------------------------------------------------------------
 
 export function UpNow({
@@ -424,12 +463,14 @@ export function UpNow({
   return (
     <section className="flex flex-col gap-2" aria-labelledby="sky-upnow">
       <h2 id="sky-upnow" className="eyebrow">
-        Moon & planets at {formatTime(scene.t, { tz, hour12 })}
+        Planets & moons at {formatTime(scene.t, { tz, hour12 })}
       </h2>
       <ul className="flex flex-col">
         {list.map((b) => {
           const up = b.alt > 0;
           const ref = `body:${b.id}`;
+          // A planet that's up lists its moons, brightest first (each is selected at its planet).
+          const moons = up ? moonsOf(b.id).sort((x, y) => x.mag - y.mag) : [];
           return (
             <li key={b.id}>
               <button
@@ -455,6 +496,22 @@ export function UpNow({
                   )}
                 </span>
               </button>
+              {moons.length > 0 && (
+                <div className="flex flex-wrap gap-x-0.5 pb-1 pl-6 text-xs" role="group" aria-label={`Moons of ${b.name}`}>
+                  {moons.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => onPick(`moon:${m.id}`)}
+                      className={cn(
+                        "min-h-7 rounded-md px-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                        selected === `moon:${m.id}` && "bg-accent text-foreground",
+                      )}
+                    >
+                      {m.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </li>
           );
         })}
@@ -534,7 +591,7 @@ const CHIPS: { key: keyof Layers; label: string; icon: typeof Star }[] = [
   { key: "stars", label: "Stars", icon: Star },
   { key: "constellations", label: "Constellations", icon: Waypoints },
   { key: "names", label: "Star names", icon: Type },
-  { key: "planets", label: "Moon & planets", icon: Orbit },
+  { key: "planets", label: "Planets & moons", icon: Orbit },
   { key: "dso", label: "Deep sky", icon: Telescope },
   { key: "milkyWay", label: "Milky Way", icon: Waves },
   { key: "targets", label: "My targets", icon: Eye },

@@ -1,13 +1,12 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "wouter";
+import { useSearchParams } from "wouter";
 import { Check, Search, SlidersHorizontal, X, Sparkles } from "lucide-react";
-import { MOONS, PLANET_BY_ID, SOLAR_SYSTEM, altAzOf, eqjVector, evaluateTarget, formatMag, formatNightDate, horizonFrame, sunAltitude } from "@shared/astro";
+import { MOONS, PLANET_BY_ID, SOLAR_SYSTEM, altAzOf, eqjVector, evaluateTarget, formatNightDate, horizonFrame, sunAltitude, type MoonMeta } from "@shared/astro";
 import type { CatalogObject } from "@shared/data/types";
 import { useCatalog } from "@/hooks/useCatalog";
 import { ratingOptics, useActiveScope } from "@/hooks/useScope";
 import { useSite } from "@/hooks/useSite";
 import { EmptyState, PageHeader, Skel, usePageTitle } from "@/components/common/Page";
-import { TypeGlyph } from "@/components/common/Glyphs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,7 +14,7 @@ import { TYPE_GROUPS } from "@/lib/objects";
 import { cn } from "@/lib/utils";
 import { InstrumentBar, instrumentPhrase } from "./InstrumentBar";
 import { NoSite } from "./NoSite";
-import { PlanetStrip } from "./PlanetStrip";
+import { MoonChips, PlanetStrip } from "./PlanetStrip";
 import { CometStrip } from "@/features/comets/CometStrip";
 import { ResultRow, type ExploreItem, type RowContext } from "./ResultRow";
 import { constellationName } from "./constellations";
@@ -33,7 +32,7 @@ import {
   type ExploreFilters,
   type SortKey,
 } from "./search";
-import { evaluateBody, siteKey, useNightContext } from "./sky";
+import { evaluateBody, evaluateMoon, siteKey, useNightContext, type MoonTonight } from "./sky";
 
 const PAGE = 60;
 
@@ -142,6 +141,17 @@ export function ExploreView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [frames, sqm, minAlt, aperture, (ctx ? siteKey(ctx.site) : null)]);
 
+  // The planets' moons, each rated at its planet's best moment tonight.
+  const moonsTonight = useMemo(() => {
+    const out = new Map<string, MoonTonight>();
+    if (!ctx || !bodies.length) return out;
+    const optics = ratingOptics(scope);
+    const planet = new Map(bodies.map((b) => [b.id, b]));
+    for (const m of MOONS) out.set(m.id, evaluateMoon(m, planet.get(m.parent)!, ctx, optics));
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bodies, scope.kind, scope.power]);
+
   // Current altitudes, only when sorting by them.
   const minute = ctx ? Math.floor(ctx.now / 60_000) : 0;
   const altNow = useMemo(() => {
@@ -203,21 +213,27 @@ export function ExploreView() {
     [ctx?.tz, ctx?.hour12, ctx?.frames, minAlt, minute],
   );
 
-  // Planets: shown when relevant — visible tonight with no narrowing filters, or matching the search.
+  // Planets and their moons: shown when relevant — visible tonight with no narrowing filters, or matching the search.
+  const narrowed = filters.showpiece || filters.messier || filters.caldwell || filters.groups.length > 0 || !!filters.con || filters.diff !== "any";
   const shownBodies = useMemo(() => {
     if (!ctx) return [];
     if (q) return bodies.filter((b) => norm(b.meta.name).startsWith(q) || (q.length >= 4 && "planets".startsWith(q) && b.id !== "moon"));
-    const narrowed = filters.showpiece || filters.messier || filters.caldwell || filters.groups.length > 0 || !!filters.con || filters.diff !== "any";
     if (narrowed) return [];
     return bodies.filter((b) => (filters.visible ? b.visible : b.track.maxAlt > 0));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bodies, q, filters, !!ctx]);
+  }, [bodies, q, filters, narrowed, !!ctx]);
 
-  // Planets' moons: found by name, by "moons", or by their planet's name.
+  // Moons: those within reach tonight (with their planet up, when "observable" is off), grouped by planet,
+  // easiest first; a search finds them by name, by "moons", or by their planet's name.
   const shownMoons = useMemo(() => {
-    if (!q) return [];
-    return MOONS.filter((m) => norm(m.name).startsWith(q) || (q.length >= 4 && "moons".startsWith(q)) || norm(PLANET_BY_ID[m.parent].name) === q);
-  }, [q]);
+    const rated = (m: MoonMeta) => ({ meta: m, tonight: moonsTonight.get(m.id) ?? null });
+    if (q) return MOONS.filter((m) => norm(m.name).startsWith(q) || (q.length >= 4 && "moons".startsWith(q)) || norm(PLANET_BY_ID[m.parent].name) === q).map(rated);
+    if (narrowed) return [];
+    const order = (m: MoonMeta) => SOLAR_SYSTEM.findIndex((p) => p.id === m.parent);
+    return MOONS.map(rated)
+      .filter((x): x is { meta: MoonMeta; tonight: MoonTonight } => !!x.tonight && (filters.visible ? x.tonight.visible : x.tonight.planet.track.maxAlt > 0))
+      .sort((a, b) => order(a.meta) - order(b.meta) || b.tonight.detect.index - a.tonight.detect.index);
+  }, [moonsTonight, q, filters.visible, narrowed]);
 
   // Constellations present in the catalog, for the select.
   const constellations = useMemo(() => {
@@ -243,8 +259,8 @@ export function ExploreView() {
         title="Explore"
         description={
           objects.length
-            ? `${objects.length.toLocaleString()} deep-sky objects and the planets, ranked for your sky and telescope.`
-            : "Deep-sky objects and the planets, ranked for your sky and telescope."
+            ? `${objects.length.toLocaleString()} deep-sky objects, the planets and their moons, ranked for your sky and telescope.`
+            : "Deep-sky objects, the planets and their moons, ranked for your sky and telescope."
         }
       />
 
@@ -338,33 +354,14 @@ export function ExploreView() {
         </div>
       </div>
 
-      {/* ------------------------------------------------------------ planets */}
-      {ctx && shownBodies.length > 0 && (
+      {/* ------------------------------------------------------------ planets and moons */}
+      {((ctx && shownBodies.length > 0) || shownMoons.length > 0) && (
         <section className="mt-6" aria-labelledby="planets-h">
           <h2 id="planets-h" className="eyebrow mb-2">
-            {q ? "Solar system" : "Planets & Moon tonight"}
+            {q ? "Solar system" : "Planets & moons tonight"}
           </h2>
-          <PlanetStrip bodies={shownBodies} ctx={ctx} />
-        </section>
-      )}
-      {shownMoons.length > 0 && (
-        <section className="mt-6" aria-labelledby="moons-h">
-          <h2 id="moons-h" className="eyebrow mb-2">
-            Moons
-          </h2>
-          <ul className="flex flex-wrap gap-2">
-            {shownMoons.map((m, i) => (
-              <li key={m.id} className="animate-fade" style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}>
-                <Link href={`/object/${m.id}`} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors hover:bg-accent/60">
-                  <TypeGlyph type="satellite" className="h-4 w-4 text-gold" />
-                  <span className="font-medium">{m.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {PLANET_BY_ID[m.parent].name} · mag <span className="num">{formatMag(m.mag)}</span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          {ctx && <PlanetStrip bodies={shownBodies} ctx={ctx} />}
+          <MoonChips moons={shownMoons} className={ctx && shownBodies.length ? "mt-2" : undefined} />
         </section>
       )}
       {ctx && !q && <CometStrip ctx={ctx} variant="strip" title="Comets tonight" className="mt-6" />}
@@ -429,7 +426,7 @@ export function ExploreView() {
           </ul>
         ) : objects.length === 0 ? (
           <EmptyState className="mt-3" title="The catalog isn't available yet" description="Deep-sky data is still being prepared. Try again in a moment." />
-        ) : count === 0 && shownBodies.length > 0 ? (
+        ) : count === 0 && (shownBodies.length > 0 || shownMoons.length > 0) ? (
           <p className="border-t py-4 text-sm text-muted-foreground">
             No deep-sky objects match{hiddenByVisibility ? " that are observable tonight" : ""}.
             {hiddenByVisibility > 0 && (
