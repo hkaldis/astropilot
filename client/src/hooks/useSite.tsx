@@ -49,7 +49,7 @@ export function locationToSite(l: ApiLocation): ObservingSite | null {
 }
 
 export function SiteProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const q = useQuery<ApiLocation[]>({ queryKey: ["/api/locations"], enabled: !!user });
   const [selectedKey, setSelectedKey] = useState<string | null>(() => store.get<string | null>("ap.siteKey", null));
   const [guest, setGuest] = useState<ObservingSite | null>(() => {
@@ -64,7 +64,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   const saved = useMemo(() => locations.map(locationToSite).filter((s): s is ObservingSite => !!s), [locations]);
   const sites = useMemo(() => (guest ? [...saved, guest] : saved), [saved, guest]);
 
-  const site = useMemo(() => {
+  const resolved = useMemo(() => {
     const byKey = selectedKey ? sites.find((s) => s.key === selectedKey) : undefined;
     if (byKey) return byKey;
     const defId = user?.preferences?.defaultLocationId;
@@ -73,6 +73,13 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     const byFav = fav ? saved.find((s) => s.locationId === fav.id) : undefined;
     return byDefault ?? byFav ?? saved[0] ?? guest ?? null;
   }, [selectedKey, sites, saved, guest, user, locations]);
+
+  // The site can only be chosen once the account and its saved places are known: until then there is none
+  // (pages wait), rather than the guest place first and the saved one a moment later, each drawn in full.
+  // On a return visit both are known at once (lib/bootCache): this only waits on a first visit or just after
+  // signing in.
+  const pending = authLoading || (!!user && q.isLoading);
+  const site = pending ? null : resolved;
 
   const selectSite = useCallback((key: string) => {
     setSelectedKey(key);
@@ -143,7 +150,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     site,
     sites,
     locations,
-    isLoading: !!user && q.isLoading,
+    isLoading: pending,
     selectSite,
     setGuestSite,
     clearGuestSite,

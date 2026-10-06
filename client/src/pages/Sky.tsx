@@ -18,7 +18,7 @@ import {
   type SolarSystemId,
 } from "@shared/astro";
 import type { ApiTarget, ObservingSite } from "@shared/api";
-import { EmptyState, PageHeader, usePageTitle } from "@/components/common/Page";
+import { EmptyState, PageHeader, Skel, usePageTitle } from "@/components/common/Page";
 import { PlacePicker, placeLabel } from "@/components/common/PlacePicker";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -49,7 +49,14 @@ function skyState(sunAlt: number): { key: "day" | "civil" | "nautical" | "astro"
 
 export default function SkyPage() {
   usePageTitle("Sky chart");
-  const { site, setGuestSite } = useSite();
+  const { site, setGuestSite, isLoading } = useSite();
+  if (!site && isLoading)
+    return (
+      <div className="flex flex-col gap-6" aria-busy="true">
+        <PageHeader title="Sky chart" description="Where to point, for your exact location and time." />
+        <Skel className="mx-auto aspect-square w-full max-w-[min(100%,calc(100dvh-14.5rem))] rounded-2xl" />
+      </div>
+    );
   if (!site)
     return (
       <div className="flex flex-col gap-6">

@@ -29,6 +29,28 @@ function TonightComets({ site, night, frames, minAlt, tz, hour12 }: { site: Obse
   return <CometStrip ctx={ctx} />;
 }
 
+/** The page's shape while the place is being worked out (first visit, or just signed in). */
+function TonightSkeleton() {
+  return (
+    <div className="flex flex-col gap-8" aria-busy="true" aria-label="Loading tonight's sky">
+      <Skel className="h-[40rem] w-full rounded-2xl sm:h-[24.4rem]" />
+      <Skel className="h-[9.5rem] w-full sm:h-[11.5rem]" />
+      <Skel className="h-[27rem] w-full sm:h-[23rem]" />
+    </div>
+  );
+}
+
+/** The week strip's place while the forecast loads, so the sections below don't move when it arrives. */
+function OutlookSkeleton() {
+  return (
+    <div className="grid grid-cols-7 gap-1.5 sm:gap-2" aria-hidden="true">
+      {Array.from({ length: 7 }, (_, i) => (
+        <Skel key={i} className="h-[95px] rounded-xl sm:h-32" />
+      ))}
+    </div>
+  );
+}
+
 function GuestBanner() {
   const [hidden, setHidden] = useState(() => store.get("ap.hideGuestBanner", false));
   if (hidden) return null;
@@ -75,9 +97,9 @@ export default function TonightPage() {
     return fq.data.hours.filter((h) => h.t >= start && h.t <= end);
   }, [ctx?.date, fq.data]);
 
-  if (siteLoading) return <Skel className="h-72 w-full" />;
+  if (siteLoading) return <TonightSkeleton />;
   if (!site) return <Welcome />;
-  if (!ctx) return <Skel className="h-72 w-full" />;
+  if (!ctx) return <TonightSkeleton />;
 
   const nights = fq.data?.nights ?? [];
   const noDark = ctx.night.darkness === "none";
@@ -99,16 +121,30 @@ export default function TonightPage() {
         southern={site.lat < 0}
       />
 
-      {nights.length > 0 && (
+      {(nights.length > 0 || fq.isLoading) && (
         <Section title="This week" description="Tap a night to plan it.">
-          <Outlook nights={nights} tonight={ctx.tonight} selected={ctx.date} onSelect={(d) => setPicked(d === ctx.tonight ? null : d)} southern={site.lat < 0} />
+          {nights.length > 0 ? (
+            <Outlook nights={nights} tonight={ctx.tonight} selected={ctx.date} onSelect={(d) => setPicked(d === ctx.tonight ? null : d)} southern={site.lat < 0} />
+          ) : (
+            <OutlookSkeleton />
+          )}
         </Section>
       )}
       {fq.isError && <p className="text-sm text-muted-foreground">The weather forecast is unavailable right now — sky and Moon times below are still exact.</p>}
 
       <Section title="Hour by hour" description="Clouds, steadiness of the air (seeing), clarity (transparency), the Moon and the resulting deep-sky score.">
         <div className="panel p-3 sm:p-4">
-          <NightStrip night={ctx.night} frames={ctx.frames} hours={hours} tz={tz} hour12={hour12} now={now} units={prefs.units} bestWindow={ctx.forecast?.bestWindow ?? null} />
+          <NightStrip
+            night={ctx.night}
+            frames={ctx.frames}
+            hours={hours}
+            tz={tz}
+            hour12={hour12}
+            now={now}
+            units={prefs.units}
+            bestWindow={ctx.forecast?.bestWindow ?? null}
+            loading={fq.isLoading}
+          />
         </div>
       </Section>
 

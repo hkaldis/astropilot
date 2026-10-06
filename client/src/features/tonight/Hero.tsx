@@ -101,9 +101,29 @@ export function TonightHero({
       <div className="relative grid gap-6 p-5 sm:p-7 md:grid-cols-[1fr_auto] md:items-center">
         <div className="min-w-0">
           <div className="eyebrow">{isTonight ? `${when} · ${formatNightDate(night.date)} · ${siteName}` : `${when} · ${siteName}`}</div>
-          {/* The verdict and its story rise in when they arrive, and again for each night picked. */}
+          {/* The verdict and its story rise in when they arrive, and again for each night picked. While the
+              forecast loads, placeholders hold their place so nothing below jumps when it comes. */}
           {loading ? (
-            <Skel className="mt-3 h-12 w-72" />
+            <div aria-hidden="true">
+              <Skel className="mt-2 h-10 w-72 max-w-full sm:h-[3.2rem]" />
+              <Skel className="mt-3.5 h-4 w-full max-w-md" />
+              <Skel className="mt-2.5 h-[1.625rem] w-36 rounded-full" />
+              <div className="mt-3 flex max-w-xl flex-col gap-1">
+                <div className="flex h-5 items-center">
+                  <Skel className="h-3 w-4/5" />
+                </div>
+                <div className="flex h-5 items-center">
+                  <Skel className="h-3 w-3/5" />
+                </div>
+                <div className="flex h-5 items-center">
+                  <Skel className="h-3 w-2/3" />
+                </div>
+                {/* Phones wrap the details onto more lines. */}
+                <div className="flex h-5 items-center sm:hidden">
+                  <Skel className="h-3 w-1/2" />
+                </div>
+              </div>
+            </div>
           ) : forecast?.hasData ? (
             <h1 key={`${night.date}-${forecast.verdict}`} className={cn("mt-2 animate-rise font-display text-[2.4rem] leading-[1.02] tracking-tight sm:text-[3.1rem]", QUALITY_TEXT[q.key])}>
               {VERDICT_WORD[forecast.verdict] ?? q.label}
@@ -113,9 +133,11 @@ export function TonightHero({
               {darknessLabel(night)}
             </h1>
           )}
-          <p key={`${night.date}-h`} className="mt-2 max-w-xl animate-rise text-[0.95rem] text-foreground/90" style={stagger(1, 90)}>
-            {forecast?.hasData ? forecast.headline : loading ? "" : "No weather forecast for this date yet — here's what the sky itself offers."}
-          </p>
+          {!loading && (
+            <p key={`${night.date}-h`} className="mt-2 max-w-xl animate-rise text-[0.95rem] text-foreground/90" style={stagger(1, 90)}>
+              {forecast?.hasData ? forecast.headline : "No weather forecast for this date yet — here's what the sky itself offers."}
+            </p>
+          )}
           {forecast?.hasData && forecast.confidence && (
             <div className="mt-2.5">
               <ConfidenceChip level={forecast.confidence} reason={forecast.confidenceReason} />
@@ -132,6 +154,12 @@ export function TonightHero({
             </ul>
           ) : null}
         </div>
+        {loading && (
+          <div className="flex items-center gap-5 md:flex-col md:items-end md:gap-3" aria-hidden="true">
+            <Skel className="h-[120px] w-[120px] rounded-full" />
+            <Skel className="h-10 w-28" />
+          </div>
+        )}
         {score !== null && (
           <div className="flex items-center gap-5 md:flex-col md:items-end md:gap-3">
             <ScoreDial score={score} size={120} label="of 100" />
@@ -172,8 +200,8 @@ export function TonightHero({
         />
         <Fact
           label="Best window"
-          value={forecast?.bestWindow ? `${fmt(forecast.bestWindow.start)} – ${fmt(forecast.bestWindow.end)}` : "—"}
-          sub={forecast?.hasData ? `${formatDuration(forecast.clearDarkHours)} clear & dark` : "Needs forecast"}
+          value={forecast?.bestWindow ? `${fmt(forecast.bestWindow.start)} – ${fmt(forecast.bestWindow.end)}` : loading ? "…" : "—"}
+          sub={forecast?.hasData ? `${formatDuration(forecast.clearDarkHours)} clear & dark` : loading ? "Loading the forecast" : "Needs forecast"}
         />
       </div>
     </section>

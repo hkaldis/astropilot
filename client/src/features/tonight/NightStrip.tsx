@@ -41,6 +41,8 @@ interface Props {
   now: number;
   units: "metric" | "imperial";
   bestWindow?: { start: number; end: number } | null;
+  /** The forecast is still on its way (its cells stay empty without saying it's unavailable). */
+  loading?: boolean;
 }
 
 const LABEL_W = 92;
@@ -53,7 +55,7 @@ const ROWS = [
   { key: "score", label: "Deep sky", h: 30 },
 ] as const;
 
-export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestWindow }: Props) {
+export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestWindow, loading = false }: Props) {
   const start = Math.floor(((night.sunset ?? night.noon + 6 * HOUR_MS) - HOUR_MS) / HOUR_MS) * HOUR_MS;
   const end = Math.ceil(((night.sunrise ?? night.nextNoon - 6 * HOUR_MS) + HOUR_MS) / HOUR_MS) * HOUR_MS;
   const cols = Math.max(1, Math.round((end - start) / HOUR_MS));
@@ -224,7 +226,7 @@ export function NightStrip({ night, frames, hours, tz, hour12, now, units, bestW
           </svg>
         </div>
       </div>
-      {!hasWeather && <p className="mt-2 text-xs text-muted-foreground">Weather forecast not available for this night — showing sky and Moon only.</p>}
+      {!hasWeather && !loading && <p className="mt-2 text-xs text-muted-foreground">Weather forecast not available for this night — showing sky and Moon only.</p>}
       <div className={cn("mt-3 min-h-[3.25rem] rounded-lg border bg-surface-2/50 px-3 py-2 text-xs", !hovered && "text-muted-foreground")}>
         {hovered ? (
           <div className="flex flex-wrap gap-x-4 gap-y-1">

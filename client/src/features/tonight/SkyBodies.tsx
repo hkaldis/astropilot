@@ -22,6 +22,8 @@ import {
 import type { ObservingSite } from "@shared/api";
 import { TypeGlyph, MoonGlyph } from "@/components/common/Glyphs";
 import { ratingOptics, useActiveScope } from "@/hooks/useScope";
+import { useAfterPaint } from "@/hooks/useAfterPaint";
+import { Skel } from "@/components/common/Page";
 import { evaluateBody, evaluateMoon, type MoonTonight } from "@/features/explore/sky";
 import { cn } from "@/lib/utils";
 import { stagger } from "@/lib/motion";
@@ -124,7 +126,10 @@ export function PlanetsTonight({
   now: number;
 }) {
   const scope = useActiveScope();
+  // Sampling every planet through the night (and rating their moons) waits until the page is on screen.
+  const ready = useAfterPaint();
   const rows = useMemo(() => {
+    if (!ready) return null;
     // Planets show from the end of civil twilight (sunset on white nights); never under the midnight sun.
     const start = night.civilDusk ?? night.sunset ?? (night.sunNeverSets ? null : night.noon);
     const end = night.civilDawn ?? night.sunrise ?? (night.sunNeverSets ? null : night.nextNoon);
@@ -171,10 +176,11 @@ export function PlanetsTonight({
       });
     }
     return out.sort((a, b) => Number(b.upInDark) - Number(a.upInDark) || a.mag - b.mag);
-  }, [night, site]);
+  }, [ready, night, site]);
   // Each planet's moons that the active instrument can show tonight (the planet counts as up above 8°, as here).
   const moons = useMemo(() => {
     const out = new Map<string, MoonTonight[]>();
+    if (!ready) return out;
     const sqm = site.sqm ?? sqmForBortle(site.bortle);
     const optics = ratingOptics(scope);
     for (const p of SOLAR_SYSTEM) {
@@ -185,7 +191,7 @@ export function PlanetsTonight({
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [night, frames, site, scope.scope.aperture, scope.kind, scope.power]);
+  }, [ready, night, frames, site, scope.scope.aperture, scope.kind, scope.power]);
   const clock = nightClock(night, isTonight, now, tz, hour12);
   // The planets' observing time: civil dusk to civil dawn.
   const windowStart = night.civilDusk ?? night.sunset;
@@ -198,10 +204,18 @@ export function PlanetsTonight({
     if (r.set !== null) ev.push({ t: r.set, verb: "sets" });
     return capitalize(joinNightEvents(ev, night, clock));
   };
+  if (night.sunNeverSets) return <p className="py-3 text-sm text-muted-foreground">The Sun doesn't set this night: the planets are lost in the daylit sky.</p>;
+  if (!rows)
+    return (
+      <div className="flex flex-col gap-2 py-1" aria-hidden="true">
+        {Array.from({ length: 4 }, (_, i) => (
+          <Skel key={i} className="h-[4.25rem] w-full" />
+        ))}
+      </div>
+    );
   const visible = rows.filter((r) => r.upInDark);
   const hidden = rows.filter((r) => !r.upInDark);
 
-  if (night.sunNeverSets) return <p className="py-3 text-sm text-muted-foreground">The Sun doesn't set this night: the planets are lost in the daylit sky.</p>;
   return (
     <div className="flex flex-col">
       {visible.map((r, i) => (

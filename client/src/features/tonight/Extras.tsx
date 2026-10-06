@@ -5,6 +5,7 @@ import { addDays, currentNightDate, upcomingEvents, formatDate, formatMag, forma
 import type { ObservingSite } from "@shared/api";
 import type { IssPass, SpaceWeather, StationId } from "@shared/forecast";
 import { Skel } from "@/components/common/Page";
+import { useAfterPaint } from "@/hooks/useAfterPaint";
 import { Button } from "@/components/ui/button";
 import { withParams } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -23,7 +24,10 @@ const KIND_DOT: Record<string, string> = {
 
 export function EventsList({ site, now, tz, hour12, limit = 7 }: { site: ObservingSite; now: number; tz?: string; hour12?: boolean; limit?: number }) {
   const day = Math.floor(now / 86_400_000);
+  // A 50-day search (eclipses, showers, conjunctions…): once the top of the page is on screen.
+  const ready = useAfterPaint();
   const all = useMemo(() => {
+    if (!ready) return null;
     const s = { lat: site.lat, lon: site.lon, elevation: site.elevation ?? 0, timezone: site.timezone };
     return upcomingEvents(day * 86_400_000, 50, s)
       .filter((e) => e.importance >= 2)
@@ -33,7 +37,15 @@ export function EventsList({ site, now, tz, hour12, limit = 7 }: { site: Observi
         const n = nightOf(nightDateOf(e.time, s), s);
         return { e, until: Math.max(e.end ?? 0, n.sunrise ?? n.nextNoon) };
       });
-  }, [day, site.lat, site.lon, site.elevation, site.timezone]);
+  }, [ready, day, site.lat, site.lon, site.elevation, site.timezone]);
+  if (!all)
+    return (
+      <div className="flex flex-col gap-2 py-1" aria-hidden="true">
+        {Array.from({ length: limit }, (_, i) => (
+          <Skel key={i} className="h-[4.25rem] w-full" />
+        ))}
+      </div>
+    );
   const events = all
     .filter((x) => x.until > now)
     .map((x) => x.e)

@@ -81,7 +81,7 @@ export function ExploreView() {
       /* storage unavailable */
     }
   }, [params]);
-  const { site } = useSite();
+  const { site, isLoading: siteLoading } = useSite();
   const { objects, isLoading, error } = useCatalog();
 
   // ---------------------------------------------------------------- filters ⇄ URL
@@ -264,7 +264,7 @@ export function ExploreView() {
         }
       />
 
-      {!site && <NoSite className="mt-6" />}
+      {!site && !siteLoading && <NoSite className="mt-6" />}
 
       <InstrumentBar scope={scope} ctx={ctx} className="mt-6" />
 

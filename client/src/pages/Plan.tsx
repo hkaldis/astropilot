@@ -102,7 +102,7 @@ function whyNotUp(item: PlanItem, nf: NightFrames, minAlt: number): string {
 
 export default function PlanPage() {
   usePageTitle("Plan");
-  const { site } = useSite();
+  const { site, isLoading: siteLoading } = useSite();
   const { user } = useAuth();
   const { prefs, hour12 } = usePrefs();
   const now = useNow();
@@ -214,6 +214,13 @@ export default function PlanPage() {
     return twilight ? `${when}, in twilight` : when;
   };
 
+  if (!site && siteLoading)
+    return (
+      <div className="flex flex-col gap-6" aria-busy="true">
+        <PageHeader title="Observing plan" description="Your targets, put in the order that makes the most of the dark hours — objects that set first come first." />
+        <Skel className="h-72 w-full" />
+      </div>
+    );
   if (!site)
     return (
       <div className="flex flex-col gap-6">

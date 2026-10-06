@@ -1,9 +1,23 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ForecastResponse, NightForecast } from "@shared/forecast";
 import { nightOf, currentNightDate, addDays, nightFrames, formatDate, formatTime, tzOffsetHours, HOUR_MS, type NightInfo, type NightFrames } from "@shared/astro";
 import type { ObservingSite, Preferences } from "@shared/api";
 import { withParams } from "@/lib/api";
+import { store } from "@/lib/storage";
+
+/**
+ * The last forecast this browser received, kept so the next visit shows it at once while a fresh one loads
+ * (one entry: the place in use). Older than this, it isn't worth showing even for a moment.
+ */
+const LAST_FORECAST = "ap.lastForecast";
+const SHOW_REMEMBERED_MS = 3 * HOUR_MS;
+let remembered: { key: string; data: ForecastResponse } | null | undefined;
+function rememberedForecast(key: string): ForecastResponse | undefined {
+  if (remembered === undefined) remembered = store.get<{ key: string; data: ForecastResponse } | null>(LAST_FORECAST, null);
+  const r = remembered;
+  return r && r.key === key && Date.now() - r.data.generatedAt < SHOW_REMEMBERED_MS ? r.data : undefined;
+}
 
 /**
  * The forecast for a site; units and time format only change the wording of the headline and details.
@@ -11,27 +25,37 @@ import { withParams } from "@/lib/api";
  * deep-sky scores match the rest of the app.
  */
 export function useForecast(site: ObservingSite | null, prefs?: Pick<Preferences, "units" | "timeFormat">) {
-  return useQuery<ForecastResponse>({
-    queryKey: [
-      site
-        ? withParams("/api/forecast", {
-            lat: site.lat.toFixed(3),
-            lon: site.lon.toFixed(3),
-            bortle: site.bortle,
-            sqm: typeof site.sqm === "number" ? site.sqm.toFixed(2) : undefined,
-            elev: typeof site.elevation === "number" ? Math.round(site.elevation) : undefined,
-            tz: site.timezone ?? undefined,
-            units: prefs?.units,
-            timeFormat: prefs?.timeFormat,
-          })
-        : "forecast:none",
-    ],
+  const key = site
+    ? withParams("/api/forecast", {
+        lat: site.lat.toFixed(3),
+        lon: site.lon.toFixed(3),
+        bortle: site.bortle,
+        sqm: typeof site.sqm === "number" ? site.sqm.toFixed(2) : undefined,
+        elev: typeof site.elevation === "number" ? Math.round(site.elevation) : undefined,
+        tz: site.timezone ?? undefined,
+        units: prefs?.units,
+        timeFormat: prefs?.timeFormat,
+      })
+    : "forecast:none";
+  const q = useQuery<ForecastResponse>({
+    queryKey: [key],
     enabled: !!site,
     staleTime: 20 * 60_000,
     refetchInterval: 30 * 60_000,
+    // The last visit's forecast for this request shows at once; it's refetched straight away when stale.
+    initialData: () => (site ? rememberedForecast(key) : undefined),
+    initialDataUpdatedAt: () => (site ? rememberedForecast(key)?.generatedAt : undefined),
     // Same place, new wording or sky class: keep showing the last answer while the new one loads.
     placeholderData: (prev) => (prev && site && Math.abs(prev.site.lat - site.lat) < 6e-4 && Math.abs(prev.site.lon - site.lon) < 6e-4 ? prev : undefined),
   });
+  const data = q.isPlaceholderData ? undefined : q.data;
+  useEffect(() => {
+    if (!site || !data || (remembered?.key === key && remembered.data.generatedAt === data.generatedAt)) return;
+    remembered = { key, data };
+    store.set(LAST_FORECAST, remembered);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, data]);
+  return q;
 }
 
 export interface NightContext {
