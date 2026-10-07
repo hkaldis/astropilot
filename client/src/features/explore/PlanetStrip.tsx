@@ -56,7 +56,7 @@ export function PlanetStrip({ bodies, ctx, className }: { bodies: BodyTonight[];
           <li key={b.id} className="snap-start">
             <Link
               href={`/object/${b.id}`}
-              className="flex w-[16rem] items-center gap-3 rounded-xl border bg-card/60 px-3 py-2.5 transition-colors hover:bg-accent/60 sm:w-auto"
+              className="flex w-[17.5rem] items-center gap-3 rounded-xl border bg-card/60 px-3 py-2.5 transition-colors hover:bg-accent/60 sm:w-auto"
             >
               <span className="grid h-10 w-10 shrink-0 place-items-center">
                 {b.id === "moon" ? (

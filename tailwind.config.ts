@@ -13,11 +13,12 @@ export default {
         mono: ["'Geist Mono'", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
         display: ["'Instrument Serif'", "ui-serif", "Georgia", "serif"],
       },
-      // The small sizes follow --text-* (index.css): a step larger on phones, the usual scale from sm up.
+      // Body and small sizes follow --text-* (index.css): larger on phones, the usual scale from sm up.
       fontSize: {
         "2xs": ["var(--text-2xs)", { lineHeight: "1rem" }],
         xs: ["var(--text-xs)", { lineHeight: "var(--text-xs-lh)" }],
         sm: ["var(--text-sm)", { lineHeight: "var(--text-sm-lh)" }],
+        base: ["var(--text-base)", { lineHeight: "var(--text-base-lh)" }],
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -100,18 +100,22 @@
     --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
     /*
-      Small type (text-2xs, text-xs, text-sm) is a step larger on phones, read at arm's length:
-      12 / 13 / 15 px with their line heights, against 11 / 12 / 14 px from 640 px up. Only the text
-      grows; spacing, icons and controls keep their sizes.
+      Type is larger on phones, read at arm's length: body 17 px, text-sm 16, text-xs 14, text-2xs 13,
+      against 16 / 14 / 12 / 11 px from 640 px up. Only the text grows; spacing, icons and controls keep
+      their sizes.
     */
-    --text-2xs: 0.75rem;
-    --text-xs: 0.8125rem;
-    --text-xs-lh: 1.125rem;
-    --text-sm: 0.9375rem;
-    --text-sm-lh: 1.375rem;
+    --text-base: 1.0625rem;
+    --text-base-lh: 1.6rem;
+    --text-2xs: 0.8125rem;
+    --text-xs: 0.875rem;
+    --text-xs-lh: 1.25rem;
+    --text-sm: 1rem;
+    --text-sm-lh: 1.5rem;
   }
   @media (min-width: 640px) {
     :root {
+      --text-base: 1rem;
+      --text-base-lh: 1.5rem;
       --text-2xs: 0.6875rem;
       --text-xs: 0.75rem;
       --text-xs-lh: 1rem;
@@ -132,6 +136,7 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    font-size: var(--text-base);
     font-feature-settings: "ss01", "cv11";
     min-height: 100dvh;
   }
@@ -174,8 +179,9 @@ html.night-vision body::after {
   .num {
     @apply font-mono tabular-nums tracking-tight;
   }
+  /* Letter-spaced capitals are emphatic enough: 12 px on phones (not text-2xs's 13), 11 px from sm up. */
   .eyebrow {
-    @apply text-2xs font-medium uppercase tracking-[0.14em] text-muted-foreground;
+    @apply text-[0.75rem] font-medium uppercase leading-4 tracking-[0.14em] text-muted-foreground sm:text-2xs;
   }
   .panel {
     @apply rounded-xl border bg-card text-card-foreground;

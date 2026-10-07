@@ -210,7 +210,7 @@ export function BestTargets({
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline gap-2">
-                <span className="truncate font-medium">{r.object.name}</span>
+                <span className="min-w-0 font-medium sm:truncate">{r.object.name}</span>
                 {r.object.name !== objectDesignation(r.object) && <span className="num shrink-0 text-xs text-muted-foreground">{objectDesignation(r.object)}</span>}
               </div>
               {/* The best time and altitude never truncate; phones drop the type label (the icon shows it). */}

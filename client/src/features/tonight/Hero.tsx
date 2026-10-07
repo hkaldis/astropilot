@@ -213,7 +213,7 @@ function Fact({ label, value, sub }: { label: string; value: React.ReactNode; su
     <div className="min-w-0 border-b border-r p-4 last:border-r-0 sm:border-b-0 [&:nth-child(2)]:border-r-0 sm:[&:nth-child(2)]:border-r">
       <div className="eyebrow">{label}</div>
       <div className="num mt-1 text-[1.05rem] font-medium">{value}</div>
-      {sub && <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{sub}</div>}
+      {sub && <div className="mt-0.5 line-clamp-3 text-xs text-muted-foreground sm:line-clamp-2">{sub}</div>}
     </div>
   );
 }

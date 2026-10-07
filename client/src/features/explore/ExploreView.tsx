@@ -299,7 +299,7 @@ export function ExploreView() {
               <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded border px-1.5 text-2xs text-muted-foreground md:block">/</kbd>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-2 md:flex">
+          <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2 md:flex">
             <Select value={filters.diff} onValueChange={(v) => update({ diff: v })}>
               <SelectTrigger className="h-11 md:w-[11rem]" aria-label="Difficulty">
                 <SelectValue />
@@ -368,7 +368,7 @@ export function ExploreView() {
 
       {/* ------------------------------------------------------------ results */}
       <section className="mt-6" aria-labelledby="results-h">
-        <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <h2 id="results-h" className="text-sm text-muted-foreground" aria-live="polite">
             {loading ? (
               "Loading the catalog…"

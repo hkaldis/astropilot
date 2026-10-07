@@ -68,7 +68,7 @@ export function ScopeSwitcher({ scope, className }: { scope: ActiveScopeState; c
           aria-label={`Instrument: ${scope.scope.name}. Change instrument`}
         >
           <Telescope className="h-3.5 w-3.5 text-primary" />
-          <span className="max-w-[14rem] truncate">{scope.scope.name}</span>
+          <span className="max-w-[16.5rem] truncate sm:max-w-[14rem]">{scope.scope.name}</span>
           <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
         </button>
       </PopoverTrigger>
