@@ -4,6 +4,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** The error body's other fields (e.g. a forecast's `relay`). */
+    public data?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -11,14 +13,16 @@ export class ApiError extends Error {
 
 async function toError(res: Response): Promise<ApiError> {
   let message: string | null = null;
+  let data: Record<string, unknown> | undefined;
   try {
     const body = await res.json();
     if (typeof body?.message === "string") message = body.message;
+    if (body && typeof body === "object") data = body;
   } catch {
     /* not JSON (e.g. a proxy error page) */
   }
   if (!message) message = res.status >= 502 ? "Can't reach AstroPilot right now. Check your connection and try again." : res.statusText || "Request failed";
-  return new ApiError(res.status, message);
+  return new ApiError(res.status, message, data);
 }
 
 /** JSON fetch against our API. Throws ApiError with the server's human message. */

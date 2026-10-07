@@ -5,6 +5,8 @@ export class HttpError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** Extra fields for the JSON body, next to `message` (e.g. what the client can do instead). */
+    public extra?: Record<string, unknown>,
   ) {
     super(message);
   }

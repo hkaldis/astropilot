@@ -30,8 +30,11 @@ function Privacy() {
       <p>We use one essential cookie to keep you signed in. On astropilot.space we use Google Analytics to understand which features are used; it doesn't receive your observing data.</p>
       <h2>Services we rely on</h2>
       <ul>
-        <li><strong>Open-Meteo</strong> — weather and geocoding. We send the coordinates of the place you're viewing, never your identity.</li>
-        <li><strong>OpenStreetMap (Nominatim and map tiles)</strong> — place names and maps for coordinates you choose.</li>
+        <li>
+          <strong>Open-Meteo</strong> — weather and geocoding. We send the coordinates of the place you're viewing, never your identity. When Open-Meteo turns our server away (it limits
+          requests per server address), your browser fetches the weather for that place from Open-Meteo directly, so Open-Meteo then sees your IP address.
+        </li>
+        <li><strong>OpenStreetMap (Nominatim, Photon by komoot, and map tiles)</strong> — place names, place search for lakes, peaks and parks (we send what you type), and maps for coordinates you choose.</li>
         <li><strong>NOAA SWPC, CelesTrak, SatNOGS and AMSAT</strong> — space weather and space-station orbits, fetched by our server (no personal data sent).</li>
         <li><strong>D. J. Lorenz's light-pollution atlas (GitHub Pages)</strong> — our server downloads the 5° map tile covering a place to estimate its sky darkness (no personal data sent).</li>
         <li><strong>NASA/JPL Small-Body Database and Horizons</strong> — comet orbits and positions, and where the moons of Mars, Saturn, Uranus and Neptune are, fetched by our server (no personal data sent).</li>

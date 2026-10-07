@@ -2,7 +2,7 @@
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { HttpError, ah, rateLimit } from "../http";
-import { getForecast } from "../services/forecast";
+import { getForecast, getForecastRelayed } from "../services/forecast";
 import { isValidTimeZone } from "../services/geoLookup";
 import { getSpaceWeather } from "../services/spaceWeather";
 import { STATIONS, getStationPasses } from "../services/satellites";
@@ -21,7 +21,7 @@ const handle = (fn: (req: Request, res: Response) => Promise<unknown>) =>
       await fn(req, res);
     } catch (e) {
       if (e instanceof HttpError && e.status >= 500 && !res.headersSent) {
-        res.status(e.status).json({ message: e.message });
+        res.status(e.status).json({ ...e.extra, message: e.message });
         return;
       }
       throw e;
@@ -106,6 +106,19 @@ export function registerForecast(app: Express) {
       const q = parseQuery(forecastQuery, req.query);
       const data = await getForecast(q);
       res.setHeader("Cache-Control", "public, max-age=300");
+      res.json(data);
+    }),
+  );
+
+  // The browser fetched the weather from Open-Meteo itself (our server was turned away; see the 503's
+  // `relay`) and sends it here to be turned into the forecast. Same query as GET /api/forecast.
+  app.post(
+    "/api/forecast/relay",
+    limit(20),
+    handle(async (req, res) => {
+      const q = parseQuery(forecastQuery, req.query);
+      const data = await getForecastRelayed(q, req.body?.weather, req.body?.models);
+      res.setHeader("Cache-Control", "private, no-store");
       res.json(data);
     }),
   );

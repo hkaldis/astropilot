@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ForecastResponse, NightForecast } from "@shared/forecast";
 import { nightOf, currentNightDate, addDays, nightFrames, formatDate, formatTime, tzOffsetHours, HOUR_MS, type NightInfo, type NightFrames } from "@shared/astro";
 import type { ObservingSite, Preferences } from "@shared/api";
-import { withParams } from "@/lib/api";
+import { ApiError, api, apiGet, withParams } from "@/lib/api";
 import { store } from "@/lib/storage";
 
 /**
@@ -17,6 +17,34 @@ function rememberedForecast(key: string): ForecastResponse | undefined {
   if (remembered === undefined) remembered = store.get<{ key: string; data: ForecastResponse } | null>(LAST_FORECAST, null);
   const r = remembered;
   return r && r.key === key && Date.now() - r.data.generatedAt < SHOW_REMEMBERED_MS ? r.data : undefined;
+}
+
+/**
+ * When our server's weather source turns it away (Open-Meteo's free quota is per IP address, and a
+ * shared host's address is shared with other sites), it says which request it would have made; this
+ * browser makes it instead and the server turns the answer into the forecast, exactly as before.
+ */
+async function getForecast(url: string): Promise<ForecastResponse> {
+  try {
+    return await apiGet<ForecastResponse>(url);
+  } catch (e) {
+    const relay = e instanceof ApiError ? (e.data?.relay as { weather?: unknown; models?: unknown } | undefined) : undefined;
+    const ok = (u: unknown): u is string => typeof u === "string" && u.startsWith("https://api.open-meteo.com/");
+    if (!relay || !ok(relay.weather)) throw e;
+    const fetchJson = async (u: string) => {
+      const r = await fetch(u, { credentials: "omit" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    };
+    let weather: unknown;
+    try {
+      weather = await fetchJson(relay.weather);
+    } catch {
+      throw e; // Open-Meteo is down for everyone: the server's message stands
+    }
+    const models = ok(relay.models) ? await fetchJson(relay.models).catch(() => null) : null;
+    return api<ForecastResponse>("POST", url.replace("/api/forecast?", "/api/forecast/relay?"), { weather, models });
+  }
 }
 
 /**
@@ -39,6 +67,7 @@ export function useForecast(site: ObservingSite | null, prefs?: Pick<Preferences
     : "forecast:none";
   const q = useQuery<ForecastResponse>({
     queryKey: [key],
+    queryFn: () => getForecast(key),
     enabled: !!site,
     staleTime: 20 * 60_000,
     refetchInterval: 30 * 60_000,

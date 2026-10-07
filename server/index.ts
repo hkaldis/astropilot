@@ -55,8 +55,8 @@ const GENERIC_ERROR = "Something went wrong on our side. Please try again.";
  * Stripe, storage, bugs — is a 500 with a generic message, so upstream details never leak and an
  * upstream 401 is never mistaken for "please sign in".
  */
-function describeError(err: any): { status: number; message: string } {
-  if (err instanceof HttpError) return { status: err.status, message: err.message };
+function describeError(err: any): { status: number; message: string; extra?: Record<string, unknown> } {
+  if (err instanceof HttpError) return { status: err.status, message: err.message, extra: err.extra };
   if (err?.type === "entity.parse.failed") return { status: 400, message: "The request body isn't valid JSON." };
   if (err?.type === "entity.too.large") return { status: 413, message: "That request is too large." };
   if (err?.expose === true && Number.isInteger(err.status) && err.status >= 400 && err.status < 500) return { status: err.status, message: String(err.message) };
@@ -86,11 +86,11 @@ function describeError(err: any): { status: number; message: string } {
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     // Mid-stream failure (e.g. a photo download): let Express close the connection.
     if (res.headersSent) return next(err);
-    const { status, message } = describeError(err);
+    const { status, message, extra } = describeError(err);
     // Log the stack only — error objects can carry row values (`detail`) or upstream payloads.
     if (status >= 500) console.error(`[error] ${req.method} ${req.path}${err?.code ? ` (${err.code})` : ""}:`, err?.stack ?? String(err));
     else if (status === 400 && err?.severity) console.warn(`[error] ${req.method} ${req.path} (${err.code}): ${err.message}`);
-    res.status(status).json({ message });
+    res.status(status).json({ ...extra, message });
   });
 
   if (isProd) {

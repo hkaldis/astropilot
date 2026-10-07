@@ -181,7 +181,7 @@ async function getJson(url: string, timeoutMs: number): Promise<any> {
   } catch {
     throw new Error(`invalid JSON (HTTP ${res.status})`);
   }
-  if (!res.ok || body?.error) throw new Error(body?.reason ? String(body.reason) : `HTTP ${res.status}`);
+  if (!res.ok || body?.error) throw Object.assign(new Error(body?.reason ? String(body.reason) : `HTTP ${res.status}`), { status: res.status });
   return body;
 }
 
@@ -192,28 +192,67 @@ const lastGoodWeather = new Map<string, { w: Weather; at: number }>();
 const STALE_WEATHER_MAX = 6 * HOUR_MS;
 
 /**
+ * Open-Meteo's free tier limits calls per IP address (per minute, hour and day), and a shared host's
+ * address is used by other sites too. Once it says so (HTTP 429), stop asking for a while: requests then
+ * fail at once and the browser fetches the weather itself (see getForecastRelayed).
+ */
+const REFUSED_BACKOFF_MS = 10 * 60_000;
+let refusedUntil = 0;
+let refusedReason = "";
+
+/** The weather request for a cell (the browser makes the same one when the server can't). */
+function weatherUrl(lat: number, lon: number, elev10: number | null): string {
+  return (
+    `${OPEN_METEO}?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}${elev10 === null ? "" : `&elevation=${elev10}`}` +
+    `&hourly=${OM_VARS.join(",")}&timezone=GMT&forecast_days=8&past_days=2&timeformat=unixtime&wind_speed_unit=kmh`
+  );
+}
+const elev10 = (elevation: number | null) => (elevation === null ? null : Math.round(elevation / 10) * 10);
+
+/** Open-Meteo's hourly answer as our Weather series. */
+function parseWeather(j: any): Weather {
+  const times: unknown = j?.hourly?.time;
+  if (!Array.isArray(times) || times.length === 0) throw new HttpError(502, "The weather service returned no forecast for this place.");
+  const v = {} as Weather["v"];
+  for (const name of OM_VARS) {
+    const arr = j.hourly[name];
+    v[name] = Array.isArray(arr) && arr.length === times.length ? arr.map(numOrNull) : times.map(() => null);
+  }
+  return {
+    times: times.map((s: number) => s * 1000),
+    elevation: Number.isFinite(j.elevation) ? j.elevation : null,
+    v,
+  };
+}
+
+/**
  * Hourly weather for a cell. Asked in GMT: with a local zone, Open-Meteo puts its hours on local whole
  * hours, which in half-hour zones (India, Adelaide, Newfoundland…) stamps every value 30–45 minutes off.
  * The site's elevation, when known, corrects the temperature for a site above or below the cell's terrain.
  */
 function fetchWeather(lat: number, lon: number, elevation: number | null): Promise<Weather> {
-  const elev = elevation === null ? null : Math.round(elevation / 10) * 10;
+  const elev = elev10(elevation);
   const key = `om:${lat.toFixed(2)},${lon.toFixed(2)}${elev === null ? "" : `@${elev}`}`;
   const hit = weatherCache.get(key);
   if (hit) return Promise.resolve(hit);
   return once(key, async () => {
-    const url =
-      `${OPEN_METEO}?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}${elev === null ? "" : `&elevation=${elev}`}` +
-      `&hourly=${OM_VARS.join(",")}&timezone=GMT&forecast_days=8&past_days=2&timeformat=unixtime&wind_speed_unit=kmh`;
+    const url = weatherUrl(lat, lon, elev);
     let j: any;
     try {
+      if (Date.now() < refusedUntil) throw new Error(`still refused: ${refusedReason}`);
       j = await getJson(url, 8000).catch(async (e) => {
-        if ((e as Error).name === "AbortError") throw e;
-        await sleep(400); // one retry for transient "overloaded"/5xx answers
+        // One retry for transient "overloaded"/5xx answers; none for a timeout or a refusal (4xx).
+        if ((e as Error).name === "AbortError" || ((e as { status?: number }).status ?? 0) < 500) throw e;
+        await sleep(400);
         return getJson(url, 8000);
       });
     } catch (e) {
-      console.warn(`[forecast] Open-Meteo failed: ${(e as Error).message}`);
+      const status = (e as { status?: number }).status;
+      if (status === 429) {
+        refusedUntil = Date.now() + REFUSED_BACKOFF_MS;
+        refusedReason = (e as Error).message;
+      }
+      if (!(e as Error).message.startsWith("still refused")) console.warn(`[forecast] Open-Meteo failed${status ? ` (HTTP ${status})` : ""}: ${(e as Error).message}`);
       const stale = lastGoodWeather.get(key);
       if (stale && Date.now() - stale.at < STALE_WEATHER_MAX) {
         weatherCache.set(key, stale.w, 2 * 60_000); // don't hammer a struggling upstream
@@ -221,18 +260,7 @@ function fetchWeather(lat: number, lon: number, elevation: number | null): Promi
       }
       throw new HttpError(502, "The weather service isn't responding right now. Please try again in a minute.");
     }
-    const times: unknown = j?.hourly?.time;
-    if (!Array.isArray(times) || times.length === 0) throw new HttpError(502, "The weather service returned no forecast for this place.");
-    const v = {} as Weather["v"];
-    for (const name of OM_VARS) {
-      const arr = j.hourly[name];
-      v[name] = Array.isArray(arr) ? arr.map(numOrNull) : times.map(() => null);
-    }
-    const w: Weather = {
-      times: times.map((s: number) => s * 1000),
-      elevation: Number.isFinite(j.elevation) ? j.elevation : null,
-      v,
-    };
+    const w = parseWeather(j);
     weatherCache.set(key, w);
     lastGoodWeather.delete(key);
     lastGoodWeather.set(key, { w, at: Date.now() });
@@ -242,29 +270,38 @@ function fetchWeather(lat: number, lon: number, elevation: number | null): Promi
 }
 
 /** Total + layer cloud from the cross-check models, in one request (suffixed keys per model). */
+function modelsUrl(lat: number, lon: number): string {
+  return (
+    `${OPEN_METEO}?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&hourly=${CLOUD_VARS.join(",")}` +
+    `&models=${CHECK_MODELS.map((m) => m.om).join(",")}&timezone=GMT&forecast_days=8&past_days=2&timeformat=unixtime`
+  );
+}
+
 function fetchModels(lat: number, lon: number): Promise<ModelClouds | null> {
   return optional(modelsCache, `mm:${lat.toFixed(2)},${lon.toFixed(2)}`, async () => {
-    const url =
-      `${OPEN_METEO}?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&hourly=${CLOUD_VARS.join(",")}` +
-      `&models=${CHECK_MODELS.map((m) => m.om).join(",")}&timezone=GMT&forecast_days=8&past_days=2&timeformat=unixtime`;
-    const j = await getJson(url, 6000);
-    const times: unknown = j?.hourly?.time;
-    if (!Array.isArray(times) || times.length === 0) throw new Error("no times");
-    const index = new Map<number, number>(times.map((s: number, i: number) => [s * 1000, i]));
-    const series: ModelClouds["series"] = {};
-    for (const m of CHECK_MODELS) {
-      const rec = {} as Record<CloudVar, (number | null)[]>;
-      let any = false;
-      for (const name of CLOUD_VARS) {
-        const arr = j.hourly[`${name}_${m.om}`];
-        rec[name] = Array.isArray(arr) ? arr.map(numOrNull) : times.map(() => null);
-        any ||= rec[name].some((x) => x !== null);
-      }
-      if (any) series[m.id] = rec;
-    }
-    if (Object.keys(series).length === 0) throw new Error("no model data");
-    return { index, series };
+    if (Date.now() < refusedUntil) throw new Error(`still refused: ${refusedReason}`);
+    return parseModels(await getJson(modelsUrl(lat, lon), 6000));
   });
+}
+
+/** The cross-check models' answer as per-model cloud series. */
+function parseModels(j: any): ModelClouds {
+  const times: unknown = j?.hourly?.time;
+  if (!Array.isArray(times) || times.length === 0) throw new Error("no times");
+  const index = new Map<number, number>(times.map((s: number, i: number) => [s * 1000, i]));
+  const series: ModelClouds["series"] = {};
+  for (const m of CHECK_MODELS) {
+    const rec = {} as Record<CloudVar, (number | null)[]>;
+    let any = false;
+    for (const name of CLOUD_VARS) {
+      const arr = j.hourly[`${name}_${m.om}`];
+      rec[name] = Array.isArray(arr) ? arr.map(numOrNull) : times.map(() => null);
+      any ||= rec[name].some((x) => x !== null);
+    }
+    if (any) series[m.id] = rec;
+  }
+  if (Object.keys(series).length === 0) throw new Error("no model data");
+  return { index, series };
 }
 
 function fetchAod(lat: number, lon: number): Promise<AodData | null> {
@@ -972,7 +1009,8 @@ function track<T>(p: Promise<T | null>) {
   return s;
 }
 
-export async function getForecast(q: ForecastQuery): Promise<ForecastResponse> {
+/** A forecast request made concrete: coordinates normalised, defaults filled in, its cache key and cells. */
+async function prepare(q: ForecastQuery) {
   const round5 = (x: number) => Math.round(x * 1e5) / 1e5;
   const lat = round5(clamp(q.lat, -90, 90));
   const lon = round5(q.lon >= -180 && q.lon <= 180 ? q.lon : ((((q.lon + 180) % 360) + 360) % 360) - 180);
@@ -986,24 +1024,99 @@ export async function getForecast(q: ForecastQuery): Promise<ForecastResponse> {
   const tz = q.tz && isValidTimeZone(q.tz) ? q.tz : ((await lookupTzElevation(lat, lon))?.timezone ?? "UTC");
   // The current night is part of the key, so a forecast made just before sunrise isn't served after it.
   const responseKey = [lat.toFixed(3), lon.toFixed(3), elev ?? "", sqm, tz, units, timeFormat, currentNightDate(Date.now(), { lat, lon, timezone: tz })].join(",");
-  const cached = responseCache.get(responseKey);
+  return {
+    lat,
+    lon,
+    sqm,
+    elev,
+    units,
+    timeFormat,
+    tz,
+    responseKey,
+    wlat: clamp(snap(lat, WEATHER_CELL), -90, 90),
+    wlon: snap(lon, WEATHER_CELL),
+    clat: clamp(snap(lat, COARSE_CELL), -90, 90),
+    clon: snap(lon, COARSE_CELL),
+  };
+}
+type Prepared = Awaited<ReturnType<typeof prepare>>;
+
+/** Give the optional sources what's left of their time budget (they keep loading in the background). */
+async function waitForExtras(started: number, extras: { done: boolean; promise: Promise<void> }[]) {
+  const remaining = started + OPTIONAL_BUDGET_MS - Date.now();
+  if (extras.some((x) => !x.done)) await Promise.race([Promise.allSettled(extras.map((x) => x.promise)), sleep(Math.max(0, remaining))]);
+}
+
+export async function getForecast(q: ForecastQuery): Promise<ForecastResponse> {
+  const r = await prepare(q);
+  const cached = responseCache.get(r.responseKey);
   if (cached) return cached;
 
   const started = Date.now();
-  const wlat = clamp(snap(lat, WEATHER_CELL), -90, 90);
-  const wlon = snap(lon, WEATHER_CELL);
-  const clat = clamp(snap(lat, COARSE_CELL), -90, 90);
-  const clon = snap(lon, COARSE_CELL);
-
   // Optional sources load in parallel and keep loading in the background if they miss the budget.
-  const aod = track(fetchAod(clat, clon));
-  const seven = track(fetchSevenTimer(clat, clon));
-  const models = track(fetchModels(wlat, wlon));
+  const aod = track(fetchAod(r.clat, r.clon));
+  const seven = track(fetchSevenTimer(r.clat, r.clon));
+  const models = track(fetchModels(r.wlat, r.wlon));
   const extras = [aod, seven, models];
-  const wx = await fetchWeather(wlat, wlon, elev);
-  const remaining = started + OPTIONAL_BUDGET_MS - Date.now();
-  if (extras.some((x) => !x.done)) await Promise.race([Promise.allSettled(extras.map((x) => x.promise)), sleep(Math.max(0, remaining))]);
+  let wx: Weather;
+  try {
+    wx = await fetchWeather(r.wlat, r.wlon, r.elev);
+  } catch (e) {
+    // Turned away: the browser can make the same request itself (see getForecastRelayed).
+    if (e instanceof HttpError && e.status === 502)
+      throw new HttpError(503, e.message, { relay: { weather: weatherUrl(r.wlat, r.wlon, elev10(r.elev)), models: modelsUrl(r.wlat, r.wlon) } });
+    throw e;
+  }
+  await waitForExtras(started, extras);
+  const response = assemble(r, wx, models.value, aod.value, seven.value, false);
+  responseCache.set(r.responseKey, response, extras.every((x) => x.done) ? RESPONSE_TTL : PARTIAL_RESPONSE_TTL);
+  return response;
+}
 
+/**
+ * The forecast from weather the visitor's browser fetched from Open-Meteo itself, when the server was
+ * turned away (Open-Meteo's free quota is per IP address, and a shared host's address is shared with
+ * other sites). The same request the server would have made (see the 503's `relay`), checked for shape
+ * and place; it only ever serves the visitor who sent it — nothing relayed is cached.
+ */
+export async function getForecastRelayed(q: ForecastQuery, weather: unknown, models: unknown): Promise<ForecastResponse> {
+  const r = await prepare(q);
+  const wx = checkRelayed(weather, r);
+  let m: ModelClouds | null = null;
+  try {
+    m = models ? parseModels(checkPlace(models, r)) : null;
+  } catch {
+    m = null; // the cross-check is optional
+  }
+  const started = Date.now();
+  const aod = track(fetchAod(r.clat, r.clon));
+  const seven = track(fetchSevenTimer(r.clat, r.clon));
+  await waitForExtras(started, [aod, seven]);
+  return assemble(r, wx, m, aod.value, seven.value, true);
+}
+
+/** Relayed data must be Open-Meteo's answer for this place (it reports its grid point, close by). */
+function checkPlace(j: any, r: Prepared): any {
+  if (!j || typeof j !== "object" || !Number.isFinite(j.latitude) || !Number.isFinite(j.longitude)) throw new HttpError(400, "That isn't a weather forecast.");
+  const dLon = Math.abs(((((j.longitude - r.wlon) % 360) + 540) % 360) - 180);
+  if (Math.abs(j.latitude - r.wlat) > 0.5 || dLon > 0.5) throw new HttpError(400, "That forecast is for another place.");
+  return j;
+}
+
+/** Relayed weather: this place, hourly, around now. */
+function checkRelayed(j: any, r: Prepared): Weather {
+  const w = parseWeather(checkPlace(j, r));
+  const now = Date.now();
+  const n = w.times.length;
+  const hourly = w.times.every((t, i) => i === 0 || t - w.times[i - 1] === HOUR_MS);
+  if (n < 48 || n > 400 || !hourly || w.times[0] > now || w.times[0] < now - 96 * HOUR_MS || w.times[n - 1] < now + 48 * HOUR_MS || w.times[n - 1] > now + 288 * HOUR_MS)
+    throw new HttpError(400, "That forecast doesn't cover the coming nights.");
+  return w;
+}
+
+/** The response from the weather and whichever optional sources answered. */
+function assemble(r: Prepared, wx: Weather, models: ModelClouds | null, aod: AodData | null, seven: SevenTimerPoint[] | null, relayed: boolean): ForecastResponse {
+  const { lat, lon, sqm, elev, units, timeFormat, tz } = r;
   // The zone matters for night dates near the date line (they must match the client's).
   const site: Site = { lat, lon, elevation: elev ?? wx.elevation ?? 0, timezone: tz };
   const now = Date.now();
@@ -1013,30 +1126,30 @@ export async function getForecast(q: ForecastQuery): Promise<ForecastResponse> {
     return { date, info: nightOf(date, site) };
   });
   const fromMs = Math.floor(nights[0].info.noon / HOUR_MS) * HOUR_MS;
-  const slots = buildSlots(wx, aod.value, seven.value, models.value, site, sqm, fromMs);
+  const slots = buildSlots(wx, aod, seven, models, site, sqm, fromMs);
   const ctx: Ctx = {
     tz,
     units,
     time: timeFormatter(tz, timeFormat === "12h"),
     observer: observerOf(site),
-    same: sameAsMain(wx, models.value, now),
+    same: sameAsMain(wx, models, now),
     now,
   };
 
-  const sources = ["Open-Meteo (best-match NWP)"];
+  const sources = [relayed ? "Open-Meteo (best-match NWP, fetched by your browser)" : "Open-Meteo (best-match NWP)"];
   const attribution = [{ text: "Weather data by Open-Meteo.com (CC BY 4.0)", url: "https://open-meteo.com/" }];
   // The client joins sources with " · ", so list the models with commas.
-  if (models.value) sources.push(`${listJoin(CHECK_MODELS.filter((m) => models.value!.series[m.id]).map((m) => m.label))} cross-check (Open-Meteo)`);
-  if (aod.value) {
+  if (models) sources.push(`${listJoin(CHECK_MODELS.filter((m) => models.series[m.id]).map((m) => m.label))} cross-check (Open-Meteo)`);
+  if (aod) {
     sources.push("Open-Meteo Air Quality (CAMS)");
     attribution.push({ text: "Contains modified Copernicus Atmosphere Monitoring Service information", url: "https://atmosphere.copernicus.eu/" });
   }
-  if (seven.value) {
+  if (seven) {
     sources.push("7Timer ASTRO");
     attribution.push({ text: "7Timer! astronomical forecast", url: "https://www.7timer.info/" });
   }
 
-  const response: ForecastResponse = {
+  return {
     site: { lat, lon, timezone: tz, utcOffsetSeconds: Math.round((tzOffsetHours(tz, now) ?? 0) * 3600), elevation: site.elevation ?? null },
     generatedAt: now,
     sources,
@@ -1044,6 +1157,4 @@ export async function getForecast(q: ForecastQuery): Promise<ForecastResponse> {
     nights: nights.map(({ date, info }) => summarizeNight(date, info, slots, ctx)),
     attribution,
   };
-  responseCache.set(responseKey, response, extras.every((x) => x.done) ? RESPONSE_TTL : PARTIAL_RESPONSE_TTL);
-  return response;
 }
