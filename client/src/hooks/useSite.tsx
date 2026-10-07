@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ApiLocation, ObservingSite } from "@shared/api";
-import { apiGet, withParams } from "@/lib/api";
+import { lookupZone } from "@/lib/geoZone";
 import { store } from "@/lib/storage";
 import { useAuth } from "./useAuth";
 import { fetchSkyBrightness } from "./useSkyBrightness";
@@ -101,7 +101,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     if (!guest || (guest.timezone && guest.elevation !== null && guest.elevation !== undefined)) return;
     let cancelled = false;
     const { lat, lon } = guest;
-    apiGet<{ timezone: string | null; elevation: number | null }>(withParams("/api/geo/zone", { lat: lat.toFixed(4), lon: lon.toFixed(4) }))
+    lookupZone(lat, lon)
       .then((geo) => {
         if (cancelled) return;
         setGuest((cur) => {

@@ -1,6 +1,8 @@
 /**
  * Place search and reverse geocoding (public, no sign-in needed).
- *  - Search: Open-Meteo Geocoding (GeoNames) — names, admin region, country, elevation, time zone.
+ *  - Search: Open-Meteo Geocoding (GeoNames: towns, with elevation and time zone) together with Photon
+ *    (OpenStreetMap: lakes, peaks, parks, observatories, viewpoints — where people actually observe).
+ *    Photon is built for search-as-you-type; Nominatim's policy forbids that, so it isn't used here.
  *  - Reverse: Nominatim (OpenStreetMap) for the name, Open-Meteo for time zone + elevation.
  *    Nominatim's usage policy: ≤ 1 request/s for the whole app, a real User-Agent, cache results.
  * Upstream failures degrade gracefully ("Near 37.98°, 23.73°").
@@ -54,8 +56,8 @@ const PLACE_TYPES = new Set([
   "isolated_dwelling",
   "locality",
 ]);
-/** "Royal Borough of Greenwich" → "Greenwich", "Municipality of Athens" → "Athens". */
-const ADMIN_PREFIX = /^(?:(?:Royal|London|Metropolitan)\s+)?(?:Borough|City|Municipality|Municipal Unit|Town|Village|Township|County|Commune|District)\s+of\s+/i;
+/** "Royal Borough of Greenwich" → "Greenwich", "Municipality of Athens" → "Athens", "Regional Unit of West Attica" → "West Attica". */
+const ADMIN_PREFIX = /^(?:(?:Royal|London|Metropolitan)\s+)?(?:Borough|City|Municipality|Municipal Unit|Regional Unit|Region|Prefecture|Province|Town|Village|Township|County|Commune|District)\s+of\s+(?:the\s+)?/i;
 
 async function reverseName(lat: number, lon: number): Promise<PlaceName | null> {
   // ~1 km precision is plenty for a town name and avoids sending a precise position upstream.
@@ -82,6 +84,7 @@ async function reverseName(lat: number, lon: number): Promise<PlaceName | null> 
     const raw: string | null = own ?? a.city ?? a.town ?? a.village ?? a.hamlet ?? a.municipality ?? a.suburb ?? a.county ?? j?.name ?? null;
     const name = raw ? raw.replace(ADMIN_PREFIX, "").trim() || raw : null;
     let region: string | null = a.state ?? a.region ?? a.province ?? a.state_district ?? a.county ?? null;
+    if (region) region = region.replace(ADMIN_PREFIX, "").trim() || region;
     if (region && region === name) region = null;
     const v = { name, region, country: a.country ?? null };
     reverseCache.set(key, v);
@@ -129,21 +132,12 @@ export function parseCoordinates(q: string): { lat: number; lon: number } | null
   return { lat, lon };
 }
 
-async function searchPlaces(q: string): Promise<GeoPlace[]> {
-  const key = q.toLowerCase();
-  const hit = searchCache.get(key);
-  if (hit) return hit;
+/** Towns and cities from GeoNames (Open-Meteo), with their elevation and time zone. */
+async function searchTowns(q: string): Promise<GeoPlace[]> {
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=en&format=json`;
-  let j: any;
-  try {
-    const r = await fetchWithTimeout(url, { timeoutMs: 7000, headers: { "User-Agent": USER_AGENT, Accept: "application/json" } });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    j = await r.json();
-  } catch (e: any) {
-    console.warn(`[geo] Open-Meteo geocoding failed: ${e?.name === "AbortError" ? "timeout" : e?.message ?? "error"}`);
-    // 424: an upstream dependency failed. (5xx messages are replaced by generic text on the client.)
-    throw new HttpError(424, "Place search is unavailable right now. Try again in a minute, or use your current position.");
-  }
+  const r = await fetchWithTimeout(url, { timeoutMs: 7000, headers: { "User-Agent": USER_AGENT, Accept: "application/json" } });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const j: any = await r.json();
   const results: GeoPlace[] = (Array.isArray(j?.results) ? j.results : [])
     .filter((p: any) => Number.isFinite(p?.latitude) && Number.isFinite(p?.longitude) && typeof p?.name === "string")
     .map((p: any) => ({
@@ -166,7 +160,118 @@ async function searchPlaces(q: string): Promise<GeoPlace[]> {
         p.timezone ??= geo?.timezone ?? null;
       }),
   );
-  searchCache.set(key, results);
+  return results;
+}
+
+/** OpenStreetMap features worth observing from (keys, or key=value), as Photon reports them. */
+const FEATURES: Record<string, Record<string, string> | true> = {
+  place: { city: "City", town: "Town", village: "Village", hamlet: "Hamlet", locality: "Locality", isolated_dwelling: "Hamlet", island: "Island", islet: "Island", suburb: "District", neighbourhood: "District", quarter: "District" },
+  natural: true,
+  leisure: { park: "Park", nature_reserve: "Nature reserve", garden: "Park", recreation_ground: "Park" },
+  boundary: { national_park: "National park", protected_area: "Protected area" },
+  man_made: { observatory: "Observatory", tower: "Tower", lighthouse: "Lighthouse" },
+  tourism: { viewpoint: "Viewpoint", camp_site: "Campsite", caravan_site: "Campsite", alpine_hut: "Mountain hut", wilderness_hut: "Mountain hut", picnic_site: "Picnic site", attraction: "Attraction" },
+  landuse: { winter_sports: "Ski area", recreation_ground: "Park", meadow: "Meadow" },
+  mountain_pass: true,
+  historic: true,
+};
+const NATURAL: Record<string, string> = { peak: "Peak", volcano: "Volcano", ridge: "Ridge", saddle: "Mountain pass", plateau: "Plateau", beach: "Beach", bay: "Bay", cape: "Cape", wood: "Forest", heath: "Heath", grassland: "Meadow", spring: "Spring", glacier: "Glacier", valley: "Valley", wetland: "Wetland" };
+const LAKE_WORD = /\b(lake|lac|lago|see|lakes|reservoir|loch|λίμνη|limni)\b/i;
+const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
+
+/** What an OpenStreetMap feature is, in words; null when it isn't a place to observe from. */
+export function featureKind(key: string, value: string, name: string): string | null {
+  const rule = FEATURES[key];
+  if (!rule) return null;
+  if (key === "natural") return value === "water" ? (LAKE_WORD.test(name) ? "Lake" : "Water") : (NATURAL[value] ?? sentence(value));
+  if (key === "mountain_pass") return "Mountain pass";
+  if (key === "historic") return "Historic site";
+  return rule === true ? sentence(value) : (rule[value] ?? null);
+}
+
+/** Lakes, peaks, parks, observatories and the like from OpenStreetMap (Photon). */
+async function searchFeatures(q: string): Promise<GeoPlace[]> {
+  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=12&lang=en`;
+  const r = await fetchWithTimeout(url, { timeoutMs: 6000, headers: { "User-Agent": USER_AGENT, Accept: "application/json" } });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const j: any = await r.json();
+  const out: GeoPlace[] = [];
+  for (const f of Array.isArray(j?.features) ? j.features : []) {
+    const p = f?.properties ?? {};
+    const [lon, lat] = f?.geometry?.coordinates ?? [];
+    if (typeof p.name !== "string" || !Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+    const kind = featureKind(String(p.osm_key ?? ""), String(p.osm_value ?? ""), p.name);
+    if (!kind) continue;
+    out.push({
+      name: p.name,
+      region: typeof p.state === "string" && p.state !== p.name ? p.state : null,
+      country: typeof p.country === "string" ? p.country : null,
+      latitude: Math.round(lat * 1e5) / 1e5,
+      longitude: Math.round(lon * 1e5) / 1e5,
+      // Looked up for the exact spot when it's picked or saved.
+      elevation: null,
+      timezone: null,
+      kind: ["City", "Town", "Village", "Hamlet", "Locality", "District"].includes(kind) ? null : kind,
+    });
+  }
+  return out;
+}
+
+const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9\u0370-\u03ff]+/g, " ").trim();
+const kmBetween = (a: GeoPlace, b: GeoPlace) => {
+  const rad = Math.PI / 180;
+  const dLat = (b.latitude - a.latitude) * rad;
+  const dLon = (b.longitude - a.longitude) * rad * Math.cos(((a.latitude + b.latitude) / 2) * rad);
+  return 6371 * Math.hypot(dLat, dLon);
+};
+/** The same place twice: a town both catalogs know, or one feature mapped twice (a park and its boundary). */
+const samePlace = (a: GeoPlace, b: GeoPlace) => {
+  const d = kmBetween(a, b);
+  const na = fold(a.name);
+  const nb = fold(b.name);
+  return d < 0.5 || (d < 5 && (na === nb || na.includes(nb) || nb.includes(na)) && !!a.kind === !!b.kind);
+};
+/** A search that names a kind of feature: those results go first. */
+const FEATURE_QUERY = /\b(lake|lac|lago|mount|mt|mountain|peak|hill|park|reserve|observatory|beach|bay|cape|forest|pass|ski|island|viewpoint|camp|campsite|plateau|valley|dam|reservoir|λίμνη|όρος)\b/i;
+
+const townCache = new TTLCache<GeoPlace[]>(DAY, 3000);
+
+/** Towns alone: the quick first answer while the slower feature search (Photon, ~1–4 s) runs. */
+async function cachedTowns(q: string): Promise<GeoPlace[]> {
+  const key = q.toLowerCase();
+  const hit = townCache.get(key);
+  if (hit) return hit;
+  const towns = await searchTowns(q);
+  townCache.set(key, towns);
+  return towns;
+}
+
+async function searchPlaces(q: string): Promise<GeoPlace[]> {
+  const key = q.toLowerCase();
+  const hit = searchCache.get(key);
+  if (hit) return hit;
+  const [towns, features] = await Promise.allSettled([cachedTowns(q), searchFeatures(q)]);
+  for (const [name, r] of [["Open-Meteo geocoding", towns], ["Photon", features]] as const)
+    if (r.status === "rejected") console.warn(`[geo] ${name} failed: ${r.reason?.name === "AbortError" ? "timeout" : r.reason?.message ?? "error"}`);
+  if (towns.status === "rejected" && features.status === "rejected") {
+    // 424: an upstream dependency failed. (5xx messages are replaced by generic text on the client.)
+    throw new HttpError(424, "Place search is unavailable right now. Try again in a minute, paste coordinates, or use your current position.");
+  }
+  const a = towns.status === "fulfilled" ? towns.value : [];
+  const b = features.status === "fulfilled" ? features.value : [];
+  // Towns first, in the order the quick answer showed them, then the features they don't already cover;
+  // features first when the search names one ("Lake …", "Mount …"). Each place once — a town's own
+  // entry wins, as it carries its elevation and time zone.
+  const [first, second] = FEATURE_QUERY.test(q) ? [b, a] : [a, b];
+  const merged: GeoPlace[] = [];
+  for (const p of [...first, ...second]) {
+    const dup = merged.findIndex((m) => samePlace(m, p));
+    if (dup < 0) merged.push(p);
+    else if (merged[dup].timezone === null && p.timezone !== null) merged[dup] = { ...p, kind: merged[dup].kind ?? p.kind };
+  }
+  const results = merged.slice(0, 12);
+  // A partial answer (one source down) is kept briefly, a full one for a day.
+  searchCache.set(key, results, towns.status === "fulfilled" && features.status === "fulfilled" ? undefined : 5 * 60_000);
   return results;
 }
 
@@ -180,6 +285,8 @@ const searchQuery = z.object({
     .trim()
     .min(2, "Type at least 2 characters")
     .max(100, "That search is too long"),
+  /** "towns": the quick GeoNames answer only. */
+  scope: z.enum(["towns", "all"]).default("all"),
 });
 
 /** A coordinate from the query string; "", missing or repeated values are errors (never 0). */
@@ -200,9 +307,18 @@ export function registerGeo(app: Express) {
     "/api/geo/search",
     rateLimit({ windowMs: 60_000, max: 60, message: "Too many searches — please wait a moment." }),
     ah(async (req, res) => {
-      const { q } = parse(searchQuery, req.query);
+      const { q, scope } = parse(searchQuery, req.query);
       const coords = parseCoordinates(q);
-      const places = coords ? [await reversePlace(coords.lat, coords.lon)] : await searchPlaces(q);
+      let places: GeoPlace[];
+      if (coords) places = [await reversePlace(coords.lat, coords.lon)];
+      else if (scope === "towns") {
+        try {
+          places = await cachedTowns(q);
+        } catch (e: any) {
+          console.warn(`[geo] Open-Meteo geocoding failed: ${e?.name === "AbortError" ? "timeout" : e?.message ?? "error"}`);
+          places = []; // the full search still runs and answers with what it can
+        }
+      } else places = await searchPlaces(q);
       res.setHeader("Cache-Control", "private, max-age=3600");
       res.json(places);
     }),

@@ -66,6 +66,8 @@ export interface GeoPlace {
   longitude: number;
   elevation: number | null;
   timezone: string | null;
+  /** What it is, when it isn't a town: "Lake", "Peak", "Observatory", "National park"… */
+  kind?: string | null;
 }
 
 export interface ApiTelescope {

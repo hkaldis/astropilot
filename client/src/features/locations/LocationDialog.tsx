@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ExternalLink, Loader2, Search } from "lucide-react";
 import type { ApiLocation, GeoPlace, LocationInput } from "@shared/api";
 import { bortleForSqm } from "@shared/astro/visibility";
@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { PlacePicker } from "@/components/common/PlacePicker";
+import { apiGet, withParams } from "@/lib/api";
+import { lookupZone } from "@/lib/geoZone";
 import { useSite } from "@/hooks/useSite";
 import { usePrefs } from "@/hooks/usePrefs";
 import { toast } from "@/hooks/use-toast";
@@ -85,6 +87,8 @@ export function LocationDialog({
   const [latStr, setLatStr] = useState("");
   const [lonStr, setLonStr] = useState("");
   const [focusKey, setFocusKey] = useState(0);
+  /** Wider when the spot is being chosen on the map, close in to fine-tune a found place. */
+  const [mapZoom, setMapZoom] = useState(12);
   const [known, setKnown] = useState<Known | null>(null);
   const [searching, setSearching] = useState(false);
   const [name, setName] = useState("");
@@ -95,6 +99,11 @@ export function LocationDialog({
   const [notes, setNotes] = useState("");
   const [isDefault, setIsDefault] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  // A name suggested from the map pin may follow the pin; a typed or searched one never changes by itself.
+  const naming = useRef({ name: "", touched: false, fromPin: false });
+  naming.current.name = name;
+  naming.current.touched = nameTouched;
+  const suggestTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     if (!open) return;
@@ -113,6 +122,9 @@ export function LocationDialog({
     setNotes(location?.notes ?? "");
     setIsDefault(location ? location.isFavorite : !!isFirst);
     setShowErrors(false);
+    setMapZoom(12);
+    naming.current.fromPin = false;
+    clearTimeout(suggestTimer.current);
     setFocusKey((k) => k + 1);
     create.reset();
     update.reset();
@@ -132,6 +144,58 @@ export function LocationDialog({
     setFocusKey((k) => k + 1);
     setKnown({ lat, lon, timezone: p.timezone, elevation: p.elevation });
     if (!nameTouched) setName(p.name);
+    naming.current.fromPin = false;
+    setMapZoom(p.kind ? 13 : 12);
+    setSearching(false);
+  };
+
+  // The pin moved on the map: an unnamed spot gets the nearest place's name (and its zone and height).
+  const onMapMove = useCallback(
+    (lat: number, lon: number) => {
+      moveTo(lat, lon);
+      clearTimeout(suggestTimer.current);
+      const n = naming.current;
+      if (n.touched || (n.name && !n.fromPin)) return;
+      suggestTimer.current = setTimeout(() => {
+        apiGet<GeoPlace>(withParams("/api/geo/reverse", { lat: lat.toFixed(5), lon: lon.toFixed(5) }))
+          .then((p) => {
+            const cur = naming.current;
+            if (cur.touched || (cur.name && !cur.fromPin)) return;
+            cur.fromPin = true;
+            setName(p.name.startsWith("Near ") ? p.name : `Near ${p.name}`);
+            setKnown({ lat, lon, timezone: p.timezone, elevation: p.elevation });
+          })
+          .catch(() => undefined);
+      }, 700);
+    },
+    [moveTo],
+  );
+  useEffect(() => () => clearTimeout(suggestTimer.current), []);
+
+  // A spot without a known zone and height (a lake from OpenStreetMap, a dragged pin) gets them now, so
+  // they show before saving and are saved with it (the server's own lookup can be turned away).
+  const zoneTried = useRef("");
+  useEffect(() => {
+    if (!open || !pos || (known && same(pos.lat, known.lat) && same(pos.lon, known.lon) && known.timezone)) return;
+    const { lat, lon } = pos;
+    const spot = `${lat},${lon}`;
+    if (zoneTried.current === spot) return; // one try per spot
+    const t = setTimeout(() => {
+      zoneTried.current = spot;
+      lookupZone(lat, lon)
+        .then((z) => setKnown((k) => (k && same(k.lat, lat) && same(k.lon, lon) && k.timezone ? k : { lat, lon, timezone: z.timezone, elevation: z.elevation })))
+        .catch(() => undefined);
+    }, 800);
+    return () => clearTimeout(t);
+  }, [open, pos, known]);
+
+  // No search knows the spot: start the map at the current place and let the visitor tap it.
+  const chooseOnMap = () => {
+    const from = pos ?? (site ? { lat: site.lat, lon: site.lon } : { lat: 37.98, lon: 23.73 });
+    moveTo(from.lat, from.lon);
+    setKnown(null);
+    setMapZoom(9);
+    setFocusKey((k) => k + 1);
     setSearching(false);
   };
 
@@ -235,7 +299,7 @@ export function LocationDialog({
         <form onSubmit={submit} noValidate className="flex flex-col gap-5">
           {searching && (
             <div className="flex flex-col gap-2">
-              <PlacePicker onPick={pick} />
+              <PlacePicker onPick={pick} onMap={chooseOnMap} />
               {err.place && <p className="text-xs text-destructive">{err.place}</p>}
               {pos && (
                 <Button type="button" variant="ghost" size="sm" className="self-start" onClick={() => setSearching(false)}>
@@ -255,8 +319,10 @@ export function LocationDialog({
                   </Button>
                 )}
               </div>
-              <LocationMap lat={pos.lat} lon={pos.lon} onMove={moveTo} focusKey={focusKey} className="h-56 sm:h-64" />
-              <p className="text-xs text-muted-foreground">Drag the pin or tap the map to fine-tune the spot you set up on.</p>
+              <LocationMap lat={pos.lat} lon={pos.lon} onMove={onMapMove} focusKey={focusKey} zoom={mapZoom} className="h-56 sm:h-64" />
+              <p className="text-xs text-muted-foreground">
+                {mapZoom < 12 ? "Zoom and tap the map where you set up, then drag the pin to fine-tune." : "Drag the pin or tap the map to fine-tune the spot you set up on."}
+              </p>
               <div className="grid grid-cols-2 gap-3">
                 <Field id="loc-lat" label="Latitude" error={err.lat}>
                   <Input
