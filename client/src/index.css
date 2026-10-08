@@ -189,6 +189,48 @@ html.night-vision body::after {
   .panel-muted {
     @apply rounded-xl border bg-surface-2/60;
   }
+  /* The cloud map's timeline: a bare range input over a drawn day/night track. */
+  .cloud-range {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+  }
+  .cloud-range::-webkit-slider-runnable-track {
+    height: 1.75rem;
+    background: transparent;
+  }
+  .cloud-range::-moz-range-track {
+    background: transparent;
+  }
+  .cloud-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    margin-top: 5px;
+    border-radius: 9999px;
+    border: 2px solid hsl(var(--primary));
+    background: hsl(var(--background));
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.45);
+  }
+  .cloud-range::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    border: 2px solid hsl(var(--primary));
+    background: hsl(var(--background));
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.45);
+  }
+  .cloud-range:focus-visible {
+    outline: none;
+  }
+  .cloud-range:focus-visible::-webkit-slider-thumb {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+  .cloud-range:focus-visible::-moz-range-thumb {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
   .hairline {
     @apply border-border/70;
   }

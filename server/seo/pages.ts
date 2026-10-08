@@ -67,7 +67,7 @@ function showpieces(n: number): CatalogEntry[] {
 
 function home(): Page {
   const features = [
-    `${a("/", "Tonight")}: a 0–100 verdict for the night from an astronomy-specific forecast, a 7-night outlook, hour-by-hour cloud, seeing and transparency, the Moon, the planets and their moons, comets, meteor showers, eclipses, space-station passes and aurora chances.`,
+    `${a("/", "Tonight")}: a 0–100 verdict for the night from an astronomy-specific forecast, a 7-night outlook, hour-by-hour cloud, seeing and transparency, a cloud map with live satellite images and the week's cloud forecast on one slider, the Moon, the planets and their moons, comets, meteor showers, eclipses, space-station passes and aurora chances.`,
     `${a("/sky", "Sky chart")}: a live all-sky chart for your place and time, with stars, constellations, the planets, their moons and deep-sky objects, a time slider and search.`,
     `${a("/explore", "Explore")}: ${catalog().list.length} deep-sky objects — every Messier and Caldwell object, bright NGC/IC galaxies, nebulae and clusters, and classic double stars — plus the planets and their moons, ranked for your sky darkness, your instrument and tonight's Moon.`,
     "Plan: an observing run ordered so objects that set first come first, and a dark-sky calendar.",

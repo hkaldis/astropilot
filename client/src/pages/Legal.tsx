@@ -35,6 +35,10 @@ function Privacy() {
           <strong>Open-Meteo</strong> — weather and geocoding. We send the coordinates of the place you're viewing, never your identity. When Open-Meteo turns our server away (it limits
           requests per server address), your browser fetches the weather for that place from Open-Meteo directly, so Open-Meteo then sees your IP address.
         </li>
+        <li>
+          <strong>EUMETSAT (EUMETView)</strong> — satellite cloud images and the relief map behind the cloud map. Your browser loads them directly for the region around the place you're
+          viewing, so EUMETSAT sees your IP address. The cloud forecast on that map comes from Open-Meteo the same way.
+        </li>
         <li><strong>OpenStreetMap (Nominatim, Photon by komoot, and map tiles)</strong> — place names, place search for lakes, peaks and parks (we send what you type), and maps for coordinates you choose.</li>
         <li><strong>NOAA SWPC, CelesTrak, SatNOGS and AMSAT</strong> — space weather and space-station orbits, fetched by our server (no personal data sent).</li>
         <li><strong>D. J. Lorenz's light-pollution atlas (GitHub Pages)</strong> — our server downloads the 5° map tile covering a place to estimate its sky darkness (no personal data sent).</li>
@@ -119,6 +123,12 @@ function About() {
         <li>
           <strong>The observing forecast</strong> uses Open-Meteo numerical weather models (cloud at three heights, humidity, dew point, wind and jet-stream winds) and
           aerosol forecasts to estimate cloud, seeing, transparency and dew risk hour by hour.
+        </li>
+        <li>
+          <strong>The cloud map</strong> shows Meteosat's cloud mask from{" "}
+          <a href="https://view.eumetsat.int">EUMETSAT</a> every 15 minutes for the last three hours (outside Meteosat's view, EUMETSAT's 3-hourly world infrared
+          composite), then Open-Meteo's total cloud cover for every hour of the coming week, sampled on a grid around your site and smoothly interpolated. Relief and
+          coastlines: Natural Earth.
         </li>
         <li>
           <strong>The catalog</strong> includes all Messier and Caldwell objects plus bright NGC/IC galaxies, nebulae and clusters from{" "}

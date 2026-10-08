@@ -47,7 +47,7 @@ AstroPilot is made by Starboard Studio. Contact: ${CONTACT}. It is free; an opti
 
 ## Features
 
-- [Tonight](${SITE}/): observing verdict and forecast for the user's location, the Moon, the planets and their moons, comets, meteor showers, eclipses, space-station passes, aurora chances.
+- [Tonight](${SITE}/): observing verdict and forecast for the user's location, a cloud map (live Meteosat satellite images, then the hourly cloud forecast for the week on one slider), the Moon, the planets and their moons, comets, meteor showers, eclipses, space-station passes, aurora chances.
 - [Sky chart](${SITE}/sky): live all-sky chart for any place and time, with search.
 - [Explore](${SITE}/explore): ${n} deep-sky objects (all Messier and Caldwell objects, bright NGC/IC objects, double stars) plus the planets and their moons, ranked for the user's sky darkness, instrument and moonlight.
 - Plan, Journal, Achievements, Gear (telescopes, eyepieces, magnification, exit pupil) and Locations (sky darkness from the light-pollution atlas) are personal screens.

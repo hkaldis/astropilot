@@ -25,6 +25,6 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Where does the weather data come from?",
-    a: "From Open-Meteo's numerical weather models (with ECMWF, GFS and ICON as a cross-check), Copernicus aerosol forecasts and 7Timer's astronomical forecast. Sky darkness for a new place is estimated from the 2025 World Atlas of Artificial Night Sky Brightness.",
+    a: "From Open-Meteo's numerical weather models (with ECMWF, GFS and ICON as a cross-check), Copernicus aerosol forecasts and 7Timer's astronomical forecast. The cloud map shows EUMETSAT's Meteosat satellite images for the last few hours, then Open-Meteo's hourly cloud forecast for the week. Sky darkness for a new place is estimated from the 2025 World Atlas of Artificial Night Sky Brightness.",
   },
 ];

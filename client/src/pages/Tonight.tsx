@@ -1,13 +1,15 @@
-import { useMemo, useState } from "react";
+import { Suspense, lazy, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { X } from "lucide-react";
 import { HOUR_MS, formatTime, sqmForBortle, type NightFrames, type NightInfo } from "@shared/astro";
 import type { ObservingSite } from "@shared/api";
+import type { ForecastHour } from "@shared/forecast";
 import { useSite, siteTz } from "@/hooks/useSite";
 import { useAuth } from "@/hooks/useAuth";
 import { usePrefs } from "@/hooks/usePrefs";
 import { useNow } from "@/hooks/useNow";
 import { store } from "@/lib/storage";
+import { useInView } from "@/lib/motion";
 import { Section, Skel, usePageTitle } from "@/components/common/Page";
 import { Button } from "@/components/ui/button";
 import { useForecast, useNightContext } from "@/features/tonight/useTonight";
@@ -27,6 +29,35 @@ function TonightComets({ site, night, frames, minAlt, tz, hour12 }: { site: Obse
   const sqm = site.sqm ?? sqmForBortle(site.bortle);
   const ctx = useMemo(() => ({ night, frames, sqm, minAlt, tz, hour12 }), [night, frames, sqm, minAlt, tz, hour12]);
   return <CometStrip ctx={ctx} />;
+}
+
+// The cloud map loads its own chunk and its images only when someone scrolls near it.
+const CloudMap = lazy(() => import("@/features/tonight/CloudMap"));
+
+function CloudMapSkeleton() {
+  return (
+    <div className="panel overflow-hidden p-0" aria-hidden="true">
+      <Skel className="aspect-[4/3] w-full rounded-none sm:aspect-[11/5]" />
+      <div className="h-[6.5rem] sm:h-[7rem]" />
+    </div>
+  );
+}
+
+function CloudSection(props: { site: ObservingSite; hours?: ForecastHour[]; focus: number | null; now: number; tz?: string; hour12: boolean }) {
+  const [ref, inView] = useInView<HTMLDivElement>({ rootMargin: "400px 0px" });
+  return (
+    <Section title="Cloud map" description="Satellite images up to now, then the cloud forecast for the week ahead. Drag the slider or press play.">
+      <div ref={ref}>
+        {inView ? (
+          <Suspense fallback={<CloudMapSkeleton />}>
+            <CloudMap {...props} />
+          </Suspense>
+        ) : (
+          <CloudMapSkeleton />
+        )}
+      </div>
+    </Section>
+  );
 }
 
 /** The page's shape while the place is being worked out (first visit, or just signed in). */
@@ -147,6 +178,8 @@ export default function TonightPage() {
           />
         </div>
       </Section>
+
+      <CloudSection site={site} hours={fq.data?.hours} focus={ctx.isTonight ? null : ctx.night.solarMidnight} now={now} tz={tz} hour12={hour12} />
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <Section
