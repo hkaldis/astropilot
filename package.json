@@ -9,7 +9,7 @@
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
-    "test": "tsx --test shared/astro/*.test.ts shared/*.test.ts server/services/*.test.ts",
+    "test": "tsx --test shared/astro/*.test.ts shared/*.test.ts server/services/*.test.ts server/seo/*.test.ts",
     "db:push": "drizzle-kit push",
     "data:catalog": "node scripts/data/build-catalog.mjs",
     "data:sky": "node scripts/data/build-sky.mjs",

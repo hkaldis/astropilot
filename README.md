@@ -78,6 +78,16 @@ server/
   migrate.ts        additive, idempotent schema migration run on boot
 ```
 
+## Search engines and AI assistants
+
+The app draws its pages in the browser, so the server also renders a readable copy of every public page
+(`server/seo/`): its own title, description, link preview and schema.org data, and the page's content —
+for an object page, what it is, when it's best placed in the evening, how high it climbs from familiar
+latitudes and its catalog facts. Search engines, AI assistants (most don't run JavaScript) and security
+scanners read that; in the browser the app replaces it before anything is drawn. Alongside:
+`/robots.txt`, `/sitemap.xml`, `/llms.txt`, `/objects.md` and a Markdown twin of every object page
+(`/object/M31.md`), `/.well-known/security.txt`, real 404s and 301s, and `www` → bare domain.
+
 ## Hosting
 
 AstroPilot runs on [Render](https://render.com) from [`render.yaml`](render.yaml): a web service and a

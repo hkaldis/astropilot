@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { PageHeader, usePageTitle } from "@/components/common/Page";
 import { useFeatures } from "@/hooks/useAuth";
+import { FAQ } from "@shared/faq";
 
 const UPDATED = "5 October 2026";
 
@@ -83,6 +84,13 @@ function About() {
         AstroPilot is an observing companion for amateur astronomers. It answers three questions every clear evening: <em>is tonight worth it, what should I look at
         with my telescope, and where do I point?</em> — and then keeps a simple log of what you saw.
       </p>
+      <h2>Questions</h2>
+      {FAQ.map((f) => (
+        <div key={f.q}>
+          <h3>{f.q}</h3>
+          <p>{f.a}</p>
+        </div>
+      ))}
       <h2>How it works</h2>
       <ul>
         <li>

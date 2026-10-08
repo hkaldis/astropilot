@@ -3,12 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>AstroPilot · Your night sky, planned</title>
-    <meta name="description" content="AstroPilot tells you if tonight is worth it, what to observe with your telescope, when and where to look, and keeps your observing log." />
-    <meta name="theme-color" content="#05070c" />
-    <meta property="og:title" content="AstroPilot · Your night sky, planned" />
+    <!-- The server replaces this block with each page's own title, description, link preview and structured data. -->
+    <!--seo-->
+    <title>AstroPilot — Stargazing forecast, telescope targets &amp; sky chart</title>
+    <meta name="description" content="Is tonight worth it? AstroPilot gives an astronomy forecast for your exact location — cloud, seeing, transparency, moonlight — plus what your telescope can see tonight, an interactive sky chart and an observing log. Free." />
+    <meta property="og:title" content="AstroPilot — your night sky, planned" />
     <meta property="og:description" content="Accurate observing forecasts, personalised targets for your telescope, an interactive sky chart and an observing journal." />
     <meta property="og:type" content="website" />
+    <!--/seo-->
+    <meta name="theme-color" content="#05070c" />
+    <meta name="application-name" content="AstroPilot" />
+    <meta name="apple-mobile-web-app-title" content="AstroPilot" />
     <!-- Browsers that read SVG icons take favicon.svg; the rest favicon.ico. ?v= makes them refetch a new design. -->
     <link rel="icon" href="/favicon.ico?v=2" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
@@ -20,9 +25,11 @@
     <script>
       // Apply the saved theme before first paint to avoid a flash.
       (function () {
+        var root = document.documentElement;
+        // With JavaScript the app draws the page; the server's readable copy (#ssr) is for crawlers and no-JS visitors.
+        root.classList.add("js");
         try {
           var t = localStorage.getItem("ap.theme") || "dark";
-          var root = document.documentElement;
           root.classList.remove("dark", "light", "night-vision");
           if (t === "light") root.classList.add("light");
           else root.classList.add("dark");
@@ -44,7 +51,15 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <style>
+      .js #ssr { display: none; }
+      #ssr { max-width: 46rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; line-height: 1.6; }
+      #ssr a { color: #59cef8; }
+      #ssr h1 { font-size: 1.9rem; line-height: 1.2; margin: 1rem 0 0.75rem; }
+      #ssr h2 { font-size: 1.25rem; margin: 1.75rem 0 0.5rem; }
+      #ssr footer { margin-top: 2.5rem; font-size: 0.9rem; opacity: 0.8; }
+    </style>
+    <div id="root"><!--ssr--></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -6,6 +6,7 @@ import { setupAuth } from "./auth";
 import { registerRoutes } from "./routes";
 import { migrate } from "./migrate";
 import { HttpError } from "./http";
+import { registerSeo } from "./seo";
 import { isProd } from "./env";
 import { pool } from "./db";
 
@@ -80,6 +81,7 @@ function describeError(err: any): { status: number; message: string; extra?: Rec
   clearTimeout(migrateTimer);
   setupAuth(app);
   registerRoutes(app);
+  registerSeo(app);
 
   app.use("/api", (_req, res) => res.status(404).json({ message: "Not found" }));
 

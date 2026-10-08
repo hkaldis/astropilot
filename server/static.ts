@@ -1,6 +1,7 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
+import { renderHtml } from "./seo";
 
 export function serveStatic(app: Express) {
   // The bundled server lives in dist/, the client build in dist/public.
@@ -20,8 +21,11 @@ export function serveStatic(app: Express) {
     res.sendFile(path.resolve(distPath, "sw.js"));
   });
   app.use(express.static(distPath, { maxAge: "1h", index: false }));
-  app.use("*", (_req, res) => {
-    res.setHeader("Cache-Control", "no-cache");
-    res.sendFile(path.resolve(distPath, "index.html"));
+  // Every page: the app shell with that page's own title, description, structured data and readable
+  // content (for search engines and AI assistants), and a real 404 for addresses that don't exist.
+  const template = fs.readFileSync(path.resolve(distPath, "index.html"), "utf8");
+  app.use("*", (req, res) => {
+    const { status, html } = renderHtml(template, req);
+    res.status(status).setHeader("Cache-Control", "no-cache").type("html").send(html);
   });
 }
