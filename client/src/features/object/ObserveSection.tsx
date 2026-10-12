@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import type { ActiveScopeState } from "@/features/explore/InstrumentBar";
 import type { NightContext } from "@/features/explore/sky";
 import { FieldView, angleLabel } from "./FieldView";
+import { photoOf } from "@shared/objectImages";
 import { fieldShape, moonNotes, opticsTarget, planetFilterAdvice, planetNotes } from "./observing";
 import type { Subject, Tonight } from "./model";
 
@@ -105,6 +106,10 @@ export function ObserveSection({
         : ((subject.kind === "body" ? planetFilterAdvice(subject.id) : null) ?? filterAdvice(target));
   const owned = user && gear.data ? ownedFilterName(advice.best, gear.data.filters) : null;
   const isDouble = subject.kind === "deep" && subject.obj.type === "double_star";
+  const surveyPhoto = useMemo(() => {
+    const p = subject.kind === "deep" ? photoOf(subject.id, subject.obj) : null;
+    return p?.kind === "survey" ? p : null;
+  }, [subject]);
   const isBino = scope.kind === "binoculars";
   const isEye = scope.kind === "eye";
   // The binoculars' own power and aperture (from the gear or preset), not just a "10×50" read from the name.
@@ -353,14 +358,23 @@ export function ObserveSection({
           ) : fieldDeg ? (
             <>
               {/* A new eyepiece or scope "re-focuses": the field zooms gently into place. */}
-              <FieldView key={fieldDeg.toFixed(4)} className="animate-zoom-fade" fieldDeg={fieldDeg} shape={shape} label={`Framing of ${subject.name} in a ${fieldText(fieldDeg)} field`} />
+              <FieldView
+                key={fieldDeg.toFixed(4)}
+                className="animate-zoom-fade"
+                fieldDeg={fieldDeg}
+                shape={shape}
+                photo={surveyPhoto}
+                label={`Framing of ${subject.name} in a ${fieldText(fieldDeg)} field`}
+              />
               <figcaption className="mt-1 max-w-[17rem] text-center text-2xs leading-relaxed text-muted-foreground">
                 {framing && <span className="block text-xs text-foreground/90">{framing}</span>}
                 True field {fieldText(fieldDeg)}
                 {chosen ? ` with the ${chosen.eyepiece.name ?? chosen.eyepiece.focalLength + " mm"}` : ""}.{" "}
                 {scope.kind === "telescope" ? "North up, east left — your scope may flip or rotate the view." : "North up, east left, as on a star chart."}
-                {shape.kind === "extended" && " Dashed outline: catalog size; the visible extent is usually smaller under bright skies."}
-                {shape.kind === "extended" && (shape.pa === null || shape.pa === undefined) && shape.minor !== shape.major && " Orientation not shown."}
+                {surveyPhoto
+                  ? " A sky-survey photograph to scale: by eye you see less of it, and less still under bright skies."
+                  : shape.kind === "extended" && " Dashed outline: catalog size; the visible extent is usually smaller under bright skies."}
+                {!surveyPhoto && shape.kind === "extended" && (shape.pa === null || shape.pa === undefined) && shape.minor !== shape.major && " Orientation not shown."}
                 {shape.kind === "disk" && shape.moons && ` The moons are placed for ${formatTime(at, { tz: ctx.tz, hour12: ctx.hour12 })}.`}
               </figcaption>
             </>

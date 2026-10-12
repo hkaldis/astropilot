@@ -18,6 +18,7 @@ import {
   type MoonPos,
 } from "@shared/astro";
 import type { CatalogObject } from "@shared/data/types";
+import { photoOf } from "@shared/objectImages";
 import { useCatalog } from "@/hooks/useCatalog";
 import { usePrefs } from "@/hooks/usePrefs";
 import { useActiveScope } from "@/hooks/useScope";
@@ -26,6 +27,7 @@ import { MoonGlyph, TypeGlyph } from "@/components/common/Glyphs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TYPE_LABEL } from "@/lib/objects";
+import { cn } from "@/lib/utils";
 import { InstrumentBar, instrumentPhrase, skySourcePhrase } from "@/features/explore/InstrumentBar";
 import { NoSite } from "@/features/explore/NoSite";
 import { constellationName } from "@/features/explore/constellations";
@@ -33,6 +35,7 @@ import { frameIndex, isSolarSystemId, sampleAt, siteKey, useNightContext } from 
 import { useMoonSystem } from "@/features/moons/useMoonSystem";
 import { MoonSystemPanel } from "@/features/moons/MoonSystemPanel";
 import { ObjectActions } from "./ObjectActions";
+import { ObjectPhoto } from "./ObjectPhoto";
 import { ObserveSection, OpticsFootnote } from "./ObserveSection";
 import { TonightSection } from "./TonightSection";
 import { YearStrip, yearAltitudes } from "./YearStrip";
@@ -304,14 +307,16 @@ function SubjectPage({ subject }: { subject: Subject }) {
   const designations =
     subject.kind === "deep" ? subject.obj.designations.filter((d) => d.replace(/\s/g, "") !== subject.name.replace(/\s/g, "")) : subject.kind === "satellite" ? [subject.meta.designation] : [];
   const circumpolar = ctx && subject.kind === "deep" && horizonClass(ctx.site.lat, subject.obj.dec) === "circumpolar";
+  const hasPhoto = photoOf(subject.id, subject.kind === "deep" ? subject.obj : null) !== null;
 
   return (
     <div className="flex flex-col">
       <BackLink />
 
       {/* ------------------------------------------------------------ header */}
-      <header className="mt-3 flex flex-col gap-5">
-        <div className="flex items-start gap-4">
+      {/* Phones: title, photo, actions, figures. Wider: the photo sits beside the title and actions. */}
+      <header className={cn("mt-3 grid grid-cols-1 gap-5", hasPhoto && "lg:grid-cols-[minmax(0,1fr)_16rem] lg:grid-rows-[auto_1fr] lg:gap-x-10")}>
+        <div className="flex items-start gap-4 lg:col-start-1 lg:row-start-1">
           <div className="hidden h-14 w-14 shrink-0 animate-zoom-fade place-items-center rounded-2xl border bg-surface-2/60 text-foreground/85 sm:grid">
             {subject.kind === "body" && subject.id === "moon" && ctx ? (
               <MoonGlyph elongation={ctx.night.moon.elongation} size={40} southern={ctx.site.lat < 0} />
@@ -337,9 +342,12 @@ function SubjectPage({ subject }: { subject: Subject }) {
             )}
           </div>
         </div>
-        <CountsToward obj={subject.kind === "deep" ? subject.obj : { id: subject.id, type: subject.type }} />
-        <ObjectActions refId={subject.id} name={subject.name} suggestion={suggestion} />
-        <div className="border-t pt-5">
+        {hasPhoto && <ObjectPhoto subject={subject} className="mx-auto w-full max-w-[24rem] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-w-none" />}
+        <div className="flex flex-col gap-5 lg:col-start-1 lg:row-start-2 lg:self-start">
+          <CountsToward obj={subject.kind === "deep" ? subject.obj : { id: subject.id, type: subject.type }} />
+          <ObjectActions refId={subject.id} name={subject.name} suggestion={suggestion} />
+        </div>
+        <div className="border-t pt-5 lg:col-span-full">
           {subject.kind === "deep" ? (
             <DeepStats o={subject.obj} />
           ) : subject.kind === "satellite" ? (

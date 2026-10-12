@@ -1,0 +1,183 @@
+{
+  "ariel": {
+    "page": "https://commons.wikimedia.org/wiki/File:Ariel_in_monochrome.jpg",
+    "author": "Kevin M. Gill",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "what": ""
+  },
+  "callisto": {
+    "page": "https://commons.wikimedia.org/wiki/File:Callisto_VGR2_C2060635_OGB.png",
+    "author": "zelario12",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "what": "Voyager"
+  },
+  "deimos": {
+    "page": "https://commons.wikimedia.org/wiki/File:NASA-Deimos-MarsMoon-20090221.jpg",
+    "author": "NASA/JPL/University of Arizona",
+    "license": "Public domain",
+    "what": "Mars Reconnaissance Orbiter"
+  },
+  "dione": {
+    "page": "https://commons.wikimedia.org/wiki/File:Dione_in_natural_light.jpg",
+    "author": "NASA",
+    "license": "Public domain",
+    "what": "Cassini"
+  },
+  "enceladus": {
+    "page": "https://commons.wikimedia.org/wiki/File:PIA17202_-_Approaching_Enceladus.jpg",
+    "author": "National Aeronautics and Space Administration (NASA) / Jet Propulsion Laboratory (JPL)",
+    "license": "Public domain",
+    "what": "Cassini"
+  },
+  "europa": {
+    "page": "https://commons.wikimedia.org/wiki/File:Europa_-_Perijove_45_(cropped).png",
+    "author": "NASA/JPL-Caltech/SwRI/MSSS/Kevin M. Gill",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "what": "Juno"
+  },
+  "ganymede": {
+    "page": "https://commons.wikimedia.org/wiki/File:Ganymede_-_Perijove_34_Composite.png",
+    "author": "NASA/JPL-Caltech/SwRI/MSSS/ Kevin M. Gill",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "what": "Juno"
+  },
+  "hyperion": {
+    "page": "https://commons.wikimedia.org/wiki/File:Hyperion_true.jpg",
+    "author": "NASA / JPL / SSI / Gordan Ugarkovic",
+    "license": "Public domain",
+    "what": "Cassini"
+  },
+  "iapetus": {
+    "page": "https://commons.wikimedia.org/wiki/File:Iapetus_as_seen_by_Cassini_True_Color.png",
+    "author": "Anonymsiy",
+    "license": "Public domain",
+    "what": "Cassini"
+  },
+  "io": {
+    "page": "https://commons.wikimedia.org/wiki/File:Io_highest_resolution_natural_color.png",
+    "author": "NASA",
+    "license": "Public domain",
+    "what": "Galileo"
+  },
+  "jupiter": {
+    "page": "https://commons.wikimedia.org/wiki/File:Jupiter_OPAL_2024.png",
+    "author": "NASA/STSCI (S.T.A.R.S)",
+    "license": "Public domain",
+    "what": "Hubble Space Telescope"
+  },
+  "mars": {
+    "page": "https://commons.wikimedia.org/wiki/File:Mars_-_August_30_2021_-_Flickr_-_Kevin_M._Gill.png",
+    "author": "Kevin Gill from Los Angeles, CA, United States",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "what": ""
+  },
+  "mercury": {
+    "page": "https://commons.wikimedia.org/wiki/File:Mercury_in_true_color.jpg",
+    "author": "NASA/Johns Hopkins University Applied Physics Laboratory/Arizona State University/Carnegie Institution of Washington",
+    "license": "Public domain",
+    "what": ""
+  },
+  "mimas": {
+    "page": "https://commons.wikimedia.org/wiki/File:Mimas_Cassini.jpg",
+    "author": "NASA / JPL-Caltech / Space Science Institute",
+    "license": "Public domain",
+    "what": "Cassini"
+  },
+  "miranda": {
+    "page": "https://commons.wikimedia.org/wiki/File:Miranda_mosaic_in_color_-_Voyager_2.png",
+    "author": "zelario12",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "what": "Voyager"
+  },
+  "moon": {
+    "page": "https://commons.wikimedia.org/wiki/File:FullMoon2010.jpg",
+    "author": "Gregory H. Revera",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "what": ""
+  },
+  "neptune": {
+    "page": "https://commons.wikimedia.org/wiki/File:Neptune_Voyager2_color_calibrated.png",
+    "author": "NASA / Voyager 2 / PDS / OPUS / Ardenau4",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "what": "Voyager"
+  },
+  "oberon": {
+    "page": "https://commons.wikimedia.org/wiki/File:Oberon_in_true_color_by_Kevin_M._Gill.jpg",
+    "author": "Kevin M. Gill",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "what": "Voyager"
+  },
+  "phobos": {
+    "page": "https://commons.wikimedia.org/wiki/File:Phobos_colour_2008.jpg",
+    "author": "NASA / JPL-Caltech / University of Arizona",
+    "license": "Public domain",
+    "what": "Mars Reconnaissance Orbiter"
+  },
+  "rhea": {
+    "page": "https://commons.wikimedia.org/wiki/File:PIA07763_Rhea_full_globe5.jpg",
+    "author": "NASA / JPL / Space Science Institute",
+    "license": "Public domain",
+    "what": "Cassini"
+  },
+  "saturn": {
+    "page": "https://commons.wikimedia.org/wiki/File:Saturn_global_view_from_Cassini,_rings_open_Better_Colour.png",
+    "author": "NASA / JPL-Caltech / SSI / color composite by Gordan Ugarkovic",
+    "license": "Public domain",
+    "what": "Cassini"
+  },
+  "tethys": {
+    "page": "https://commons.wikimedia.org/wiki/File:Global_view_of_Tethys_from_Cassini.jpg",
+    "author": "NASA / JPL-Caltech / SSI / Gordan Ugarkovic",
+    "license": "Public domain",
+    "what": "Cassini"
+  },
+  "titan": {
+    "page": "https://commons.wikimedia.org/wiki/File:Titan_in_true_color_by_Kevin_M._Gill.jpg",
+    "author": "NASA/JPL-Caltech/SSI/Kevin M. Gill",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "what": ""
+  },
+  "titania": {
+    "page": "https://commons.wikimedia.org/wiki/File:Titania_VGR2_C2684315.png",
+    "author": "zelario12",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "what": ""
+  },
+  "triton": {
+    "page": "https://commons.wikimedia.org/wiki/File:Triton-usgs23-with-frame.jpg",
+    "author": "Michael T. Bland, U.S. Geological Survey (USGS)",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "what": ""
+  },
+  "umbriel": {
+    "page": "https://commons.wikimedia.org/wiki/File:Umbriel_(moon).jpg",
+    "author": "NASA",
+    "license": "Public domain",
+    "what": "Voyager"
+  },
+  "uranus": {
+    "page": "https://commons.wikimedia.org/wiki/File:Uranus_Voyager2_color_calibrated.png",
+    "author": "Ardenau4",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "what": "Voyager"
+  },
+  "venus": {
+    "page": "https://commons.wikimedia.org/wiki/File:Venus_from_Mariner_10.jpg",
+    "author": "NASA/JPL-Caltech",
+    "license": "Public domain",
+    "what": "Mariner"
+  }
+}

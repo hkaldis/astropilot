@@ -63,7 +63,22 @@ function Disk({ cx, cy, r, shape }: { cx: number; cy: number; r: number; shape: 
   );
 }
 
-export function FieldView({ fieldDeg, shape, size = 248, className, label }: { fieldDeg: number; shape: FieldShape; size?: number; className?: string; label?: string }) {
+export function FieldView({
+  fieldDeg,
+  shape,
+  size = 248,
+  className,
+  label,
+  photo,
+}: {
+  fieldDeg: number;
+  shape: FieldShape;
+  size?: number;
+  className?: string;
+  label?: string;
+  /** A north-up photograph of the object and how wide it is: drawn to scale in place of the outline. */
+  photo?: { src: string; fovArcmin: number } | null;
+}) {
   const uid = useId().replace(/:/g, "");
   const S = size;
   const c = S / 2;
@@ -158,6 +173,11 @@ export function FieldView({ fieldDeg, shape, size = 248, className, label }: { f
     );
   }
 
+  // The photograph, centred and to scale. When it's smaller than the field its edges fade into the sky.
+  const usePhoto = photo && shape.kind !== "disk";
+  const photoPx = usePhoto ? photo.fovArcmin * k : 0;
+  const feather = usePhoto && photoPx < 2 * R;
+  if (usePhoto) body = null;
   const clip = `clip-${uid}`;
   return (
     <figure className={cn("flex flex-col items-center", className)}>
@@ -166,13 +186,35 @@ export function FieldView({ fieldDeg, shape, size = 248, className, label }: { f
           <clipPath id={clip}>
             <circle cx={c} cy={c} r={R} />
           </clipPath>
+          {feather && (
+            <>
+              <radialGradient id={`pf-${uid}`}>
+                <stop offset="0.72" stopColor="#fff" />
+                <stop offset="1" stopColor="#000" />
+              </radialGradient>
+              <mask id={`pm-${uid}`}>
+                <rect x={c - photoPx / 2} y={c - photoPx / 2} width={photoPx} height={photoPx} fill={`url(#pf-${uid})`} />
+              </mask>
+            </>
+          )}
           <radialGradient id={`vig-${uid}`}>
             <stop offset="0.7" stopColor="hsl(var(--background))" stopOpacity="0" />
             <stop offset="1" stopColor="hsl(var(--background))" stopOpacity="0.55" />
           </radialGradient>
         </defs>
-        <circle cx={c} cy={c} r={R} className="fill-surface-2 dark:fill-sky-night" />
+        <circle cx={c} cy={c} r={R} className={usePhoto ? "fill-black" : "fill-surface-2 dark:fill-sky-night"} />
         <g clipPath={`url(#${clip})`}>
+          {usePhoto && (
+            <image
+              href={photo.src}
+              x={c - photoPx / 2}
+              y={c - photoPx / 2}
+              width={photoPx}
+              height={photoPx}
+              preserveAspectRatio="xMidYMid slice"
+              mask={feather ? `url(#pm-${uid})` : undefined}
+            />
+          )}
           {body}
           {tiny && <circle cx={c} cy={c} r={10} fill="none" className="stroke-primary/70" strokeWidth={1} strokeDasharray="2 2.5" />}
           <circle cx={c} cy={c} r={R} fill={`url(#vig-${uid})`} />

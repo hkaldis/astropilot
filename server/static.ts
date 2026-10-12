@@ -20,6 +20,8 @@ export function serveStatic(app: Express) {
     res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.resolve(distPath, "sw.js"));
   });
+  // Object photos: the address carries a version (?v=), so browsers may keep them for a month.
+  app.use("/img/objects", express.static(path.join(distPath, "img", "objects"), { maxAge: "30d" }));
   app.use(express.static(distPath, { maxAge: "1h", index: false }));
   // Every page: the app shell with that page's own title, description, structured data and readable
   // content (for search engines and AI assistants), and a real 404 for addresses that don't exist.

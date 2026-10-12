@@ -28,10 +28,18 @@ Sitemap: ${SITE}/sitemap.xml
 }
 
 function sitemap(): string {
-  const urls = ["/", "/explore", "/sky", "/about", "/privacy", "/terms", "/support", ...allSubjects().map((s) => s.path)];
+  const urls: { path: string; image?: string }[] = [...["/", "/explore", "/sky", "/about", "/privacy", "/terms", "/support"].map((path) => ({ path })), ...allSubjects()];
+  const xml = (s: string) => s.replace(/&/g, "&amp;");
   return `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map((u) => `  <url><loc>${SITE}${u}</loc>${u === "/" ? "<changefreq>daily</changefreq><priority>1.0</priority>" : ""}</url>`).join("\n")}
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+${urls
+  .map(
+    (u) =>
+      `  <url><loc>${SITE}${u.path}</loc>${u.path === "/" ? "<changefreq>daily</changefreq><priority>1.0</priority>" : ""}${
+        u.image ? `<image:image><image:loc>${xml(`${SITE}${u.image}`)}</image:loc></image:image>` : ""
+      }</url>`,
+  )
+  .join("\n")}
 </urlset>
 `;
 }
@@ -54,7 +62,7 @@ AstroPilot is made by Starboard Studio. Contact: ${CONTACT}. It is free; an opti
 
 ## Object pages
 
-Every object has a page with what it is, when it is best placed in the evening sky, how high it climbs from different latitudes and its catalog facts — and a Markdown version for AI assistants (add \`.md\`):
+Every object has a page with a photograph of it, what it is, when it is best placed in the evening sky, how high it climbs from different latitudes and its catalog facts — and a Markdown version for AI assistants (add \`.md\`):
 
 - [Index of all object pages (Markdown)](${SITE}/objects.md)
 - Examples: [Andromeda Galaxy, M 31](${SITE}/object/M31.md), [Orion Nebula, M 42](${SITE}/object/M42.md), [Jupiter](${SITE}/object/jupiter.md), [Titan](${SITE}/object/titan.md)

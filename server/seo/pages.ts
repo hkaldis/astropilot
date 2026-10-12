@@ -6,6 +6,7 @@
 import { FAQ } from "@shared/faq";
 import { MOONS, type MoonMeta } from "@shared/astro/moons";
 import { PLANET_BY_ID, SOLAR_SYSTEM, type PlanetMeta } from "@shared/astro/planets";
+import { SURVEY_CREDIT, fieldText, moonCompare, photoOf, type ObjectPhoto } from "@shared/objectImages";
 import type { CatalogEntry } from "../catalog";
 import { allSubjects, catalog, conName, designations, displayName, planetNow, raDec, sizeText, skyFacts, subjectFor, typeLabel } from "./facts";
 
@@ -26,6 +27,16 @@ export interface Page {
   body: string;
   /** A Markdown version of the page (for AI assistants). */
   markdown?: string;
+  /** The page's own picture for link previews (default: the AstroPilot card). */
+  image?: PageImage;
+}
+
+interface PageImage {
+  url: string;
+  alt: string;
+  caption: string;
+  credit: string;
+  licenseUrl?: string;
 }
 
 export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -211,7 +222,37 @@ interface ObjectContent {
   html: string;
   md: string;
   about: object;
+  image: PageImage | null;
 }
+
+/** What the object looks like, for its page: the photo with its caption and credit. */
+function pageImage(photo: ObjectPhoto | null, name: string, telescopeNote: string): PageImage | null {
+  if (!photo) return null;
+  const url = `${SITE}${photo.src}`;
+  if (photo.kind === "survey")
+    return {
+      url,
+      alt: `${name}: sky-survey photograph, north up`,
+      caption: `${name} in a sky-survey photograph ${fieldText(photo.fovArcmin)} across (${moonCompare(photo.fovArcmin)}), north up and east left. Through a telescope it looks fainter and mostly grey.`,
+      credit: SURVEY_CREDIT,
+    };
+  const c = photo.credit;
+  return {
+    url,
+    alt: name,
+    caption: `${name}${c.what ? `, imaged by ${c.what}` : ""}. ${telescopeNote}`,
+    credit: `${c.author || "Wikimedia Commons"}, ${c.license}`,
+    licenseUrl: c.licenseUrl,
+  };
+}
+
+const figure = (img: PageImage | null) =>
+  img ? `<figure><img src="${esc(img.url)}" alt="${esc(img.alt)}" width="512" height="512" loading="lazy" /><figcaption>${esc(img.caption)} Image: ${esc(img.credit)}.</figcaption></figure>` : "";
+const mdFigure = (img: PageImage | null) => (img ? `![${img.alt}](${img.url})
+
+*${img.caption} Image: ${img.credit}.*
+
+` : "");
 
 function dsoContent(o: CatalogEntry): ObjectContent {
   const name = displayName(o);
@@ -233,14 +274,16 @@ function dsoContent(o: CatalogEntry): ObjectContent {
     ["Position", raDec(o.ra, o.dec)],
   ];
   const cta = `Open AstroPilot to see when ${name} is highest tonight from your location, how easy it is with your telescope or binoculars, and an eyepiece view.`;
+  const image = pageImage(photoOf(o.id, o as Parameters<typeof photoOf>[1]), name, "");
   return {
     name,
+    image,
     title: `${name} — when and how to see it | AstroPilot`,
     description: `${lead} Best in the evening around ${f.eveningMonth}. See when it's highest tonight from your location and how easy it is with your telescope.`,
-    html: `<h1>${esc(name)}</h1><p>${esc(lead)}</p>${desc ? `<p>${esc(desc)}</p>` : ""}<h2>When and where to see it</h2><p>${esc(when)}</p><p>${esc(heights)}</p><h2>Facts</h2><dl>${facts
+    html: `<h1>${esc(name)}</h1><p>${esc(lead)}</p>${figure(image)}${desc ? `<p>${esc(desc)}</p>` : ""}<h2>When and where to see it</h2><p>${esc(when)}</p><p>${esc(heights)}</p><h2>Facts</h2><dl>${facts
       .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`)
       .join("")}</dl><p>${esc(cta)}</p>`,
-    md: `# ${name}\n\n${lead}\n\n${desc ? `${desc}\n\n` : ""}## When and where to see it\n\n${when}\n\n${heights}\n\n## Facts\n\n${facts.map(([k, v]) => `- ${k}: ${v}`).join("\n")}\n\n${cta} ${SITE}/object/${encodeURIComponent(o.id)}\n`,
+    md: `# ${name}\n\n${lead}\n\n${mdFigure(image)}${desc ? `${desc}\n\n` : ""}## When and where to see it\n\n${when}\n\n${heights}\n\n## Facts\n\n${facts.map(([k, v]) => `- ${k}: ${v}`).join("\n")}\n\n${cta} ${SITE}/object/${encodeURIComponent(o.id)}\n`,
     about: { "@type": "Thing", name: o.name, alternateName: designations(o), description: desc || lead },
   };
 }
@@ -249,12 +292,14 @@ function planetContent(p: PlanetMeta): ObjectContent {
   const now = planetNow(p);
   const lead = p.id === "moon" ? "The Moon is Earth's natural satellite and the easiest telescope target of all." : `${p.name} is a planet of the Solar System.`;
   const cta = `Its place changes from night to night: open AstroPilot for tonight's rise, set and best time from your location${p.id === "jupiter" ? ", and where its four Galilean moons are" : ""}.`;
+  const image = pageImage(photoOf(p.id), p.name, p.id === "moon" ? "Binoculars show its dark plains; a small telescope shows craters along the shadow line." : `Through a telescope ${p.name} is a small disk.`);
   return {
     name: p.name,
+    image,
     title: p.id === "moon" ? "The Moon tonight — phase, rise and set, what to observe | AstroPilot" : `${p.name} tonight — where to see it and when | AstroPilot`,
     description: `${lead} ${p.blurb}${now ? ` ${now}` : ""}`,
-    html: `<h1>${esc(p.name)}</h1><p>${esc(lead)} ${esc(p.blurb)}</p>${now ? `<p>${esc(now)}</p>` : ""}<p>${esc(cta)}</p>`,
-    md: `# ${p.name}\n\n${lead} ${p.blurb}\n\n${now ? `${now}\n\n` : ""}${cta} ${SITE}/object/${p.id}\n`,
+    html: `<h1>${esc(p.name)}</h1><p>${esc(lead)} ${esc(p.blurb)}</p>${figure(image)}${now ? `<p>${esc(now)}</p>` : ""}<p>${esc(cta)}</p>`,
+    md: `# ${p.name}\n\n${lead} ${p.blurb}\n\n${mdFigure(image)}${now ? `${now}\n\n` : ""}${cta} ${SITE}/object/${p.id}\n`,
     about: { "@type": "Thing", name: p.name, description: p.blurb },
   };
 }
@@ -264,14 +309,16 @@ function moonContent(m: MoonMeta): ObjectContent {
   const period = m.periodDays < 2 ? `${Math.round(m.periodDays * 24)} hours` : `${m.periodDays.toFixed(1)} days`;
   const lead = `${m.name} (${m.designation}) is a moon of ${planet}, discovered by ${m.discovered.by} in ${m.discovered.year}. It orbits ${planet} every ${period} and shines at about magnitude ${m.mag.toFixed(1)}.`;
   const cta = `Open AstroPilot to see where ${m.name} is next to ${planet} tonight and how easy it is with your telescope.`;
+  const image = pageImage(photoOf(m.id), m.name, `Through a telescope ${m.name} is a star-like point next to ${planet}.`);
   return {
     name: m.name,
+    image,
     title: `${m.name}, moon of ${planet} — how to see it | AstroPilot`,
     description: `${lead} ${m.blurb}`,
-    html: `<h1>${esc(m.name)}</h1><p>${esc(lead)}</p><p>${esc(m.blurb)}</p><p>Other moons of ${esc(planet)}: ${MOONS.filter((x) => x.parent === m.parent && x.id !== m.id)
+    html: `<h1>${esc(m.name)}</h1><p>${esc(lead)}</p>${figure(image)}<p>${esc(m.blurb)}</p><p>Other moons of ${esc(planet)}: ${MOONS.filter((x) => x.parent === m.parent && x.id !== m.id)
       .map((x) => a(`/object/${x.id}`, x.name))
       .join(", ") || "none"}.</p><p>${esc(cta)}</p>`,
-    md: `# ${m.name}\n\n${lead}\n\n${m.blurb}\n\n${cta} ${SITE}/object/${m.id}\n`,
+    md: `# ${m.name}\n\n${lead}\n\n${mdFigure(image)}${m.blurb}\n\n${cta} ${SITE}/object/${m.id}\n`,
     about: { "@type": "Thing", name: m.name, alternateName: [m.designation], description: m.blurb },
   };
 }
@@ -294,13 +341,33 @@ function objectPage(id: string): Page | null {
     description: c.description,
     path,
     markdown: `${path}.md`,
+    image: c.image ?? undefined,
     body: layout(`<nav aria-label="Breadcrumb">${a("/explore", "Explore")} › ${esc(c.name)}</nav>${c.html}`),
     jsonLd: [
       breadcrumb([
         { name: "Explore", path: "/explore" },
         { name: c.name, path },
       ]),
-      { "@context": "https://schema.org", "@type": "WebPage", name: c.title, url: `${SITE}${path}`, description: c.description, about: c.about, isPartOf: { "@type": "WebSite", name: "AstroPilot", url: `${SITE}/` } },
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: c.title,
+        url: `${SITE}${path}`,
+        description: c.description,
+        about: c.image ? { ...c.about, image: c.image.url } : c.about,
+        ...(c.image
+          ? {
+              primaryImageOfPage: {
+                "@type": "ImageObject",
+                contentUrl: c.image.url,
+                caption: c.image.caption,
+                creditText: c.image.credit,
+                ...(c.image.licenseUrl ? { license: c.image.licenseUrl } : {}),
+              },
+            }
+          : {}),
+        isPartOf: { "@type": "WebSite", name: "AstroPilot", url: `${SITE}/` },
+      },
     ],
   };
 }
@@ -402,14 +469,24 @@ export function renderShell(template: string, page: Page): string {
     `<meta property="og:title" content="${esc(page.title)}" />`,
     `<meta property="og:description" content="${esc(page.description)}" />`,
     `<meta property="og:url" content="${esc(url)}" />`,
-    `<meta property="og:image" content="${OG_IMAGE}" />`,
-    `<meta property="og:image:width" content="1200" />`,
-    `<meta property="og:image:height" content="630" />`,
-    `<meta property="og:image:alt" content="AstroPilot — your night sky, planned" />`,
-    `<meta name="twitter:card" content="summary_large_image" />`,
+    ...(page.image
+      ? [
+          // An object page previews with the object itself.
+          `<meta property="og:image" content="${esc(page.image.url)}" />`,
+          `<meta property="og:image:type" content="image/webp" />`,
+          `<meta property="og:image:alt" content="${esc(page.image.alt)}" />`,
+          `<meta name="twitter:card" content="summary" />`,
+        ]
+      : [
+          `<meta property="og:image" content="${OG_IMAGE}" />`,
+          `<meta property="og:image:width" content="1200" />`,
+          `<meta property="og:image:height" content="630" />`,
+          `<meta property="og:image:alt" content="AstroPilot — your night sky, planned" />`,
+          `<meta name="twitter:card" content="summary_large_image" />`,
+        ]),
     `<meta name="twitter:title" content="${esc(page.title)}" />`,
     `<meta name="twitter:description" content="${esc(page.description)}" />`,
-    `<meta name="twitter:image" content="${OG_IMAGE}" />`,
+    `<meta name="twitter:image" content="${esc(page.image?.url ?? OG_IMAGE)}" />`,
     ...(page.markdown ? [`<link rel="alternate" type="text/markdown" href="${esc(page.markdown)}" title="${esc(page.title)} (Markdown)" />`] : []),
     ...(page.jsonLd ?? []).map(jsonLdTag),
   ].join("\n    ");

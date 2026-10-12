@@ -9,6 +9,7 @@ import { TYPE_LABEL } from "@shared/data/objectTypes";
 import { MOONS, MOON_BY_ID, isMoonId, type MoonMeta } from "@shared/astro/moons";
 import { PLANET_BY_ID, SOLAR_SYSTEM, type PlanetMeta, type SolarSystemId } from "@shared/astro/planets";
 import catalogData from "@shared/data/catalog.json";
+import { photoOf } from "@shared/objectImages";
 import type { CatalogEntry } from "../catalog";
 
 /** The deep-sky catalog, read directly (this module needs no database). */
@@ -137,10 +138,12 @@ export function subjectFor(id: string): Subject | null {
 }
 
 /** Every object page, in a sensible order: the Moon and planets, their moons, then the catalog. */
-export function allSubjects(): { path: string; name: string; group: string }[] {
-  const out: { path: string; name: string; group: string }[] = [];
-  for (const p of SOLAR_SYSTEM) out.push({ path: `/object/${p.id}`, name: p.name, group: "Solar System" });
-  for (const m of MOONS) out.push({ path: `/object/${m.id}`, name: `${m.name} (moon of ${PLANET_BY_ID[m.parent].name})`, group: "Moons of the planets" });
-  for (const o of catalog().list) out.push({ path: `/object/${encodeURIComponent(o.id)}`, name: displayName(o), group: typeLabel(o.type) });
+export function allSubjects(): { path: string; name: string; group: string; image?: string }[] {
+  const out: { path: string; name: string; group: string; image?: string }[] = [];
+  for (const p of SOLAR_SYSTEM) out.push({ path: `/object/${p.id}`, name: p.name, group: "Solar System", image: photoOf(p.id)?.src });
+  for (const m of MOONS)
+    out.push({ path: `/object/${m.id}`, name: `${m.name} (moon of ${PLANET_BY_ID[m.parent].name})`, group: "Moons of the planets", image: photoOf(m.id)?.src });
+  for (const o of catalog().list)
+    out.push({ path: `/object/${encodeURIComponent(o.id)}`, name: displayName(o), group: typeLabel(o.type), image: photoOf(o.id, o as Parameters<typeof photoOf>[1])?.src });
   return out;
 }

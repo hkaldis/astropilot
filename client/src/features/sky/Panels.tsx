@@ -42,6 +42,7 @@ import {
   type ObjectTrack,
   type Site,
 } from "@shared/astro";
+import { photoOf } from "@shared/objectImages";
 import { TypeGlyph } from "@/components/common/Glyphs";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -233,6 +234,9 @@ export function InfoPanel(p: InfoProps) {
   };
   const daylight = (t: number | null) => [dayHint(t), "in daylight"].filter(Boolean).join(" · ");
 
+  const photo = obj.dso ? photoOf(obj.dso.id, obj.dso) : obj.moonId ? photoOf(obj.moonId) : obj.bodyId && obj.bodyId !== "sun" ? photoOf(obj.bodyId) : null;
+  const [badPhoto, setBadPhoto] = useState<string | null>(null);
+
   const up = pos ? pos.alt > 0 : false;
   const desc = obj.dso?.desc ?? moon?.blurb ?? (obj.bodyId && obj.bodyId !== "sun" ? PLANET_BY_ID[obj.bodyId].blurb : null);
   const page = obj.dso?.id ?? obj.moonId ?? (obj.bodyId !== "sun" ? obj.bodyId : undefined);
@@ -258,9 +262,24 @@ export function InfoPanel(p: InfoProps) {
   return (
     <section className={cn("panel flex flex-col gap-4 p-4 shadow-lg lg:shadow-none", p.className)} aria-label={`${obj.name} details`}>
       <div className="flex items-start gap-3">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gold/10 text-gold">
-          <SkyGlyph glyph={obj.glyph} id={obj.bodyId} />
-        </div>
+        {photo && photo.src !== badPhoto ? (
+          // What it looks like: the survey photo zoomed to the object (it's framed with sky around it).
+          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border bg-black">
+            <img
+              src={photo.src}
+              alt=""
+              width={48}
+              height={48}
+              decoding="async"
+              onError={() => setBadPhoto(photo.src)}
+              className={cn("h-full w-full object-cover", photo.kind === "survey" && "scale-150")}
+            />
+          </div>
+        ) : (
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gold/10 text-gold">
+            <SkyGlyph glyph={obj.glyph} id={obj.bodyId} />
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-semibold leading-tight">{obj.name}</h2>
           <p className="truncate text-xs text-muted-foreground">
