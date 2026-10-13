@@ -57,6 +57,9 @@ export function interestOf(o: CatalogLike): number {
   else if (o.m || o.c) f *= 1.08;
   if (!o.showpiece && (o.type === "open_cluster" || o.type === "asterism" || o.type === "star_cloud")) f *= 0.8;
   if (o.type === "galaxy_group") f *= 0.9;
+  // A single star is a lovely sight but not much of a target. Among stars, the brightest lead, and strongly
+  // coloured or variable ones get a little extra.
+  if (o.type === "star") f *= 0.55 * clamp(1.25 - 0.12 * (o.mag ?? 4), 0.6, 1.3) * ((o.bv ?? 0) > 1.4 || o.vary ? 1.2 : 1);
   return f;
 }
 
@@ -112,7 +115,7 @@ export function evaluateTarget<T extends CatalogLike>(o: T, nf: NightFrames, ctx
     const eye = kind === "eye";
     if (o.type === "double_star") {
       if ((o.sep ?? 0) < (eye ? 240 : 30)) raw *= 0.2;
-    } else if ((o.size?.[0] ?? 0) < (eye ? 30 : 4)) raw *= 0.35;
+    } else if (o.type !== "star" && (o.size?.[0] ?? 0) < (eye ? 30 : 4)) raw *= 0.35;
   }
   const reasons: string[] = [];
   if (track.maxAltTime) reasons.push(`peaks at ${Math.round(track.maxAlt)}°`);
@@ -131,7 +134,8 @@ export interface RankOptions {
 }
 
 export function rankTargets<T extends CatalogLike>(objects: T[], nf: NightFrames, ctx: SkyContext, opts: RankOptions = {}): RankedTarget<T>[] {
-  const pool = objects.filter((o) => (!opts.types || opts.types.includes(o.type)) && !opts.excludeIds?.has(o.id));
+  // Single stars are only suggested when asked for: otherwise the brightest would crowd out every deep-sky target.
+  const pool = objects.filter((o) => (opts.types ? opts.types.includes(o.type) : o.type !== "star") && !opts.excludeIds?.has(o.id));
   const ranked = pool.map((o) => evaluateTarget(o, nf, ctx)).filter((r) => r.score > 0);
   ranked.sort((a, b) => b.rawScore - a.rawScore);
   if (!opts.perTypeCap && !opts.limit) return ranked;

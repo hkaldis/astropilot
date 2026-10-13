@@ -4,7 +4,8 @@ import json, os, re, sys
 ROOT = os.path.dirname(os.path.abspath(__file__))
 n = sys.argv[1]
 ids = re.findall(r"^## (\S+) — ", open(os.path.join(ROOT, f"batches/{n}.md")).read(), re.M)
-famous = int(n) <= 6
+stars = n.startswith("s")
+famous = stars or int(n) <= 6
 slugs = set(open(os.path.join(ROOT, "glossary-slugs.txt")).read().split())
 try:
     out = json.load(open(os.path.join(ROOT, f"out/{n}.json")))
@@ -22,8 +23,10 @@ for k, v in out.items():
     if k not in ids: continue
     p = lambda m: problems.append(f"{k}: {m}")
     if not isinstance(v, dict): p("not an object"); continue
-    for f in ("tagline", "story", "facts", "discovered"):
+    for f in ("tagline", "story", "facts", "discovered") + (("desc",) if stars else ()):
         if f not in v: p(f"no '{f}'")
+    if stars and isinstance(v.get("desc"), str) and not 60 <= len(v["desc"]) <= 320: p(f"desc length {len(v['desc'])} (60–320)")
+    if stars and isinstance(v.get("desc"), str) and "[[" in v["desc"]: p("no glossary links in desc")
     tag, story, facts = v.get("tagline", ""), v.get("story", []), v.get("facts", [])
     if not isinstance(tag, str) or not 20 <= len(tag) <= 130: p(f"tagline length {len(tag) if isinstance(tag, str) else '?'} (20–130 chars)")
     if not isinstance(story, list) or not story or not all(isinstance(x, str) for x in story): p("story must be a list of paragraph strings"); continue
@@ -39,7 +42,7 @@ for k, v in out.items():
     d = v.get("discovered")
     if d is not None and (not isinstance(d, dict) or set(d) - {"by", "year", "note"} or (d.get("year") is not None and not isinstance(d["year"], int))):
         p(f"discovered must be null or {{by, year, note}} with an integer year: {d}")
-    text = " ".join([tag] + story + [f.get("text", "") + " " + f.get("title", "") for f in facts if isinstance(f, dict)])
+    text = " ".join([tag] + story + [f.get("text", "") + " " + f.get("title", "") for f in facts if isinstance(f, dict)] + ([v.get("desc", "")] if stars else []))
     links = re.findall(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]", text)
     for s in links:
         if s not in slugs: p(f"unknown glossary slug [[{s}]]")

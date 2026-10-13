@@ -36,3 +36,19 @@ following `BRIEF.md`: `make_batches.py` splits the objects into research batches
 validated with `check.py NN` (shape, length, glossary links, no distance figures, no hype). `overlap.py` flags any
 passage that copies 10 or more words in a row from the sources. `merge.py` adds Wikidata's discoverer where a story
 has none. To change a story, edit `shared/data/stories.json` directly (keep it valid for `shared/stories.test.ts`).
+
+## Bright named stars
+
+```bash
+python3 -I scripts/data/stories/fetch_stars.py        # SIMBAD: every named star (by IAU name, else by position) + extras
+python3 -I scripts/data/stories/build_stars.py        # → type "star" entries in shared/data/catalog.json
+python3 -I scripts/data/stories/fetch_stars_wiki.py   # their Wikipedia articles and infobox figures
+python3 -I scripts/data/stories/build_facts.py && python3 -I scripts/data/stories/merge.py
+```
+
+Names follow the IAU Catalog of Star Names (`cache/IAU-CSN.txt`, from
+https://www.pas.rochester.edu/~emamajek/WGSN/IAU-CSN.txt, parsed by `iau_names.py`) plus the names adopted since
+(listed in `build_stars.py`). Star distances use the Hipparcos (2007) parallax for naked-eye stars, else SIMBAD's best,
+replaced by Wikipedia's figure when they differ by more than 25% (the supergiants). Radius, luminosity, temperature,
+mass and age come from the Wikipedia infoboxes. The stories (batches `s0`–`s3`) also carry each star's observing
+note, which `merge.py` writes into the catalog as its `desc`.

@@ -117,6 +117,10 @@ export function familyGlyph(id: string, size = "h-5 w-5"): ReactNode {
       return <ShadowGlyph className="h-6 w-6" />;
     case "doubles":
       return <TypeGlyph type="double_star" className={c} />;
+    case "stars":
+      return <TypeGlyph type="star" className={c} />;
+    case "first-magnitude":
+      return letter("1");
     case "constellations":
       return <ConstellationGlyph className={c} />;
     case "winter":

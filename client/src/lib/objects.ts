@@ -14,6 +14,7 @@ export const TYPE_PLURAL: Record<string, string> = {
   dark_nebula: "Dark nebulae",
   supernova_remnant: "Supernova remnants",
   double_star: "Double stars",
+  star: "Stars",
   asterism: "Asterisms",
   star_cloud: "Star clouds",
   planet: "Planets",
@@ -29,6 +30,7 @@ export const TYPE_GROUPS: { id: string; label: string; types: string[] }[] = [
   { id: "globulars", label: "Globular clusters", types: ["globular_cluster"] },
   { id: "clusters", label: "Open clusters", types: ["open_cluster", "asterism", "star_cloud"] },
   { id: "doubles", label: "Double stars", types: ["double_star"] },
+  { id: "stars", label: "Bright stars", types: ["star"] },
 ];
 
 export type QualityKey = "excellent" | "good" | "fair" | "poor" | "bad";

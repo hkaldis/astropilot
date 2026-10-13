@@ -309,6 +309,10 @@ export interface TargetLike {
   hubble?: string; // galaxy morphology, e.g. "Sb", "SABc", "E2"
   /** The catalog magnitude is really that of an embedded star or cluster, not the nebula. */
   magOf?: "star" | "cluster";
+  /** Single stars: B−V colour index. */
+  bv?: number;
+  /** Variable stars: [brightest, faintest] magnitude (and period, days); `mag` is a typical value. */
+  vary?: number[];
 }
 
 /**
@@ -627,7 +631,13 @@ export function detectability(o: TargetLike, input: DetectInput): DetectResult {
   const m = (vmag ?? 8) - extinction;
   let index = (lm - m - 2) / 2;
   if (m > lm + 0.3) index = Math.min(index, -3);
-  return { difficulty: classify(index), index, skySB, limitingMag: lm, note: "" };
+  let note = "";
+  if (o.vary) {
+    // A variable is rated at its typical brightness; say what the swing means for this sky and instrument.
+    const [bright, faint] = o.vary;
+    note = faint - extinction <= lm ? `Varies from ${bright.toFixed(1)} to ${faint.toFixed(1)} — in reach all the way` : bright - extinction <= lm ? `Varies from ${bright.toFixed(1)} to ${faint.toFixed(1)} — out of reach near its faintest` : "";
+  }
+  return { difficulty: classify(index), index, skySB, limitingMag: lm, note };
 }
 
 /** 0..1 quality of altitude for observing (atmosphere + comfort). */

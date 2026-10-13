@@ -154,6 +154,7 @@ export type ViewKind =
   | "nebula_large"
   | "open_cluster"
   | "satellite"
+  | "star"
   | "wide";
 
 export function viewKind(o: TargetLike & { id?: string }): ViewKind {
@@ -167,6 +168,8 @@ export function viewKind(o: TargetLike & { id?: string }): ViewKind {
       return "satellite";
     case "double_star":
       return "double";
+    case "star":
+      return "star";
     case "globular_cluster":
       return "globular";
     case "planetary_nebula":
@@ -203,6 +206,7 @@ const PUPIL: Record<ViewKind, { min: number; ideal: number; max: number; why: st
   nebula_large: { min: 4, ideal: 5.5, max: 7, why: "the widest, brightest view for a sprawling nebula" },
   open_cluster: { min: 1.5, ideal: 2.5, max: 4.5, why: "frame the cluster with dark sky around it" },
   satellite: { min: 0.7, ideal: 1.3, max: 2.5, why: "medium-high power darkens the sky around the moon while keeping it in the field with its planet" },
+  star: { min: 1, ideal: 2, max: 4, why: "a star stays a point at any power — medium power shows its colour best and tames the glare" },
   wide: { min: 4, ideal: 5.5, max: 7, why: "the widest field available" },
 };
 
@@ -469,6 +473,8 @@ export function filterAdvice(target: TargetLike & { id?: string; name?: string }
       return { best: "uhc", label: "UHC / narrowband", why: "A narrowband (UHC) filter passes the H-β and OIII lines and blocks sky glow.", alsoGood: ["oiii"] };
     case "dark_nebula":
       return { best: "none", label: "No filter", why: "Dark nebulae are seen against star fields — dark skies matter, filters don't help." };
+    case "star":
+      return { best: "none", label: "No filter", why: "A filter only dims the star and changes its colour — and its true colour is the point. Near the full Moon a Moon filter can tame a dazzling one." };
     case "planet":
     case "moon":
       return target.type === "moon"

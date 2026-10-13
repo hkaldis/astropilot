@@ -30,7 +30,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/use-toast";
 import { api, queryClient } from "@/lib/api";
 import { store } from "@/lib/storage";
-import { prepDsos, useSkyData } from "@/features/sky/data";
+import { prepDsos, starPagesByName, useSkyData, withCatalogStars } from "@/features/sky/data";
 import { computeScene } from "@/features/sky/engine";
 import { buildSearchIndex, positionOf, refForFocus, resolveRef, type ObjectContext } from "@/features/sky/objects";
 import { InfoPanel, LayerChips, Legend, UpNow } from "@/features/sky/Panels";
@@ -117,12 +117,16 @@ function SkyChart({ site: obsSite }: { site: ObservingSite }) {
   }, [night, site, siteKey]);
 
   // ---- Data --------------------------------------------------------------------------------------
-  const data = useSkyData();
+  const rawData = useSkyData();
   const catalog = useCatalog();
+  // The named stars, plus the catalog's famous fainter ones (Mira, Barnard's Star…), each linked to its page.
+  const names = useMemo(() => withCatalogStars(rawData.names, catalog.objects), [rawData.names, catalog.objects]);
+  const data = useMemo(() => ({ ...rawData, names }), [rawData, names]);
+  const starPages = useMemo(() => starPagesByName(catalog.objects), [catalog.objects]);
   const dsos = useMemo(() => prepDsos(catalog.objects), [catalog.objects]);
   const dsoById = useMemo(() => new Map(dsos.map((d) => [d.o.id.toUpperCase(), d])), [dsos]);
-  const ctx: ObjectContext = useMemo(() => ({ data, dsoById }), [data.stars, data.names, data.labels, dsoById]); // eslint-disable-line react-hooks/exhaustive-deps
-  const searchIndex = useMemo(() => buildSearchIndex(dsos, data), [dsos, data.names, data.labels]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ctx: ObjectContext = useMemo(() => ({ data, dsoById, starPages }), [data.stars, data.names, data.labels, dsoById, starPages]); // eslint-disable-line react-hooks/exhaustive-deps
+  const searchIndex = useMemo(() => buildSearchIndex(dsos, data, starPages), [dsos, data.names, data.labels, starPages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const targetsQ = useQuery<ApiTarget[]>({ queryKey: ["/api/targets"], enabled: isAuthenticated });
   const targetRefs = useMemo(() => {
@@ -135,10 +139,15 @@ function SkyChart({ site: obsSite }: { site: ObservingSite }) {
       else {
         const d = dsoById.get(t.ref.toUpperCase());
         if (d) s.add(`dso:${d.o.id}`);
+        else {
+          // A single star: its chart ref is its name.
+          const star = data.names?.find((n) => starPages.get(n.name.toLowerCase())?.id.toUpperCase() === t.ref.toUpperCase());
+          if (star) s.add(`star:${star.name}`);
+        }
       }
     }
     return s;
-  }, [targetsQ.data, dsoById]);
+  }, [targetsQ.data, dsoById, data.names, starPages]);
 
   const saveTarget = useMutation({
     mutationFn: (ref: string) => api<ApiTarget[]>("POST", "/api/targets", { ref }),
@@ -292,7 +301,7 @@ function SkyChart({ site: obsSite }: { site: ObservingSite }) {
               tz={tz}
               hour12={hour12}
               isTarget={targetRefs.has(selectedObj.ref)}
-              canSaveTarget={selectedObj.kind === "dso" || selectedObj.kind === "moon" || (selectedObj.kind === "body" && selectedObj.bodyId !== "sun")}
+              canSaveTarget={selectedObj.kind === "dso" || selectedObj.kind === "moon" || (selectedObj.kind === "star" && !!selectedObj.dso) || (selectedObj.kind === "body" && selectedObj.bodyId !== "sun")}
               signedIn={isAuthenticated}
               savingTarget={saveTarget.isPending}
               onSaveTarget={() => saveTarget.mutate(selectedObj.dso?.id ?? selectedObj.moonId ?? String(selectedObj.bodyId))}

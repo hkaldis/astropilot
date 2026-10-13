@@ -32,6 +32,8 @@ export interface SkyObject {
 export interface ObjectContext {
   data: SkyData;
   dsoById: Map<string, SkyDso>;
+  /** Catalog stars (single and double) by lower-cased name: a named star's page. */
+  starPages?: Map<string, CatalogObject>;
 }
 
 export const conName = (abbr?: string | null) => (abbr ? CONSTELLATION_NAMES[abbr] ?? abbr : "");
@@ -63,7 +65,10 @@ export function resolveRef(ref: string | null, ctx: ObjectContext): SkyObject | 
       const s = ctx.data.names?.find((n) => n.name === id);
       if (!s) return null;
       const con = constellationOf(s.ra, s.dec);
-      return { ref, kind, name: s.name, sub: `Star · ${conName(con)}`, glyph: "star", ra: s.ra, dec: s.dec, mag: s.mag, con };
+      // Its catalog entry (and page), when it has one: a single star, or the double star it belongs to.
+      const page = ctx.starPages?.get(s.name.toLowerCase());
+      const sub = page?.type === "double_star" ? `Double star · ${conName(con)}` : page?.sp ? `Star · ${page.sp.split(/[\s+/(]/)[0]} · ${conName(con)}` : `Star · ${conName(con)}`;
+      return { ref, kind, name: s.name, sub, glyph: "star", ra: s.ra, dec: s.dec, mag: page?.type === "star" && page.mag !== undefined ? page.mag : s.mag, con, dso: page };
     }
     case "anon": {
       const st = ctx.data.stars;
@@ -110,14 +115,21 @@ export interface SearchEntry {
   boost: number;
 }
 
+const GREEK: Record<string, string> = {
+  α: "alpha", β: "beta", γ: "gamma", δ: "delta", ε: "epsilon", ζ: "zeta", η: "eta", θ: "theta", ι: "iota", κ: "kappa", λ: "lambda", μ: "mu",
+  ν: "nu", ξ: "xi", ο: "omicron", π: "pi", ρ: "rho", σ: "sigma", ς: "sigma", τ: "tau", υ: "upsilon", φ: "phi", χ: "chi", ψ: "psi", ω: "omega",
+};
+
+/** Search key: lower-case letters and digits, Greek letters spelled out ("α Lyr" → "alphalyr"). */
 export const norm = (s: string) =>
   s
+    .toLowerCase()
+    .replace(/[α-ω]/g, (c) => GREEK[c] ?? c)
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 
-export function buildSearchIndex(dsos: SkyDso[], data: SkyData): SearchEntry[] {
+export function buildSearchIndex(dsos: SkyDso[], data: SkyData, starPages?: Map<string, CatalogObject>): SearchEntry[] {
   const out: SearchEntry[] = [];
   for (const p of SOLAR_SYSTEM) {
     out.push({ ref: `body:${p.id}`, name: p.name, sub: p.id === "moon" ? "Moon" : "Planet", glyph: p.id === "moon" ? "moon" : "planet", keys: [norm(p.name)], boost: 8 });
@@ -142,7 +154,10 @@ export function buildSearchIndex(dsos: SkyDso[], data: SkyData): SearchEntry[] {
     });
   }
   for (const s of data.names ?? []) {
-    out.push({ ref: `star:${s.name}`, name: s.name, sub: `Star · mag ${s.mag.toFixed(1)}`, glyph: "star", keys: [norm(s.name)], boost: 3 - s.mag * 0.5 });
+    // Its other names find it too: "Alpha Lyrae", "α Lyr", "Dog Star", "HIP 91262".
+    const page = starPages?.get(s.name.toLowerCase());
+    const also = page ? [...new Set([page.id, ...page.designations].map(norm))].filter((k) => k && k !== norm(s.name)) : undefined;
+    out.push({ ref: `star:${s.name}`, name: s.name, sub: `Star · mag ${s.mag.toFixed(1)}`, glyph: "star", keys: [norm(s.name), ...(also ?? [])], boost: 3 - s.mag * 0.5 });
   }
   const seen = new Set<string>();
   for (const l of data.labels ?? []) {
@@ -188,6 +203,11 @@ export function refForFocus(focus: string | null, ctx: ObjectContext): string | 
   if (d) return `dso:${d.o.id}`;
   const s = ctx.data.names?.find((n) => n.name.toLowerCase() === lower);
   if (s) return `star:${s.name}`;
+  // A star's page id ("garnet-star", "51-pegasi") or any of its names ("alf Lyr" is not one, "Alpha Lyrae" is).
+  for (const n of ctx.data.names ?? []) {
+    const o = ctx.starPages?.get(n.name.toLowerCase());
+    if (o && (o.id.toLowerCase() === lower || o.designations.some((d) => d.toLowerCase() === lower))) return `star:${n.name}`;
+  }
   const l = ctx.data.labels?.find((x) => x.abbr.toLowerCase() === lower || x.name.toLowerCase() === lower);
   if (l) return `con:${l.abbr}`;
   return null;

@@ -52,6 +52,14 @@ test("measured distances agree with the standard values for well-known objects",
     ["61-cygni", 11.4, 0.03],
     ["alpha-centauri", 4.37, 0.03],
     ["NGC2070", 160_000, 0.05],
+    ["sirius", 8.6, 0.03],
+    ["vega", 25, 0.03],
+    ["arcturus", 36.7, 0.05],
+    ["aldebaran", 65.3, 0.05],
+    ["betelgeuse", 548, 0.25],
+    ["proxima-centauri", 4.24, 0.03],
+    ["barnards-star", 5.96, 0.03],
+    ["mintaka", 1200, 0.15],
   ];
   const off = REF.filter(([id, ref, tol]) => !FACTS[id]?.d || Math.abs(FACTS[id].d! / ref - 1) > tol).map(([id, ref]) => `${id}: ${FACTS[id]?.d} vs ${ref}`);
   assert.deepEqual(off, []);
@@ -70,4 +78,15 @@ test("physical sizes: M 31 is wider than the Milky Way's ~100,000 ly, the Ring N
   const m57 = (catalog as { id: string; size?: number[] }[]).find((o) => o.id === "M57")!;
   const w = physicalSizeLy(m57.size![0], FACTS.M57.d!);
   assert.ok(w > 0.6 && w < 2, String(w));
+});
+
+test("star colours: Rigel blue-white, the Sun yellow, Antares orange-red, temperatures sensible", async () => {
+  const { bvTemperature, colourWord, starRgb } = await import("./starColor");
+  assert.equal(colourWord(-0.03), "white"); // Rigel / Vega region
+  assert.equal(colourWord(0.65), "yellow"); // the Sun
+  assert.equal(colourWord(1.83), "orange-red"); // Antares
+  assert.ok(Math.abs(bvTemperature(0.65) - 5800) < 300);
+  assert.ok(bvTemperature(0) > 9000 && bvTemperature(1.85) < 3800);
+  const [r, , b] = starRgb(1.85);
+  assert.ok(r > b);
 });

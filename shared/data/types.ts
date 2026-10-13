@@ -8,7 +8,7 @@
 export type ObjectType =
   | 'galaxy' | 'galaxy_group' | 'open_cluster' | 'globular_cluster' | 'cluster_nebula'
   | 'planetary_nebula' | 'emission_nebula' | 'reflection_nebula' | 'dark_nebula'
-  | 'supernova_remnant' | 'double_star' | 'asterism' | 'star_cloud';
+  | 'supernova_remnant' | 'double_star' | 'asterism' | 'star_cloud' | 'star';
 
 /** One entry of shared/data/catalog.json (all coordinates J2000, epoch 2000.0). */
 export interface CatalogObject {
@@ -67,6 +67,15 @@ export interface CatalogObject {
    * with both axes in `size`, from OpenNGC).
    */
   pa?: number;
+  /** Single stars: spectral type, e.g. "A0Va", "M1-M2Ia-Iab" (SIMBAD) */
+  sp?: string;
+  /** Single stars: B−V colour index (SIMBAD); bluer stars are negative, red ones above ~1.5 */
+  bv?: number;
+  /**
+   * Variable stars whose brightness changes enough to matter: [brightest, faintest] V magnitude, and the period in
+   * days when it is regular. `mag` is then a typical value.
+   */
+  vary?: [number, number] | [number, number, number];
   /** 1-3 sentence plain-language description */
   desc?: string;
   /** A "wow" object for beginners and outreach */

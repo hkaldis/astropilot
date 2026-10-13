@@ -139,11 +139,51 @@ def rnd(x):
     return int(round(x / p) * p)
 
 INFOBOX = json.load(open(C("infobox.json"))) if os.path.exists(C("infobox.json")) else {}
+# Single stars: SIMBAD (fetch_stars.py, keyed by chart name) and their Wikipedia infoboxes (fetch_stars_wiki.py, by id).
+STAR_SIM = {}
+for _k, _v in (json.load(open(C("stars-simbad.json"))) if os.path.exists(C("stars-simbad.json")) else {}).items():
+    STAR_SIM[_v["oid"]] = _v
+STAR_WIKI = json.load(open(C("wiki-stars.json"))) if os.path.exists(C("wiki-stars.json")) else {}
+
+def star_record(o):
+    hip = next((d for d in o["designations"] if d.startswith("HIP ")), None)
+    for v in STAR_SIM.values():
+        if hip and any(re.sub(r"\s+", " ", i) == hip for i in v["ids"]):
+            return v
+    return None
+
+def star_facts(o):
+    """Distance from the Hipparcos parallax for naked-eye stars (Gaia saturates on them), else SIMBAD's best; and the
+    star's size, power, temperature and mass from its Wikipedia infobox, within sanity limits."""
+    f, d, src = {}, None, None
+    s = star_record(o)
+    if s:
+        plx = s["hip_plx"] if s.get("hip_plx") and (s.get("V") or o.get("mag", 9)) < 6 else s.get("plx") or s.get("hip_plx")
+        if plx and plx > 0.2: d, src = 1000 / plx * LY_PER_PC, "parallax"
+    box = (STAR_WIKI.get(o["id"]) or {}).get("infobox", {})
+    # The parsec figure is unambiguous (dist_ly is often a {{convert}} of it, which reads as parsecs).
+    ib = box["dist_pc"] * LY_PER_PC if box.get("dist_pc") else box.get("dist_ly")
+    # Wikipedia's figure wins when they differ by more than a quarter: the infoboxes use interferometry, cluster or
+    # spectroscopic distances where a parallax is poor (the supergiants).
+    if ib and (not d or max(d, ib) / min(d, ib) > 1.25):
+        if d: review.append(f"{o['id']:<14} star               ours {rnd(d):>12,} ({src}) → Wikipedia {rnd(ib):>12,}")
+        d, src = ib, "Wikipedia"
+    if d: f["d"], f["src"] = rnd(d), src
+    for key, lo, hi, name in (("radius", 0.05, 3000, "r"), ("luminosity", 1e-5, 1e7, "lum"), ("temperature", 2000, 60000, "teff"), ("mass", 0.05, 200, "mass")):
+        v = box.get(key)
+        if v is not None and lo <= v <= hi: f[name] = float(f"{v:.3g}")
+    if box.get("age_gyr") and 0 < box["age_gyr"] < 14: f["age"] = rnd(box["age_gyr"] * 1e9)
+    elif box.get("age_myr") and 0 < box["age_myr"] < 14000: f["age"] = rnd(box["age_myr"] * 1e6)
+    return f
 TRUST_OURS = {"open_cluster"}  # Gaia DR3 beats the older values often quoted on Wikipedia
 
 facts, review = {}, []
 labels_needed = set()
 for o in CAT:
+    if o["type"] == "star":
+        facts[o["id"]] = star_facts(o)
+        if "d" not in facts[o["id"]]: review.append(f"{o['id']:<14} star               NO DISTANCE")
+        continue
     f = {}
     d, src = None, None
     h = hunt_for(o) if o["type"] in ("open_cluster", "cluster_nebula", "asterism") else None

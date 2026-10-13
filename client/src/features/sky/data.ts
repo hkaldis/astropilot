@@ -75,6 +75,37 @@ export interface NamedStar {
   dec: number;
   mag: number;
   v: Vec3;
+  /** Fainter than the star field (a famous faint star from the catalog): drawn on its own. */
+  faint?: boolean;
+}
+
+/** The star field's limit: stars.json holds everything to V 6.0. */
+export const STAR_FIELD_LIMIT = 6.0;
+
+/**
+ * The named stars plus the catalog's stars that the list lacks (Mira, the Garnet Star, Barnard's Star…), so every
+ * star with a page can be found, labelled and picked on the chart.
+ */
+export function withCatalogStars(names: NamedStar[] | null, objects: CatalogObject[]): NamedStar[] | null {
+  if (!names) return names;
+  const have = new Set(names.map((n) => n.name.toLowerCase()));
+  const extra: NamedStar[] = [];
+  for (const o of objects) {
+    if (o.type !== "star" || o.designations.some((d) => have.has(d.toLowerCase()))) continue;
+    const mag = o.mag ?? 6;
+    extra.push({ name: o.name, ra: o.ra, dec: o.dec, mag, v: eqjVector(o.ra, o.dec), faint: mag > STAR_FIELD_LIMIT });
+  }
+  return extra.length ? [...names, ...extra].sort((a, b) => a.mag - b.mag) : names;
+}
+
+/** Catalog stars (single and double) by every name they go by, lower-cased: how a named star finds its page. */
+export function starPagesByName(objects: CatalogObject[]): Map<string, CatalogObject> {
+  const m = new Map<string, CatalogObject>();
+  for (const o of objects) {
+    if (o.type !== "star" && o.type !== "double_star") continue;
+    for (const d of [o.name, ...o.designations]) if (!m.has(d.toLowerCase())) m.set(d.toLowerCase(), o);
+  }
+  return m;
 }
 
 function prepNames(raw: unknown): NamedStar[] | null {
@@ -216,7 +247,8 @@ export interface SkyDso {
 export function prepDsos(objects: CatalogObject[]): SkyDso[] {
   const out: SkyDso[] = [];
   for (const o of objects) {
-    if (!num(o.ra) || !num(o.dec)) continue;
+    // Single stars are already in the star field (and labelled as named stars), not deep-sky symbols.
+    if (o.type === "star" || !num(o.ra) || !num(o.dec)) continue;
     const major = o.size?.[0] ? o.size[0] / 60 : 0;
     const minor = o.size?.[1] ? o.size[1] / 60 : major;
     const ngc = o.designations?.find((d) => /^(NGC|IC) /.test(d));

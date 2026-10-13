@@ -14,6 +14,7 @@ import { RichText } from "./RichText";
 import { Term } from "./Term";
 import { WIDGETS, WIDGET_TITLE } from "./widgets";
 import { CATEGORY_STYLE } from "./style";
+import { StarArt } from "@/features/object/StarPortrait";
 import { markSeen, useSeenTerms } from "./progress";
 
 function BackLink() {
@@ -36,7 +37,13 @@ function Example({ id }: { id: string }) {
   return (
     <Link href={`/object/${encodeURIComponent(id)}`} className="group flex flex-col gap-2 rounded-xl border bg-card p-2 transition-colors hover:border-primary/40">
       <div className="aspect-square overflow-hidden rounded-lg bg-black">
-        {photo ? <img src={photo.src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" /> : <div className="skeleton h-full w-full" />}
+        {photo ? (
+          <img src={photo.src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        ) : dso?.type === "star" ? (
+          <StarArt bv={dso.bv} mag={dso.mag} seed={id.length} />
+        ) : (
+          <div className="skeleton h-full w-full" />
+        )}
       </div>
       <div className="px-1 pb-1">
         <div className="truncate text-sm font-medium group-hover:text-primary">{name}</div>

@@ -7,7 +7,7 @@ Generated, static data for the deep-sky catalog and the sky chart. **Do not edit
 |---|---|---|
 | `types.ts` | `import type { CatalogObject, ObjectType, StarRecord } from '@shared/data/types'` | Types |
 | `constellations-meta.ts` | `import { CONSTELLATION_NAMES, CONSTELLATION_GENITIVES } from '@shared/data/constellations-meta'` | 88 IAU abbreviations → name / genitive |
-| `catalog.json` | `import catalogJson from '@shared/data/catalog.json'` → `const CATALOG = catalogJson as CatalogObject[]` | 841 deep-sky objects and double stars |
+| `catalog.json` | `import catalogJson from '@shared/data/catalog.json'` → `const CATALOG = catalogJson as CatalogObject[]` | 841 deep-sky objects and double stars, and 151 bright named stars (`type: "star"`, added by `scripts/data/stories/build_stars.py`) |
 | `stars.json` | `import stars from '@shared/data/stars.json'` | 5,044 stars to V 6.0 |
 | `starnames.json` | `import starnames from '@shared/data/starnames.json'` | 152 proper-named stars brighter than mag 3.0 |
 | `constellation-lines.json` | `import lines from '@shared/data/constellation-lines.json'` | stick figures of all 88 constellations |
@@ -224,3 +224,17 @@ table.
 
 Output sizes: catalog.json 244 KB · stars.json 126 KB · milkyway.json 142 KB · constellation-lines.json 15 KB ·
 starnames.json 8 KB · constellation-labels.json 4.5 KB.
+
+## Single stars
+
+`type: "star"` entries are the proper-named stars of `starnames.json` that aren't already double stars, plus a few
+famous fainter ones (Mira, the Garnet Star, Barnard's Star, Proxima Centauri, T Coronae Borealis…). They come from
+SIMBAD (matched by IAU name, else by position) and are named after the IAU Catalog of Star Names (WGSN); a star with no
+IAU name takes its Bayer name ("Gamma Cassiopeiae") and keeps its chart name ("Navi") among its designations. Extra
+fields: `sp` (spectral type), `bv` (B−V), and `vary` ([brightest, faintest, period days?]) for the variables, whose
+`mag` is then a typical value. `desc` is the observing note written with the star's story. Rebuild with
+`python3 -I scripts/data/stories/fetch_stars.py` then `build_stars.py` (see `scripts/data/stories/README.md`).
+
+`starnames.json` corrects four of d3-celestial's names against the IAU list (`NAME_FIXES` in `build-sky.mjs`):
+Shedar → Schedar, and the chart's "Atik", second "Alnair" and "Girtab" — names the IAU gives to other stars — become
+Zeta Persei, Zeta Centauri and Iota¹ Scorpii.

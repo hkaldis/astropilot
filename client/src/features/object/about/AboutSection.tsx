@@ -1,4 +1,4 @@
-import { CalendarClock, Eye, Ruler, Sparkles, Telescope, Users, Waypoints } from "lucide-react";
+import { CalendarClock, Eye, Flame, Ruler, Sparkles, Sun, Telescope, Thermometer, Users, Waypoints, Weight } from "lucide-react";
 import { niceYears } from "@shared/lookback";
 import { DISTANCE_SOURCE, physicalSizeLy, type ObjectFacts, type ObjectStory } from "@shared/stories";
 import type { CatalogObject } from "@shared/data/types";
@@ -9,6 +9,7 @@ import { StoryText } from "./StoryText";
 import { LightNow, TimeMachine } from "./TimeMachine";
 import { GalaxyMap } from "./GalaxyMap";
 import { GENERATED_DESC, useStory } from "./useStory";
+import { bvTemperature } from "@shared/starColor";
 
 const MILKY_WAY_LY = 100_000;
 
@@ -22,6 +23,15 @@ function Tile({ icon: Icon, value, label, className }: { icon: typeof Ruler; val
       </div>
     </div>
   );
+}
+
+/** "2.4", "40", "1,200", "0.15" — a multiple of the Sun's value. */
+function times(x: number) {
+  if (x < 1) return x.toFixed(x < 0.1 ? 3 : 2).replace(/0+$/, "");
+  if (x < 10) return x.toFixed(1).replace(/\.0$/, "");
+  if (x < 100) return String(Math.round(x));
+  if (x < 1000) return String(Math.round(x / 10) * 10);
+  return niceYears(x);
 }
 
 function sizeWords(ly: number) {
@@ -42,7 +52,19 @@ function Tiles({ obj, facts, story }: { obj: CatalogObject | null; facts: Object
     const vsMw = mw === null ? null : mw > 0.8 && mw < 1.25 ? "about as wide as the Milky Way" : mw >= 1.25 ? `${mw.toFixed(1)}× the Milky Way’s width` : mw >= 0.1 ? `${Math.round(mw * 100)}% of the Milky Way’s width` : "a dwarf next to the Milky Way";
     tiles.push(<Tile key="w" icon={Ruler} value={sizeWords(w)} label={<>light-years across{vsMw ? <span className="block">{vsMw}</span> : null}</>} />);
   }
-  if (facts?.age) tiles.push(<Tile key="age" icon={CalendarClock} value={niceYears(facts.age)} label="years old" />);
+  if (obj?.type === "star") {
+    // A star's own size, power, heat and weight, against the Sun's.
+    const r = facts?.r;
+    if (r) {
+      const reach = r > 1118 ? "past Jupiter’s orbit" : r > 327 ? "past Mars’s orbit" : r > 215 ? "past Earth’s orbit" : r > 160 ? "almost to Earth’s orbit" : null;
+      tiles.push(<Tile key="r" icon={Ruler} value={`${times(r)}×`} label={<>the Sun’s width{reach ? <span className="block">in the Sun’s place, it would reach {reach}</span> : null}</>} />);
+    }
+    if (facts?.lum) tiles.push(<Tile key="l" icon={Sun} value={`${times(facts.lum)}×`} label={facts.lum < 1 ? "the Sun’s light (fainter than the Sun)" : "the Sun’s light"} />);
+    const teff = facts?.teff ?? (obj.bv !== undefined ? Math.round(bvTemperature(obj.bv) / 100) * 100 : null);
+    if (teff) tiles.push(<Tile key="t" icon={Thermometer} value={`${Math.round(teff).toLocaleString("en-US")} K`} label={`at the surface (the Sun: 5,800 K)`} />);
+    if (facts?.mass) tiles.push(<Tile key="m" icon={Weight} value={`${times(facts.mass)}×`} label="the Sun’s mass" />);
+  }
+  if (facts?.age) tiles.push(<Tile key="age" icon={obj?.type === "star" ? Flame : CalendarClock} value={niceYears(facts.age)} label="years old" />);
   if (facts?.members) tiles.push(<Tile key="n" icon={Users} value={facts.members.toLocaleString("en-US")} label="member stars found by Gaia" />);
   const disc = story?.discovered;
   if (disc && (disc.by || disc.note)) {

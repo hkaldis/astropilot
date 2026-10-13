@@ -11,6 +11,7 @@ export const TYPE_LABEL: Record<string, string> = {
   dark_nebula: "Dark nebula",
   supernova_remnant: "Supernova remnant",
   double_star: "Double star",
+  star: "Star",
   asterism: "Asterism",
   star_cloud: "Star cloud",
   planet: "Planet",

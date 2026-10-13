@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 export type FieldShape =
   | { kind: "extended"; type: string; major: number; minor: number; pa?: number | null } // arcmin
-  | { kind: "point" }
+  | { kind: "point"; /** A star's colour ("rgb(…)"), to draw it as it looks. */ rgb?: string }
   | {
       kind: "disk";
       diameterArcsec: number;
@@ -129,7 +129,15 @@ export function FieldView({
       );
     }
   } else if (shape.kind === "point") {
-    body = <circle cx={c} cy={c} r={2} className="fill-foreground" />;
+    body = shape.rgb ? (
+      <g>
+        <circle cx={c} cy={c} r={7} fill={shape.rgb} opacity={0.25} />
+        <circle cx={c} cy={c} r={3.4} fill={shape.rgb} opacity={0.75} />
+        <circle cx={c} cy={c} r={1.8} fill="#fff" />
+      </g>
+    ) : (
+      <circle cx={c} cy={c} r={2} className="fill-foreground" />
+    );
     tiny = true;
   } else {
     const r0 = (shape.diameterArcsec / 120) * k;

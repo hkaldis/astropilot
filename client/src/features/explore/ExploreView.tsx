@@ -176,6 +176,9 @@ export function ExploreView() {
       if (filters.showpiece && !o.showpiece) return false;
       if ((filters.messier || filters.caldwell) && !((filters.messier && o.m) || (filters.caldwell && o.c))) return false;
       if (types.size && !types.has(o.type)) return false;
+      // Single stars join the list when asked for — searched, picked as a kind, or in a chosen constellation —
+      // so browsing stays about deep-sky targets.
+      if (o.type === "star" && !q && !types.has("star") && !filters.con) return false;
       if (filters.con && o.con !== filters.con) return false;
       if (maxIdx !== null && r && DIFFICULTY_LEVELS.indexOf(r.detect.difficulty) > maxIdx) return false;
       return true;
@@ -259,7 +262,7 @@ export function ExploreView() {
         title="Explore"
         description={
           objects.length
-            ? `${objects.length.toLocaleString()} deep-sky objects, the planets and their moons, ranked for your sky and telescope.`
+            ? `${objects.filter((o) => o.type !== "star").length.toLocaleString()} deep-sky objects, ${objects.filter((o) => o.type === "star").length} bright stars, the planets and their moons, ranked for your sky and telescope.`
             : "Deep-sky objects, the planets and their moons, ranked for your sky and telescope."
         }
       />

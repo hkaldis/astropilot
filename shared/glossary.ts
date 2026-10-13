@@ -346,7 +346,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "star-colour",
     term: "Star colour",
-    aliases: ["star color", "spectral type", "colour index"],
+    aliases: ["star color", "colour index", "B−V"],
     category: "stars",
     short: "Stars are coloured by their temperature: blue-white stars are the hottest, orange and red the coolest.",
     body: [
@@ -354,7 +354,38 @@ export const GLOSSARY: GlossaryTerm[] = [
       "Colours are subtle to the eye but easiest to see in contrasting [[double-star|doubles]] — Albireo's gold and blue — and in slightly defocused bright stars.",
     ],
     examples: ["albireo", "antares", "rigel", "iota-cancri"],
-    related: ["double-star", "magnitude"],
+    related: ["double-star", "magnitude", "spectral-type"],
+  },
+  {
+    slug: "star",
+    term: "Star",
+    aliases: ["sun", "named star", "bright star"],
+    category: "stars",
+    short: "A sun: a huge ball of hot gas shining by fusing hydrogen in its core. Every point of light in the night sky, apart from the planets, is one.",
+    body: [
+      "Stars range from red dwarfs a tenth of the Sun's mass, which can glow for trillions of years, to blue giants dozens of times heavier that burn out in a few million. Their [[star-colour|colour]] shows how hot they are, and their [[spectral-type]] sorts them into families.",
+      "How bright a star looks depends on two things: how much light it gives out and how far away it is. Deneb looks fainter than Vega, yet it pours out thousands of times more light — it is about a hundred times farther away. Brightness is measured in [[magnitude|magnitudes]], distance in [[light-year|light-years]].",
+      "Most bright stars have proper names handed down from Arabic, Greek and Latin astronomy — Aldebaran, Betelgeuse, Sirius — and a [[bayer-designation|Bayer letter]] such as α Lyrae, the brightest star of Lyra.",
+    ],
+    tip: "A star stays a point at any magnification: a telescope makes it brighter and its colour stronger, never bigger. Defocus a bright star a little to see its colour best.",
+    inApp: "Every named star has its own page: how high it climbs tonight, its colour, size and distance — and when the light you see set off.",
+    examples: ["vega", "betelgeuse", "sirius", "aldebaran"],
+    related: ["star-colour", "spectral-type", "magnitude", "variable-star", "double-star", "light-year"],
+  },
+  {
+    slug: "spectral-type",
+    term: "Spectral type",
+    aliases: ["spectral class", "stellar classification", "OBAFGKM", "luminosity class"],
+    category: "stars",
+    short: "A star's class from its spectrum — O, B, A, F, G, K or M from hottest to coolest — with a Roman numeral for its size. The Sun is G2V.",
+    body: [
+      "Spread a star's light into a rainbow and dark lines appear: fingerprints of the elements in its atmosphere. Their pattern depends mostly on temperature, so stars fall into the classes O, B, A, F, G, K and M, hottest to coolest — remembered by generations of students as \"Oh Be A Fine Girl (or Guy), Kiss Me\".",
+      "Each class has ten steps (A0 to A9), and a Roman numeral tells the star's size: V for ordinary \"dwarf\" stars like the Sun, III for giants, I for supergiants. Vega is A0V, Betelgeuse M1–M2 Ia. The scheme took shape at Harvard around 1900, largely through Annie Jump Cannon, who sorted hundreds of thousands of stars by eye.",
+    ],
+    tip: "The class hints at the colour you'll see: O and B blue-white, A white, F yellow-white, G yellow, K orange, M orange-red. Carbon stars (class C) such as La Superba are the reddest of all.",
+    inApp: "Each star's page shows its spectral type with its colour, temperature and size.",
+    examples: ["vega", "capella", "arcturus", "betelgeuse"],
+    related: ["star", "star-colour", "magnitude"],
   },
   {
     slug: "milky-way",

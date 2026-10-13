@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { CATEGORY_STYLE } from "./style";
 import { useSeenTerms } from "./progress";
 import { useExamplePhoto } from "./photos";
+import { StarArt } from "@/features/object/StarPortrait";
+import { findObject, useCatalog } from "@/hooks/useCatalog";
 
 const Quiz = lazy(() => import("./Quiz"));
 
@@ -31,6 +33,14 @@ const PICTURED: GlossaryCategory[] = ["deep-sky", "stars", "solar-system"];
 
 function Thumb({ id, className }: { id: string; className?: string }) {
   const photo = useExamplePhoto(id);
+  const { byId } = useCatalog();
+  const star = findObject(byId, id);
+  if (!photo && star?.type === "star")
+    return (
+      <span className={cn("block shrink-0 overflow-hidden rounded-lg bg-black", className)}>
+        <StarArt bv={star.bv} mag={star.mag} seed={id.length} twinkle={false} />
+      </span>
+    );
   if (!photo) return null;
   return (
     <span className={cn("block shrink-0 overflow-hidden rounded-lg bg-black", className)}>

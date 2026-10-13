@@ -529,3 +529,28 @@ html.night-vision body::after {
     animation: none;
   }
 }
+
+/* Star portraits: a slow, gentle shimmer. */
+@keyframes star-twinkle {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  45% {
+    transform: scale(0.96);
+    opacity: 0.92;
+  }
+  70% {
+    transform: scale(1.03);
+    opacity: 1;
+  }
+}
+.star-twinkle {
+  animation: star-twinkle 4.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .star-twinkle {
+    animation: none;
+  }
+}

@@ -101,3 +101,21 @@ question, a person, a surprising fact.
    and fix every problem it reports until it prints `OK`.
 4. Re-read a sample of your entries against the research for accuracy before finishing.
 5. Reply with just: the number of entries written, and any objects where you were unsure of a fact (and left it out).
+
+## Stars (batches s0–s3)
+
+These batches are single named stars (Vega, Betelgeuse, Mira…). Same rules, same lengths as famous objects, plus:
+
+- **desc** (required): the observing note shown in the app's sky chart and at the eyepiece, 60–320 characters, 1–2
+  sentences, no glossary links. What you actually see and how to find it: its colour and brightness, a famous
+  pattern it belongs to or pointer stars that lead to it, and one practical tip (e.g. "defocus slightly to see its
+  orange", "compare it with Rigel", "check it every few weeks: it fades to invisibility"). Don't mention seasons or
+  times — the app shows when it's up.
+- **story**: make the star real — how big, how hot, how old, how it will end ("if it replaced the Sun, its surface
+  would reach past Mars"), what it's made of or doing (spinning so fast it's flattened, pulsing, shedding gas,
+  planets around it), and its human story: the meaning of its name, mythology, navigation, famous observations.
+  Size comparisons with the Sun or the Solar System are welcome; distance figures are still out (the app shows them).
+- **discovered**: usually `{ "by": null, "year": null, "note": "Known since antiquity" }` for naked-eye stars; for
+  faint ones the discoverer (Barnard's Star: E. E. Barnard, 1916), for variability the discoverer of that if it's the
+  story (Mira: David Fabricius, 1596) — say so in the note.
+- Glossary slugs you'll likely want: star, spectral-type, star-colour, variable-star, double-star, magnitude.

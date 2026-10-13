@@ -51,7 +51,6 @@ ${urls
 
 /** https://llmstxt.org — what AstroPilot is, for AI assistants answering questions about it. */
 function llms(): string {
-  const n = catalog().list.length;
   return `# AstroPilot
 
 > AstroPilot (${SITE}) is a free web app for amateur astronomers and stargazers. For an exact location it says whether tonight is worth observing — cloud at three heights, seeing, transparency, dew and moonlight, hour by hour, as a 0–100 score with a 7-night outlook — which objects a given telescope, binoculars or the naked eye can show tonight, and when and where to look. It also has an interactive sky chart, an observing planner and an observing journal. No install is needed; it runs in any browser and can be installed as an app.
@@ -62,7 +61,7 @@ AstroPilot is made by Starboard Studio. Contact: ${CONTACT}. It is free; an opti
 
 - [Tonight](${SITE}/): observing verdict and forecast for the user's location, a cloud map (live Meteosat satellite images, then the hourly cloud forecast for the week on one slider), the Moon, the planets and their moons, comets, meteor showers, eclipses, space-station passes, aurora chances.
 - [Sky chart](${SITE}/sky): live all-sky chart for any place and time, with search.
-- [Explore](${SITE}/explore): ${n} deep-sky objects (all Messier and Caldwell objects, bright NGC/IC objects, double stars) plus the planets and their moons, ranked for the user's sky darkness, instrument and moonlight.
+- [Explore](${SITE}/explore): ${catalog().list.filter((o) => o.type !== "star").length} deep-sky objects (all Messier and Caldwell objects, bright NGC/IC objects, double stars), ${catalog().list.filter((o) => o.type === "star").length} bright named stars, and the planets and their moons, ranked for the user's sky darkness, instrument and moonlight.
 - Plan, Journal, Achievements, Gear (telescopes, eyepieces, magnification, exit pupil) and Locations (sky darkness from the light-pollution atlas) are personal screens.
 
 ## Object pages
@@ -101,7 +100,7 @@ function objectsIndex(): string {
   }
   return `# AstroPilot object pages
 
-${SOLAR_SYSTEM.length} Solar System bodies, ${MOONS.length} moons of the planets and ${catalog().list.length} deep-sky objects. Each link is the Markdown version; drop \`.md\` for the web page.
+${SOLAR_SYSTEM.length} Solar System bodies, ${MOONS.length} moons of the planets, ${catalog().list.filter((o) => o.type === "star").length} bright named stars and ${catalog().list.filter((o) => o.type !== "star").length} deep-sky objects. Each link is the Markdown version; drop \`.md\` for the web page.
 
 ${[...groups].map(([g, lines]) => `## ${g}\n\n${lines.join("\n")}`).join("\n\n")}
 `;

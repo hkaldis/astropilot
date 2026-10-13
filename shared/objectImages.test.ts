@@ -21,6 +21,7 @@ test("bright double stars get no photo (the survey burns them into one blob)", (
   assert.equal(hasSurveyPhoto({ type: "double_star", mag: 3.19 }), false);
   assert.equal(hasSurveyPhoto({ type: "double_star", mag: 9.74 }), true);
   assert.equal(hasSurveyPhoto({ type: "galaxy", mag: 3.4 }), true);
+  assert.equal(hasSurveyPhoto({ type: "star", mag: 9.5 }), false);
 });
 
 test("field sizes are compared with the full Moon", () => {

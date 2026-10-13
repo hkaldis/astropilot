@@ -69,12 +69,18 @@ for (const [name, hip, wantRa, wantDec] of [['Vega', 91262, 18.615, 38.78], ['Si
 
 // ---------------------------------------------------------------------------
 // starnames.json — proper-named stars brighter than mag 3.0 (English "name" field)
+// d3-celestial's names, corrected against the IAU Catalog of Star Names (WGSN, 2022): an IAU spelling, and names
+// d3 puts on the wrong star (the IAU's Atik is ο Per, its Alnair α Gru; Girtab isn't ι¹ Sco), which get their Bayer or
+// IAU names instead.
+// Plus names the WGSN adopted since (2024–2026): Tiansi (γ Cas, d3's "Navi"), Uridim (α Lup, "Men"), Leepwal (ζ Cen),
+// Tianji (ζ Her, "Rutilicus").
+const NAME_FIXES = { 3179: 'Schedar', 18246: 'Zeta Persei', 68002: 'Leepwal', 87073: 'Iota¹ Scorpii', 4427: 'Tiansi', 71860: 'Uridim', 81693: 'Tianji' };
 const named = [];
 for (const [hip, n] of Object.entries(starnames)) {
   if (!n.name) continue;
   const s = byHip.get(hip);
   if (!s || !(s.mag < STARNAME_MAX_MAG)) continue;
-  named.push({ name: n.name, ra: raRound(s.ra, 4), dec: round(s.dec, 3), mag: round(s.mag, 2), _hip: +hip });
+  named.push({ name: NAME_FIXES[hip] ?? n.name, ra: raRound(s.ra, 4), dec: round(s.dec, 3), mag: round(s.mag, 2), _hip: +hip });
 }
 named.sort((a, b) => a.mag - b.mag || a._hip - b._hip);
 const starnamesOut = named.map(({ _hip, ...rest }) => rest);

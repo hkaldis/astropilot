@@ -3,7 +3,7 @@
  * the hit targets (screen position + radius) used for tap/hover picking.
  */
 import { altAzOf, isMoonId, MOON_BY_ID, moonsOf, type MoonId } from "@shared/astro";
-import type { ConstellationLabel, NamedStar, SkyDso, StarField } from "./data";
+import { STAR_FIELD_LIMIT, type ConstellationLabel, type NamedStar, type SkyDso, type StarField } from "./data";
 import { type Affine, type MilkyWayRaster, type MwTexture, type PointProj, type Scene, horVector, planeOf, pxPerDegAt } from "./engine";
 import { type HSL, type SkyTheme, domeColor, hsla, hslToRgb, mixHsl, starTint } from "./theme";
 
@@ -730,8 +730,8 @@ export function renderSky(I: RenderInput): { picks: Pickable[]; stats: RenderSta
       const x = a * u + b * v + e;
       const y = c * u + d * v + f;
       if (!onScreen(x, y, 4)) continue;
-      const r = starR(s.mag);
-      if (!st) {
+      const r = starR(Math.min(s.mag, STAR_FIELD_LIMIT));
+      if (!st || s.faint) {
         ctx.beginPath();
         ctx.arc(x, y, r, 0, TAU);
         ctx.fillStyle = hsla(th.foreground, 0.9);

@@ -1,6 +1,7 @@
 /** Optics helpers for the object page: targets, field shapes, Galilean moons, planet notes. */
 import { A, MOON_BY_ID, galileanPositions, maxElongation, type BodyState, type FilterAdvice, type MoonPos, type NightInfo, type TargetLike } from "@shared/astro";
 import type { CatalogObject } from "@shared/data/types";
+import { starRgb } from "@shared/starColor";
 import type { FieldShape } from "./FieldView";
 import type { Subject, Tonight } from "./model";
 
@@ -47,6 +48,10 @@ export function fieldShape(subject: Subject, tonight: Tonight, night: NightInfo,
     };
   }
   const o: CatalogObject = subject.obj;
+  if (o.type === "star") {
+    const [r, g, b] = starRgb(o.bv);
+    return { kind: "point", rgb: `rgb(${r},${g},${b})` };
+  }
   if (!o.size || !o.size[0]) return { kind: "point" };
   const pa = o.type !== "double_star" ? (o as CatalogObject & { pa?: number }).pa : undefined;
   return { kind: "extended", type: o.type, major: o.size[0], minor: o.size[1] ?? o.size[0], pa: pa ?? null };

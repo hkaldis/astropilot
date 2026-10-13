@@ -36,12 +36,15 @@ export interface FinderHint {
   direction: string; // "north-east"
 }
 
-export function nearestBrightStar(stars: NamedStar[] | undefined, ra: number, dec: number, maxSep = 14): FinderHint | null {
+export function nearestBrightStar(stars: NamedStar[] | undefined, ra: number, dec: number, maxSep = 14, brighterThan?: number): FinderHint | null {
   if (!stars?.length) return null;
   let best: NamedStar | null = null;
   let bestSep = Infinity;
   for (const s of stars) {
+    // For a star, a guide is another, brighter star — never itself.
+    if (brighterThan !== undefined && s.mag >= brighterThan) continue;
     const d = separation(s.ra, s.dec, ra, dec);
+    if (d < 0.1) continue;
     if (d < bestSep) {
       bestSep = d;
       best = s;

@@ -12,6 +12,7 @@ import type { CatalogEntry } from "../catalog";
 import { storyFor } from "../routes/story";
 import { lookback } from "@shared/lookback";
 import { formatLightYears } from "@shared/stories";
+import { colourWord } from "@shared/starColor";
 import { allSubjects, catalog, conName, designations, displayName, planetNow, raDec, sizeText, skyFacts, subjectFor, typeLabel } from "./facts";
 
 export const SITE = (process.env.SITE_URL ?? "https://astropilot.space").replace(/\/$/, "");
@@ -51,6 +52,10 @@ const TAGLINE = "Stargazing forecast, telescope targets and sky chart for your e
 const SUMMARY =
   "AstroPilot is a free web app for amateur astronomers and stargazers. For your exact location it tells you whether tonight is worth observing — cloud at three heights, seeing, transparency, dew and moonlight, hour by hour — which objects your telescope, binoculars or naked eyes can show tonight, and when and where to look. It also has an interactive sky chart, an observing planner and an observing journal.";
 
+/** Catalog counts for the copy: deep-sky objects (double stars included) and single named stars. */
+const deepCount = () => catalog().list.filter((o) => o.type !== "star").length;
+const starCount = () => catalog().list.filter((o) => o.type === "star").length;
+
 function layout(main: string): string {
   return `<header><p>${a("/", "AstroPilot")} — ${esc(TAGLINE)}</p><nav aria-label="Main">${[
     a("/", "Tonight"),
@@ -84,7 +89,7 @@ function home(): Page {
   const features = [
     `${a("/", "Tonight")}: a 0–100 verdict for the night from an astronomy-specific forecast, a 7-night outlook, hour-by-hour cloud, seeing and transparency, a cloud map with live satellite images and the week's cloud forecast on one slider, the Moon, the planets and their moons, comets, meteor showers, eclipses, space-station passes and aurora chances.`,
     `${a("/sky", "Sky chart")}: a live all-sky chart for your place and time, with stars, constellations, the planets, their moons and deep-sky objects, a time slider and search.`,
-    `${a("/explore", "Explore")}: ${catalog().list.length} deep-sky objects — every Messier and Caldwell object, bright NGC/IC galaxies, nebulae and clusters, and classic double stars — plus the planets and their moons, ranked for your sky darkness, your instrument and tonight's Moon.`,
+    `${a("/explore", "Explore")}: ${deepCount()} deep-sky objects — every Messier and Caldwell object, bright NGC/IC galaxies, nebulae and clusters, and classic double stars — ${starCount()} bright named stars, and the planets and their moons, ranked for your sky darkness, your instrument and tonight's Moon.`,
     "Plan: an observing run ordered so objects that set first come first, and a dark-sky calendar.",
     "Journal and achievements: an observing log with photos, and observing programs such as the Messier and Caldwell lists.",
     "Gear and locations: your telescopes, eyepieces, Barlows and filters with magnification and exit pupil, and your observing sites with sky darkness estimated from the light-pollution atlas.",
@@ -138,9 +143,9 @@ function explore(): Page {
     if (!groups.has(s.group)) groups.set(s.group, []);
     groups.get(s.group)!.push(a(s.path, s.name));
   }
-  const n = catalog().list.length;
+  const n = deepCount();
   const body = layout(
-    `<h1>Explore the night sky</h1><p>${n} deep-sky objects — every Messier and Caldwell object, bright NGC and IC galaxies, nebulae and clusters, and classic double stars — plus the Moon, the planets and their moons. In the app each one is ranked for your location's sky darkness, your telescope or binoculars and tonight's Moon, with its best time tonight.</p>${[
+    `<h1>Explore the night sky</h1><p>${n} deep-sky objects — every Messier and Caldwell object, bright NGC and IC galaxies, nebulae and clusters, and classic double stars — ${starCount()} bright named stars, and the Moon, the planets and their moons. In the app each one is ranked for your location's sky darkness, your telescope or binoculars and tonight's Moon, with its best time tonight.</p>${[
       ...groups,
     ]
       .map(([g, links]) => `<h2>${esc(g)}</h2>${ul(links)}`)
@@ -148,8 +153,8 @@ function explore(): Page {
   );
   return {
     status: 200,
-    title: `Explore ${n} deep-sky objects, the planets and their moons | AstroPilot`,
-    description: `Every Messier and Caldwell object, bright NGC/IC galaxies, nebulae and clusters, double stars, the planets and their moons — ranked for your sky, your telescope and tonight's Moon.`,
+    title: `Explore ${n} deep-sky objects, ${starCount()} bright stars, the planets and their moons | AstroPilot`,
+    description: `Every Messier and Caldwell object, bright NGC/IC galaxies, nebulae and clusters, double stars, the bright named stars, the planets and their moons — ranked for your sky, your telescope and tonight's Moon.`,
     path: "/explore",
     body,
     jsonLd: [breadcrumb([{ name: "Explore", path: "/explore" }])],
@@ -312,6 +317,9 @@ function dsoContent(o: CatalogEntry): ObjectContent {
     ...(mag ? ([["Magnitude", mag.replace("magnitude ", "")]] as [string, string][]) : []),
     ...(size ? ([["Apparent size", size]] as [string, string][]) : []),
     ["Position", raDec(o.ra, o.dec)],
+    ...(o.type === "star" && typeof o.sp === "string" ? ([["Spectral type", o.sp]] as [string, string][]) : []),
+    ...(o.type === "star" && typeof o.bv === "number" ? ([["Colour", `${colourWord(o.bv)} (B−V ${o.bv.toFixed(2)})`]] as [string, string][]) : []),
+    ...(o.type === "star" && Array.isArray(o.vary) ? ([["Brightness", `varies from magnitude ${(o.vary as number[])[0]} to ${(o.vary as number[])[1]}`]] as [string, string][]) : []),
     ...story.facts,
   ];
   const cta = `Open AstroPilot to see when ${name} is highest tonight from your location, how easy it is with your telescope or binoculars, and an eyepiece view.`;

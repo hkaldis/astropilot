@@ -28,8 +28,10 @@ export const objectImageUrl = (id: string) => `/img/objects/${id.toLowerCase()}.
 /**
  * Whether a deep-sky object has a survey photograph. Not bright double stars: on the survey plates a
  * naked-eye star is one overexposed blob that swallows its companion (the eyepiece view shows the pair).
+ * Nor single stars: a point of light whose colour the app paints from its spectrum instead.
  */
 export function hasSurveyPhoto(o: { type: string; mag?: number | null }): boolean {
+  if (o.type === "star") return false;
   return o.type !== "double_star" || (o.mag ?? 0) >= 6;
 }
 

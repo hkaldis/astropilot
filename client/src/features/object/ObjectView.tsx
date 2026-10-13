@@ -36,6 +36,8 @@ import { useMoonSystem } from "@/features/moons/useMoonSystem";
 import { MoonSystemPanel } from "@/features/moons/MoonSystemPanel";
 import { ObjectActions } from "./ObjectActions";
 import { ObjectPhoto } from "./ObjectPhoto";
+import { StarPortrait } from "./StarPortrait";
+import { bvTemperature, colourWord } from "@shared/starColor";
 import { Term } from "@/features/glossary/Term";
 import { TYPE_TERM } from "@shared/glossaryTerms";
 import { ObserveSection, OpticsFootnote } from "./ObserveSection";
@@ -94,7 +96,7 @@ function NotFound({ id, suggestions }: { id: string; suggestions: { id: string; 
         description={
           suggestions.length
             ? "Did you mean one of these?"
-            : "It isn't in our catalog of Messier, Caldwell, bright NGC/IC objects, double stars, the planets and their moons. Try searching by another name or designation."
+            : "It isn't in our catalog of Messier, Caldwell, bright NGC/IC objects, double stars, bright named stars, the planets and their moons. Try searching by another name or designation."
         }
         action={
           <div className="flex flex-col items-center gap-4">
@@ -132,10 +134,32 @@ function StatItem({ label, value, sub, term }: { label: string; value: React.Rea
   );
 }
 
+/** Where a bright star ranks among all the stars of the night sky (doubles by their combined light), from the top 50. */
+function brightnessRank(o: CatalogObject, objects: CatalogObject[]): number | null {
+  const light = (x: CatalogObject) => (x.type === "double_star" && x.mag !== undefined && x.mag2 !== undefined ? -2.5 * Math.log10(10 ** (-0.4 * x.mag) + 10 ** (-0.4 * x.mag2)) : (x.mag ?? 99));
+  if (o.mag === undefined || o.mag > 2.4) return null;
+  const mine = light(o);
+  const rank = 1 + objects.filter((x) => (x.type === "star" || x.type === "double_star") && x.id !== o.id && light(x) < mine).length;
+  return rank <= 50 ? rank : null;
+}
+
+const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
+
 function DeepStats({ o }: { o: CatalogObject }) {
   const sbArcmin = o.sb ?? (surfaceBrightnessArcsec(o) !== null ? surfaceBrightnessArcsec(o)! - 8.89 : null);
   const items: { label: string; value: React.ReactNode; sub?: React.ReactNode; term?: string }[] = [];
-  if (o.type === "double_star") {
+  const { objects } = useCatalog();
+  if (o.type === "star") {
+    const rank = brightnessRank(o, objects);
+    items.push(
+      o.vary
+        ? { label: "Magnitude", value: `${formatMag(o.vary[0])}–${formatMag(o.vary[1])}`, sub: o.vary[2] ? `varies over ${Math.round(o.vary[2]).toLocaleString()} days` : "varies", term: "variable-star" }
+        : { label: "Magnitude", value: formatMag(o.mag), sub: rank ? `the ${ordinal(rank)}-brightest star` : "visual", term: "magnitude" },
+    );
+    if (o.sp) items.push({ label: "Spectral type", value: o.sp.length > 12 ? o.sp.split(/[+/]/)[0] : o.sp, sub: "its class", term: "spectral-type" });
+    const word = colourWord(o.bv);
+    if (word) items.push({ label: "Colour", value: word, sub: `B−V ${o.bv!.toFixed(2)} · ~${(Math.round(bvTemperature(o.bv!) / 100) * 100).toLocaleString()} K`, term: "star-colour" });
+  } else if (o.type === "double_star") {
     items.push({ label: "Magnitudes", value: `${formatMag(o.mag)} / ${formatMag(o.mag2)}`, sub: "primary / companion", term: "magnitude" });
     if (o.sep !== undefined) items.push({ label: "Separation", value: `${o.sep}″`, term: "separation" });
     if (o.pa !== undefined) items.push({ label: "Position angle", value: `${o.pa}°`, sub: "north through east", term: "position-angle" });
@@ -218,7 +242,7 @@ function MoonStats({ subject, tonight }: { subject: Extract<Subject, { kind: "sa
 
 function FinderText({ o }: { o: CatalogObject }) {
   const stars = useNamedStars();
-  const hint = nearestBrightStar(stars.data, o.ra, o.dec);
+  const hint = nearestBrightStar(stars.data, o.ra, o.dec, 14, o.type === "star" ? o.mag : undefined);
   return (
     <p className="text-sm leading-relaxed text-muted-foreground">
       In <span className="text-foreground">{constellationName(o.con)}</span>
@@ -321,9 +345,17 @@ function SubjectPage({ subject }: { subject: Subject }) {
   const typeLabel = subject.kind === "satellite" ? `Moon of ${subject.parent.name}` : (TYPE_LABEL[subject.type] ?? subject.type);
   const conAbbr = subject.kind === "deep" ? subject.obj.con : tonight?.body?.state.constellation;
   const designations =
-    subject.kind === "deep" ? subject.obj.designations.filter((d) => d.replace(/\s/g, "") !== subject.name.replace(/\s/g, "")) : subject.kind === "satellite" ? [subject.meta.designation] : [];
+    subject.kind === "deep"
+      ? subject.obj.designations
+          .filter((d) => d.replace(/\s/g, "") !== subject.name.replace(/\s/g, ""))
+          // A star's catalogue numbers (HR, HD, HIP) find it in search but crowd the header.
+          .filter((d) => subject.obj.type !== "star" || !/^(HR|HD|HIP) \d/.test(d))
+      : subject.kind === "satellite"
+        ? [subject.meta.designation]
+        : [];
   const circumpolar = ctx && subject.kind === "deep" && horizonClass(ctx.site.lat, subject.obj.dec) === "circumpolar";
-  const hasPhoto = photoOf(subject.id, subject.kind === "deep" ? subject.obj : null) !== null;
+  const isStar = subject.kind === "deep" && subject.obj.type === "star";
+  const hasPhoto = isStar || photoOf(subject.id, subject.kind === "deep" ? subject.obj : null) !== null;
 
   return (
     <div className="flex flex-col">
@@ -359,7 +391,12 @@ function SubjectPage({ subject }: { subject: Subject }) {
             <StoryHook id={subject.id} />
           </div>
         </div>
-        {hasPhoto && <ObjectPhoto subject={subject} className="mx-auto w-full max-w-[24rem] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-w-none" />}
+        {hasPhoto &&
+          (isStar && subject.kind === "deep" ? (
+            <StarPortrait name={subject.name} bv={subject.obj.bv} sp={subject.obj.sp} mag={subject.obj.mag} className="mx-auto w-full max-w-[24rem] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-w-none" />
+          ) : (
+            <ObjectPhoto subject={subject} className="mx-auto w-full max-w-[24rem] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-w-none" />
+          ))}
         <div className="flex flex-col gap-5 lg:col-start-1 lg:row-start-2 lg:self-start">
           <CountsToward obj={subject.kind === "deep" ? subject.obj : { id: subject.id, type: subject.type }} />
           <ObjectActions refId={subject.id} name={subject.name} suggestion={suggestion} />

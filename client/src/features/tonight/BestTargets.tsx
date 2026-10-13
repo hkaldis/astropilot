@@ -24,6 +24,7 @@ const CHIPS: { id: string; label: string; types?: string[] }[] = [
   { id: "nebulae", label: "Nebulae", types: ["emission_nebula", "reflection_nebula", "cluster_nebula", "supernova_remnant", "planetary_nebula", "dark_nebula"] },
   { id: "clusters", label: "Clusters", types: ["open_cluster", "globular_cluster", "asterism", "star_cloud"] },
   { id: "doubles", label: "Double stars", types: ["double_star"] },
+  { id: "stars", label: "Bright stars", types: ["star"] },
 ];
 
 export function InstrumentPicker() {

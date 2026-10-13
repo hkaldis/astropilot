@@ -139,3 +139,11 @@ test("moons: the Galilean four earn bronze; Jupiter during a moon's shadow trans
   const later = evaluateAchievements([ev("jupiter", Date.UTC(2026, 9, 5, 3))], catalog);
   assert.equal(later.find((f) => f.id === "shadow-play")!.tiers[0].earned, false);
 });
+
+test("the bright-star programs: every First Magnitude star is in the catalog, and stars aren't deep-sky", () => {
+  const cat = catalogData as unknown as { id: string; type: string }[];
+  const fam = FAMILY_BY_ID.get("first-magnitude")!;
+  assert.equal(cat.filter((o) => fam.member!(o as never)).length, 21);
+  const stars = FAMILY_BY_ID.get("stars")!;
+  assert.ok(cat.filter((o) => stars.member!(o as never)).length >= 150);
+});

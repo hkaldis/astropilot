@@ -13,6 +13,7 @@ export const TYPE_TERM: Record<string, string> = {
   dark_nebula: "dark-nebula",
   supernova_remnant: "supernova-remnant",
   double_star: "double-star",
+  star: "star",
   asterism: "asterism",
   star_cloud: "star-cloud",
   planet: "planet",

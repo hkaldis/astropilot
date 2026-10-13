@@ -108,6 +108,15 @@ export function TypeGlyph({ type, className, id }: { type: string; className?: s
           <circle cx="12" cy="12" r="1.2" fill={stroke} />
         </svg>
       );
+    case "star":
+      // A single bright star: a glow with four soft rays.
+      return (
+        <svg viewBox="0 0 24 24" className={c} aria-hidden="true">
+          <circle cx="12" cy="12" r="7.5" fill="hsl(var(--gold))" opacity="0.14" />
+          <path d="M12 3.5 13.1 10.9 20.5 12 13.1 13.1 12 20.5 10.9 13.1 3.5 12 10.9 10.9Z" fill="hsl(var(--gold))" opacity="0.85" />
+          <circle cx="12" cy="12" r="2.3" fill="hsl(var(--gold))" />
+        </svg>
+      );
     case "double_star":
       return (
         <svg viewBox="0 0 24 24" className={c} aria-hidden="true">

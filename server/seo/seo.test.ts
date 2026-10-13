@@ -75,3 +75,14 @@ test("titles don't repeat a name the object's name already contains", () => {
   assert.match(pageFor("/object/epsilon-lyrae").title, /^Epsilon Lyrae \(Double Double\) — /);
   assert.match(pageFor("/object/M13").title, /^Hercules Globular Cluster \(M 13\) — /);
 });
+
+test("bright stars have their own pages, with spectral type, colour and distance", () => {
+  const vega = pageFor("/object/vega");
+  assert.equal(vega.status, 200);
+  assert.match(vega.title, /^Vega \(Alpha Lyrae\) — /);
+  assert.match(vega.body, /<dt>Spectral type<\/dt><dd>A0V<\/dd>/);
+  assert.match(vega.body, /<dt>Colour<\/dt><dd>white/);
+  assert.match(vega.body, /<dt>Distance<\/dt><dd>25 light-years<\/dd>/);
+  assert.match(pageFor("/object/mira").body, /<dt>Brightness<\/dt><dd>varies from magnitude 2 to 10.1<\/dd>/);
+  assert.match(pageFor("/explore").title, /\d+ bright stars/);
+});

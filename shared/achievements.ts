@@ -113,7 +113,7 @@ export interface Rank {
 
 const SOLAR = ["moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"];
 const NEBULA = new Set(["emission_nebula", "reflection_nebula", "cluster_nebula", "supernova_remnant", "dark_nebula"]);
-const DEEP_SKY = (t: string | null | undefined) => !!t && t !== "planet" && t !== "moon" && t !== "satellite" && t !== "double_star";
+const DEEP_SKY = (t: string | null | undefined) => !!t && t !== "planet" && t !== "moon" && t !== "satellite" && t !== "double_star" && t !== "star";
 const list = (...ids: string[]) => {
   const set = new Set(ids.map((s) => s.toUpperCase()));
   return (o: MemberLike) => set.has(o.id.toUpperCase());
@@ -302,6 +302,34 @@ export const FAMILIES: FamilyDef[] = [
       { n: 10, tier: "bronze" },
       { n: 25, tier: "silver" },
       { n: "all", tier: "gold" },
+    ],
+  },
+  {
+    id: "stars",
+    unit: "stars",
+    group: "programs",
+    title: "Bright Stars",
+    blurb: "The named stars, from Sirius down — each with its own colour, age and story.",
+    member: (o) => o.type === "star",
+    goals: [
+      { n: 10, tier: "bronze" },
+      { n: 30, tier: "silver" },
+      { n: 60, tier: "gold" },
+      { n: "all", tier: "platinum", label: "Every named star" },
+    ],
+  },
+  {
+    id: "first-magnitude",
+    unit: "first-magnitude stars",
+    group: "feats",
+    title: "First Magnitude",
+    blurb: "The 21 brightest stars in the night sky. Some never rise far north, and some never far south.",
+    hint: "Sirius, Vega, Arcturus and Capella are good starting points; Canopus, Achernar and the Southern Cross stars need southern skies.",
+    member: list("sirius", "canopus", "alpha-centauri", "arcturus", "vega", "capella", "rigel", "procyon", "achernar", "betelgeuse", "hadar", "altair", "acrux", "aldebaran", "antares", "spica", "pollux", "fomalhaut", "deneb", "mimosa", "regulus"),
+    goals: [
+      { n: 5, tier: "bronze" },
+      { n: 12, tier: "silver" },
+      { n: "all", tier: "gold", label: "All 21" },
     ],
   },
   {

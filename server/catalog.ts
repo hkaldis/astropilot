@@ -62,6 +62,7 @@ const LEGACY_CATEGORY: Record<string, string> = {
   dark_nebula: "dark_nebula",
   supernova_remnant: "supernova_remnant",
   double_star: "double_star",
+  star: "double_star", // the legacy table has no single-star category; the catalog ref is what identifies it
   asterism: "asterism",
   star_cloud: "asterism",
   planet: "planet",

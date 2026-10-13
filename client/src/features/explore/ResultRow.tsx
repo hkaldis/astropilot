@@ -11,6 +11,19 @@ import { AltitudeSparkline } from "./Sparkline";
 import { constellationName } from "./constellations";
 import { altAt, shownBestTime } from "./sky";
 
+/** A star's spectral class, short: "A0V", "M1-M2Ia-Iab" → "M1Ia", "K5+III" → "K5III", "kA4hA5mA5Va" → "A5Va". */
+function starClass(o: { sp?: string }): string | null {
+  if (!o.sp) return null;
+  const sp = o.sp.replace(/^k[A-Z]\d(?:\.\d)?h/, "").replace(/m[A-Z]\d(?:\.\d)?/, "");
+  if (/^C/.test(sp)) return sp.split(/[\s,]/)[0].slice(0, 6);
+  const wolfRayet = sp.match(/^W[CNO]\d/)?.[0];
+  if (wolfRayet) return wolfRayet;
+  const cls = sp.match(/^[OBAFGKMSDW]\d?(?:\.\d)?/)?.[0];
+  if (!cls) return sp.slice(0, 6);
+  const lum = sp.slice(cls.length).match(/Iab|Ia|Ib|III|II|IV|V|I/)?.[0] ?? "";
+  return cls + lum;
+}
+
 export interface ExploreItem {
   o: CatalogObject;
   r: RankedTarget<CatalogObject> | null;
@@ -143,7 +156,7 @@ export const ResultRow = memo(function ResultRow({ item, rc }: { item: ExploreIt
           <span className="mt-1 flex items-center gap-2 text-xs text-muted-foreground md:hidden">
             <DifficultyBadge r={r} />
             <span className="num truncate">
-              {[o.mag !== undefined ? `mag ${formatMag(o.mag)}` : null, o.type === "double_star" && o.sep ? `${o.sep}″` : o.size ? formatAngleSize(o.size) : null]
+              {[o.mag !== undefined ? `mag ${formatMag(o.mag)}` : null, o.type === "star" ? starClass(o) : o.type === "double_star" && o.sep ? `${o.sep}″` : o.size ? formatAngleSize(o.size) : null]
                 .filter(Boolean)
                 .join(" · ")}
             </span>
@@ -159,7 +172,7 @@ export const ResultRow = memo(function ResultRow({ item, rc }: { item: ExploreIt
         {/* Desktop columns */}
         <span className="hidden text-xs md:block">
           <span className="num block">{o.mag !== undefined ? `mag ${formatMag(o.mag)}` : "—"}</span>
-          <span className="num block text-muted-foreground">{o.type === "double_star" && o.sep ? `${o.sep}″ apart` : formatAngleSize(o.size)}</span>
+          <span className="num block text-muted-foreground">{o.type === "star" ? (starClass(o) ?? "—") : o.type === "double_star" && o.sep ? `${o.sep}″ apart` : formatAngleSize(o.size)}</span>
         </span>
         <span className="hidden md:block">{spark(112, 30)}</span>
         <span className="hidden text-xs md:block">{r ? <BestText r={r} rc={rc} /> : null}</span>

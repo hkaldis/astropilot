@@ -29,6 +29,11 @@ export interface ObjectFacts {
   age?: number;
   /** Member stars Gaia has identified (open clusters). */
   members?: number;
+  /** Stars: radius, luminosity and mass in solar units, surface temperature in kelvin (Wikipedia infoboxes). */
+  r?: number;
+  lum?: number;
+  teff?: number;
+  mass?: number;
 }
 
 export interface StoryResponse {

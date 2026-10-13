@@ -145,7 +145,8 @@ function About() {
         </li>
         <li>
           <strong>The catalog</strong> includes all Messier and Caldwell objects plus bright NGC/IC galaxies, nebulae and clusters from{" "}
-          <a href="https://github.com/mattiaverga/OpenNGC">OpenNGC</a> (CC BY-SA 4.0), and classic double stars. Star chart data from{" "}
+          <a href="https://github.com/mattiaverga/OpenNGC">OpenNGC</a> (CC BY-SA 4.0), classic double stars, and the bright named stars — data from{" "}
+          <a href="https://simbad.cds.unistra.fr">SIMBAD</a>, names from the IAU Catalog of Star Names, distances from Hipparcos and Gaia parallaxes. Star chart data from{" "}
           <a href="https://github.com/ofrohn/d3-celestial">d3-celestial</a> (Hipparcos).
         </li>
       </ul>
