@@ -5,7 +5,7 @@ import path from "path";
 import catalog from "./data/catalog.json";
 import { MOONS } from "./astro/moons";
 import { SOLAR_SYSTEM } from "./astro/planets";
-import { BODY_IMAGES, hasSurveyPhoto, moonCompare, objectImageUrl, photoOf, surveyFieldArcmin } from "./objectImages";
+import { COMMONS_IMAGES, hasSurveyPhoto, moonCompare, objectImageUrl, photoOf, surveyFieldArcmin } from "./objectImages";
 
 const file = (src: string) => path.resolve("client/public", src.replace(/^\//, "").replace(/\?.*$/, ""));
 
@@ -30,15 +30,24 @@ test("field sizes are compared with the full Moon", () => {
   assert.equal(moonCompare(10), "about a third of the full Moon's width");
 });
 
-test("every object that should have a picture has its file, and every planet and moon a credit", () => {
+test("every object that should have a picture has its file, and every planet, moon and chosen photo a credit", () => {
   const missing: string[] = [];
   for (const o of catalog as { id: string; type: string; mag?: number }[]) {
     const p = photoOf(o.id, o);
     if (hasSurveyPhoto(o) && (!p || !fs.existsSync(file(p.src)))) missing.push(o.id);
   }
   for (const id of [...SOLAR_SYSTEM.map((p) => p.id as string), ...MOONS.map((m) => m.id as string)]) {
-    const c = BODY_IMAGES[id];
+    const c = COMMONS_IMAGES[id];
     if (!c || !c.license || !c.page.startsWith("https://commons.wikimedia.org/") || !fs.existsSync(file(objectImageUrl(id)))) missing.push(id);
   }
+  for (const [id, c] of Object.entries(COMMONS_IMAGES))
+    if (!/public domain|cc0|cc by/i.test(c.license) || !fs.existsSync(file(objectImageUrl(id)))) missing.push(id);
   assert.deepEqual(missing, []);
+});
+
+test("bright double stars use a chosen photograph where there is one", () => {
+  const albireo = (catalog as { id: string; type: string; mag?: number }[]).find((o) => o.id === "albireo")!;
+  assert.equal(photoOf("albireo", albireo)?.kind, "commons");
+  const castor = (catalog as { id: string; type: string; mag?: number }[]).find((o) => o.id === "castor")!;
+  assert.equal(photoOf("castor", castor), null);
 });

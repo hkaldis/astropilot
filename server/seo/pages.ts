@@ -274,7 +274,7 @@ function dsoContent(o: CatalogEntry): ObjectContent {
     ["Position", raDec(o.ra, o.dec)],
   ];
   const cta = `Open AstroPilot to see when ${name} is highest tonight from your location, how easy it is with your telescope or binoculars, and an eyepiece view.`;
-  const image = pageImage(photoOf(o.id, o as Parameters<typeof photoOf>[1]), name, "");
+  const image = pageImage(photoOf(o.id, o as Parameters<typeof photoOf>[1]), name, "Through a telescope it splits into separate stars.");
   return {
     name,
     image,

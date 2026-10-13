@@ -1,16 +1,17 @@
 /**
  * A picture of every object. Deep-sky objects: a Digitized Sky Survey photograph (DSS2 colour, via CDS
  * hips2fits), framed around the object, north up and east left like the sky chart and the eyepiece view.
- * The Moon, planets and their moons: a freely licensed image from Wikimedia Commons, credited in
- * data/bodyImages.json. The files are made by scripts/object-images.ts and served from /img/objects/.
+ * The Moon, planets and their moons, and the brightest double stars (which the survey burns into one blob):
+ * a freely licensed image from Wikimedia Commons, credited in data/commonsImages.json. The files are made
+ * by scripts/object-images.ts and served from /img/objects/.
  */
-import bodyImages from "./data/bodyImages.json";
+import commonsImages from "./data/commonsImages.json";
 
 /** Bump when the images are regenerated, so browsers and the service worker fetch the new ones. */
-export const OBJECT_IMAGE_VERSION = 1;
+export const OBJECT_IMAGE_VERSION = 2;
 export const OBJECT_IMAGE_PX = 512;
 
-export interface BodyImageCredit {
+export interface CommonsImageCredit {
   /** Commons file page. */
   page: string;
   author: string;
@@ -20,7 +21,7 @@ export interface BodyImageCredit {
   what: string;
 }
 
-export const BODY_IMAGES = bodyImages as Record<string, BodyImageCredit>;
+export const COMMONS_IMAGES = commonsImages as Record<string, CommonsImageCredit>;
 
 export const objectImageUrl = (id: string) => `/img/objects/${id.toLowerCase()}.webp?v=${OBJECT_IMAGE_VERSION}`;
 
@@ -51,17 +52,21 @@ export function fieldText(arcmin: number): string {
 
 export type ObjectPhoto =
   | { kind: "survey"; src: string; fovArcmin: number }
-  | { kind: "body"; src: string; credit: BodyImageCredit };
+  | { kind: "commons"; src: string; credit: CommonsImageCredit };
 
-/** The picture for an object page: a catalog object's survey photograph, or a planet's or moon's image. */
+/**
+ * The picture for an object page: a catalog object's survey photograph, or a Commons image (planets, moons
+ * and the bright double stars that have one).
+ */
 export function photoOf(id: string, dso?: { id: string; type: string; mag?: number | null; size?: number[]; sep?: number } | null): ObjectPhoto | null {
-  if (dso) return hasSurveyPhoto(dso) ? { kind: "survey", src: objectImageUrl(dso.id), fovArcmin: surveyFieldArcmin(dso) } : null;
-  const credit = BODY_IMAGES[id];
-  return credit ? { kind: "body", src: objectImageUrl(id), credit } : null;
+  const key = dso ? dso.id : id;
+  const credit = COMMONS_IMAGES[key];
+  if (credit) return { kind: "commons", src: objectImageUrl(key), credit };
+  return dso && hasSurveyPhoto(dso) ? { kind: "survey", src: objectImageUrl(dso.id), fovArcmin: surveyFieldArcmin(dso) } : null;
 }
 
 /** The survey's credit, as its makers ask for it. */
-export const SURVEY_CREDIT = "Digitized Sky Survey (STScI; Caltech/Palomar and UK Schmidt/AAO plates), colour HiPS by CDS";
+export const SURVEY_CREDIT = "Digitized Sky Survey (STScI; Caltech/Palomar and UK Schmidt/AAO plates), via CDS";
 
 /** How the field compares with the full Moon: "3× the full Moon's width", "about a third of the full Moon's width". */
 export function moonCompare(arcmin: number): string {

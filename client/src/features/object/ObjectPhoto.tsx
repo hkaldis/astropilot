@@ -37,9 +37,12 @@ export function ObjectPhoto({ subject, className }: { subject: Subject; classNam
     );
   } else {
     const c = photo.credit;
-    const what = subject.id === "moon" ? "Photographed through a telescope" : `${c.what || "Spacecraft"} image`;
+    const what =
+      subject.id === "moon" ? "Photographed through a telescope" : subject.kind === "deep" ? (c.what ? `${c.what} image` : "Photograph") : `${c.what || "Spacecraft"} image`;
     const scope =
-      subject.kind === "satellite"
+      subject.kind === "deep"
+        ? " The eyepiece view below shows how far apart the stars look at your magnification."
+        : subject.kind === "satellite"
         ? ` In a telescope ${subject.name} is a star-like point next to ${subject.parent.name}.`
         : subject.id === "moon"
           ? " Binoculars show the large dark plains; a small telescope, craters along the shadow line."

@@ -1,4 +1,67 @@
 {
+  "61-cygni": {
+    "page": "https://commons.wikimedia.org/wiki/File:61cyg.jpg",
+    "author": "Гоша0102",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "what": ""
+  },
+  "acrab": {
+    "page": "https://commons.wikimedia.org/wiki/File:Graffias_tel140.png",
+    "author": "Roberto Mura",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "what": ""
+  },
+  "acrux": {
+    "page": "https://commons.wikimedia.org/wiki/File:Wide-field_view_of_part_of_the_Coalsack_Nebula.jpg",
+    "author": "ESO/Digitized Sky Survey 2. Acknowledgment: Davide De Martin",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "what": ""
+  },
+  "albireo": {
+    "page": "https://commons.wikimedia.org/wiki/File:Albireo_through_Celestron_C8.jpg",
+    "author": "Topoignaz",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "what": ""
+  },
+  "algieba": {
+    "page": "https://commons.wikimedia.org/wiki/File:Gamma_Leonis_Algieba_orientation.jpg",
+    "author": "STF8LZOS6",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "what": ""
+  },
+  "almach": {
+    "page": "https://commons.wikimedia.org/wiki/File:Alamach_tel140mm.png",
+    "author": "Roberto Mura",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "what": ""
+  },
+  "alnitak": {
+    "page": "https://commons.wikimedia.org/wiki/File:Star-Alnitak.png",
+    "author": "Chuck Ayoub",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "what": ""
+  },
+  "alpha-centauri": {
+    "page": "https://commons.wikimedia.org/wiki/File:Best_image_of_Alpha_Centauri_A_and_B.jpg",
+    "author": "ESA/Hubble & NASA",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "what": "Hubble Space Telescope"
+  },
+  "antares": {
+    "page": "https://commons.wikimedia.org/wiki/File:Antares_nebulosity.jpg",
+    "author": "Adam Block/Steward Observatory/University of Arizona",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "what": ""
+  },
   "ariel": {
     "page": "https://commons.wikimedia.org/wiki/File:Ariel_in_monochrome.jpg",
     "author": "Kevin M. Gill",
@@ -12,6 +75,13 @@
     "license": "CC BY-SA 2.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
     "what": "Voyager"
+  },
+  "cor-caroli": {
+    "page": "https://commons.wikimedia.org/wiki/File:Cor_Caroli_July_26_2025.png",
+    "author": "Minnastronomer",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "what": ""
   },
   "deimos": {
     "page": "https://commons.wikimedia.org/wiki/File:NASA-Deimos-MarsMoon-20090221.jpg",
@@ -31,12 +101,40 @@
     "license": "Public domain",
     "what": "Cassini"
   },
+  "epsilon-lyrae": {
+    "page": "https://commons.wikimedia.org/wiki/File:Double_Double_June_9_2025.png",
+    "author": "Minnastronomer",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "what": ""
+  },
+  "eta-cassiopeiae": {
+    "page": "https://commons.wikimedia.org/wiki/File:Eta_Cassiopeiae.jpg",
+    "author": "David Ritter",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "what": ""
+  },
+  "eta-persei": {
+    "page": "https://commons.wikimedia.org/wiki/File:Eta_Persei.jpg",
+    "author": "David Ritter",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "what": ""
+  },
   "europa": {
     "page": "https://commons.wikimedia.org/wiki/File:Europa_-_Perijove_45_(cropped).png",
     "author": "NASA/JPL-Caltech/SwRI/MSSS/Kevin M. Gill",
     "license": "CC BY 2.0",
     "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
     "what": "Juno"
+  },
+  "gamma-delphini": {
+    "page": "https://commons.wikimedia.org/wiki/File:Gamma_Delphini.png",
+    "author": "ぷんすけ",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "what": ""
   },
   "ganymede": {
     "page": "https://commons.wikimedia.org/wiki/File:Ganymede_-_Perijove_34_Composite.png",
@@ -62,6 +160,13 @@
     "author": "NASA",
     "license": "Public domain",
     "what": "Galileo"
+  },
+  "iota-cancri": {
+    "page": "https://commons.wikimedia.org/wiki/File:Iota_Cancri.jpg",
+    "author": "Jefffisher10",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "what": ""
   },
   "jupiter": {
     "page": "https://commons.wikimedia.org/wiki/File:Jupiter_OPAL_2024.png",
@@ -95,6 +200,13 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
     "what": "Voyager"
   },
+  "mizar": {
+    "page": "https://commons.wikimedia.org/wiki/File:ALCOR_et_MIZAR_(7060991417).jpg",
+    "author": "sebastien lebrigand from crépy en valois, FRANCE",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "what": ""
+  },
   "moon": {
     "page": "https://commons.wikimedia.org/wiki/File:FullMoon2010.jpg",
     "author": "Gregory H. Revera",
@@ -109,6 +221,13 @@
     "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
     "what": "Voyager"
   },
+  "nu-draconis": {
+    "page": "https://commons.wikimedia.org/wiki/File:Nu_Draconis.jpg",
+    "author": "David Ritter",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "what": ""
+  },
   "oberon": {
     "page": "https://commons.wikimedia.org/wiki/File:Oberon_in_true_color_by_Kevin_M._Gill.jpg",
     "author": "Kevin M. Gill",
@@ -122,17 +241,44 @@
     "license": "Public domain",
     "what": "Mars Reconnaissance Orbiter"
   },
+  "polaris": {
+    "page": "https://commons.wikimedia.org/wiki/File:2006-02-c-compass_large_web.jpg",
+    "author": "NASA, ESA, N. Evans (Harvard-Smithsonian CfA) and H. Bond (STScI)",
+    "license": "Public domain",
+    "what": "Hubble Space Telescope"
+  },
+  "rasalgethi": {
+    "page": "https://commons.wikimedia.org/wiki/File:Double_star_Alpha_Hercules.jpg",
+    "author": "NVN271",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "what": ""
+  },
   "rhea": {
     "page": "https://commons.wikimedia.org/wiki/File:PIA07763_Rhea_full_globe5.jpg",
     "author": "NASA / JPL / Space Science Institute",
     "license": "Public domain",
     "what": "Cassini"
   },
+  "rigel": {
+    "page": "https://commons.wikimedia.org/wiki/File:Rigel_%26_IC_2118_(Orion_-_Eridanus)_(Giuseppe_Donatiello).jpg",
+    "author": "Giuseppe Donatiello",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "what": ""
+  },
   "saturn": {
     "page": "https://commons.wikimedia.org/wiki/File:Saturn_global_view_from_Cassini,_rings_open_Better_Colour.png",
     "author": "NASA / JPL-Caltech / SSI / color composite by Gordan Ugarkovic",
     "license": "Public domain",
     "what": "Cassini"
+  },
+  "sigma-orionis": {
+    "page": "https://commons.wikimedia.org/wiki/File:SigmaOrionis.jpg",
+    "author": "NVN271",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "what": ""
   },
   "tethys": {
     "page": "https://commons.wikimedia.org/wiki/File:Global_view_of_Tethys_from_Cassini.jpg",
@@ -152,6 +298,13 @@
     "author": "zelario12",
     "license": "CC BY-SA 2.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "what": ""
+  },
+  "trapezium": {
+    "page": "https://commons.wikimedia.org/wiki/File:Orionnebel.P1025321.jpg",
+    "author": "Bautsch",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
     "what": ""
   },
   "triton": {
@@ -179,5 +332,12 @@
     "author": "NASA/JPL-Caltech",
     "license": "Public domain",
     "what": "Mariner"
+  },
+  "zeta-lyrae": {
+    "page": "https://commons.wikimedia.org/wiki/File:Zeta_Lyrae.jpg",
+    "author": "David Chifiriuc",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "what": ""
   }
 }

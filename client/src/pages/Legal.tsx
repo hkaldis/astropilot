@@ -129,8 +129,9 @@ function About() {
           <a href="https://cds.unistra.fr">CDS</a> (Strasbourg) and cut out with its hips2fits service; each is shown north up and east left, to scale. The
           Digitized Sky Surveys were produced at the Space Telescope Science Institute under U.S. Government grant NAG W-2166. The images of these surveys are
           based on photographic data obtained using the Oschin Schmidt Telescope on Palomar Mountain and the UK Schmidt Telescope. The plates were processed into
-          the present compressed digital form with the permission of these institutions. Images of the Moon, the planets and their moons are from Wikimedia
-          Commons, mostly NASA's (public domain); each is credited under the picture.
+          the present compressed digital form with the permission of these institutions. Where the survey's colour plates are burnt out (bright southern nebulae
+          and star fields) the red plate is shown alone, in grey. Images of the Moon, the planets, their moons and the brightest double stars are from
+          Wikimedia Commons — NASA's (public domain) and amateur astronomers' (Creative Commons); each is credited under the picture.
         </li>
         <li>
           <strong>The cloud map</strong> shows Meteosat's cloud mask from{" "}

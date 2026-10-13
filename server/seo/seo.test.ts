@@ -15,7 +15,7 @@ test("every page gets its own title, description, canonical and readable content
   assert.ok(!html.includes("<title>x</title>"), "the shell's default block is replaced");
   assert.ok(html.includes("application/ld+json"));
   // It previews with its own photograph, which the readable page and its structured data carry too.
-  assert.ok(html.includes(`<meta property="og:image" content="${SITE}/img/objects/m31.webp?v=1" />`));
+  assert.ok(html.includes(`<meta property="og:image" content="${SITE}/img/objects/m31.webp?v=2" />`));
   assert.ok(html.includes('<figure><img src="') && html.includes("primaryImageOfPage"));
   assert.match(objectContent("jupiter")!.md, /!\[Jupiter\]\(https:\/\/[^)]+\/img\/objects\/jupiter\.webp/);
   // Ids are case-insensitive, but the canonical address is the catalog's own.
