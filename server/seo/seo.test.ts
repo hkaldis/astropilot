@@ -47,3 +47,17 @@ test("markdown twins exist for catalog objects, planets and their moons", () => 
   assert.match(objectContent("titan")!.md, /moon of Saturn/);
   assert.equal(objectContent("nope"), null);
 });
+
+test("glossary: an index page, a page per term with structured data, and real 404s", () => {
+  const index = pageFor("/glossary");
+  assert.equal(index.status, 200);
+  assert.ok(JSON.stringify(index.jsonLd).includes('"DefinedTermSet"'));
+  const term = pageFor("/glossary/exit-pupil");
+  assert.equal(term.status, 200);
+  assert.match(term.title, /^Exit pupil/);
+  const html = renderShell(SHELL, term);
+  assert.ok(html.includes('"DefinedTerm"') && html.includes('href="/glossary/magnification"'));
+  assert.equal(pageFor("/glossary/not-a-term").status, 404);
+  // Object pages link their kind to the glossary.
+  assert.ok(pageFor("/object/M13").body.includes('href="/glossary/globular-cluster"'));
+});

@@ -88,6 +88,10 @@ function About() {
         AstroPilot is an observing companion for amateur astronomers. It answers three questions every clear evening: <em>is tonight worth it, what should I look at
         with my telescope, and where do I point?</em> — and then keeps a simple log of what you saw.
       </p>
+      <p>
+        New to the words? The <Link href="/glossary">glossary</Link> explains every term AstroPilot uses — exit pupil, seeing, the Bortle scale, planetary nebulae —
+        with demos you can try.
+      </p>
       <h2>Questions</h2>
       {FAQ.map((f) => (
         <div key={f.q}>

@@ -414,3 +414,31 @@ html.night-vision body::after {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Glossary: a star or planet boiling in poor seeing (amplitude in --j, pixels). */
+@keyframes seeing-boil {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  20% {
+    transform: translate(calc(var(--j) * 0.8px), calc(var(--j) * -0.5px)) scale(calc(1 + var(--j) * 0.01));
+  }
+  40% {
+    transform: translate(calc(var(--j) * -0.6px), calc(var(--j) * 0.7px)) scale(1);
+  }
+  60% {
+    transform: translate(calc(var(--j) * 0.4px), calc(var(--j) * 0.9px)) scale(calc(1 - var(--j) * 0.008));
+  }
+  80% {
+    transform: translate(calc(var(--j) * -0.9px), calc(var(--j) * -0.3px)) scale(1);
+  }
+}
+.seeing-boil {
+  animation: seeing-boil 0.5s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .seeing-boil {
+    animation: none;
+  }
+}

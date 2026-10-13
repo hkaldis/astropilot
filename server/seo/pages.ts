@@ -4,6 +4,7 @@
  * JavaScript) and security scanners read this; in the browser the app replaces it as it starts.
  */
 import { FAQ } from "@shared/faq";
+import { GLOSSARY, GLOSSARY_BY_SLUG, GLOSSARY_CATEGORIES, GLOSSARY_SORTED, TYPE_TERM, plainText, richParts, type GlossaryTerm } from "@shared/glossary";
 import { MOONS, type MoonMeta } from "@shared/astro/moons";
 import { PLANET_BY_ID, SOLAR_SYSTEM, type PlanetMeta } from "@shared/astro/planets";
 import { SURVEY_CREDIT, fieldText, moonCompare, photoOf, type ObjectPhoto } from "@shared/objectImages";
@@ -84,6 +85,7 @@ function home(): Page {
     "Plan: an observing run ordered so objects that set first come first, and a dark-sky calendar.",
     "Journal and achievements: an observing log with photos, and observing programs such as the Messier and Caldwell lists.",
     "Gear and locations: your telescopes, eyepieces, Barlows and filters with magnification and exit pupil, and your observing sites with sky darkness estimated from the light-pollution atlas.",
+    `${a("/glossary", "Glossary")}: ${GLOSSARY.length} stargazing terms explained in plain words, with interactive demos — magnitudes, the Bortle scale, seeing, exit pupil, double stars and more.`,
   ];
   const body = layout(
     `<h1>AstroPilot — your night sky, planned</h1><p>${esc(SUMMARY)}</p><h2>What AstroPilot does</h2>${ul(features)}<h2>Popular objects</h2>${ul(
@@ -280,7 +282,9 @@ function dsoContent(o: CatalogEntry): ObjectContent {
     image,
     title: `${name} — when and how to see it | AstroPilot`,
     description: `${lead} Best in the evening around ${f.eveningMonth}. See when it's highest tonight from your location and how easy it is with your telescope.`,
-    html: `<h1>${esc(name)}</h1><p>${esc(lead)}</p>${figure(image)}${desc ? `<p>${esc(desc)}</p>` : ""}<h2>When and where to see it</h2><p>${esc(when)}</p><p>${esc(heights)}</p><h2>Facts</h2><dl>${facts
+    html: `<h1>${esc(name)}</h1><p>${esc(lead)}</p>${figure(image)}${desc ? `<p>${esc(desc)}</p>` : ""}${
+      TYPE_TERM[o.type] ? `<p>${a(`/glossary/${TYPE_TERM[o.type]}`, `What is ${/^[aeiou]/i.test(type) ? "an" : "a"} ${type.toLowerCase()}?`)}</p>` : ""
+    }<h2>When and where to see it</h2><p>${esc(when)}</p><p>${esc(heights)}</p><h2>Facts</h2><dl>${facts
       .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`)
       .join("")}</dl><p>${esc(cta)}</p>`,
     md: `# ${name}\n\n${lead}\n\n${mdFigure(image)}${desc ? `${desc}\n\n` : ""}## When and where to see it\n\n${when}\n\n${heights}\n\n## Facts\n\n${facts.map(([k, v]) => `- ${k}: ${v}`).join("\n")}\n\n${cta} ${SITE}/object/${encodeURIComponent(o.id)}\n`,
@@ -372,6 +376,116 @@ function objectPage(id: string): Page | null {
   };
 }
 
+// --- glossary --------------------------------------------------------------------------------------
+
+/** Glossary text as HTML, its [[term]] links pointing at the term pages. */
+const richHtml = (s: string) => richParts(s).map((p) => ("slug" in p ? a(`/glossary/${p.slug}`, p.label) : esc(p.text))).join("");
+const richMd = (s: string) => richParts(s).map((p) => ("slug" in p ? `[${p.label}](${SITE}/glossary/${p.slug})` : p.text)).join("");
+
+export function glossaryIndexMarkdown(): string {
+  return `# Astronomy glossary — AstroPilot
+
+${GLOSSARY.length} terms stargazers use, explained in plain words. Each links to a page with a longer explanation (add \`.md\` for Markdown).
+
+${GLOSSARY_CATEGORIES.map(
+  (c) =>
+    `## ${c.label}\n\n${c.blurb}\n\n${GLOSSARY_SORTED.filter((t) => t.category === c.id)
+      .map((t) => `- [${t.term}](${SITE}/glossary/${t.slug}.md): ${plainText(t.short)}`)
+      .join("\n")}`,
+).join("\n\n")}
+`;
+}
+
+function glossaryIndex(): Page {
+  const sections = GLOSSARY_CATEGORIES.map((c) => {
+    const terms = GLOSSARY_SORTED.filter((t) => t.category === c.id);
+    return `<h2>${esc(c.label)}</h2><p>${esc(c.blurb)}</p><dl>${terms.map((t) => `<dt>${a(`/glossary/${t.slug}`, t.term)}</dt><dd>${esc(plainText(t.short))}</dd>`).join("")}</dl>`;
+  }).join("");
+  return {
+    status: 200,
+    title: "Astronomy glossary: stargazing terms explained | AstroPilot",
+    description: `${GLOSSARY.length} astronomy and stargazing terms in plain words — galaxies, nebulae, double stars, magnitude, seeing, exit pupil, the Bortle scale and more — with interactive demos.`,
+    path: "/glossary",
+    markdown: "/glossary.md",
+    body: layout(`<h1>Astronomy glossary</h1><p>${GLOSSARY.length} words stargazers use, explained in plain language. AstroPilot's app adds interactive demos: slide along the magnitude scale, dim the city lights on the Bortle scale, steady the air, split a double star.</p>${sections}`),
+    jsonLd: [
+      breadcrumb([{ name: "Glossary", path: "/glossary" }]),
+      {
+        "@context": "https://schema.org",
+        "@type": "DefinedTermSet",
+        "@id": `${SITE}/glossary`,
+        name: "AstroPilot astronomy glossary",
+        url: `${SITE}/glossary`,
+        hasDefinedTerm: GLOSSARY.map((t) => ({ "@type": "DefinedTerm", name: t.term, description: plainText(t.short), url: `${SITE}/glossary/${t.slug}` })),
+      },
+    ],
+  };
+}
+
+export function glossaryTermMarkdown(t: GlossaryTerm): string {
+  const extra = [
+    t.tip ? `**At the eyepiece:** ${richMd(t.tip)}` : "",
+    t.inApp ? `**In AstroPilot:** ${richMd(t.inApp)}` : "",
+    t.examples?.length ? `**Examples:** ${t.examples.map((id) => `[${id}](${SITE}/object/${encodeURIComponent(id)}.md)`).join(", ")}` : "",
+    t.related?.length ? `**Related:** ${t.related.map((r) => `[${GLOSSARY_BY_SLUG[r].term}](${SITE}/glossary/${r}.md)`).join(", ")}` : "",
+  ].filter(Boolean);
+  return `# ${t.term}
+
+${t.aliases?.length ? `Also called: ${t.aliases.join(", ")}.\n\n` : ""}${richMd(t.short)}
+
+${t.body.map(richMd).join("\n\n")}
+
+${extra.join("\n\n")}
+
+From the AstroPilot astronomy glossary: ${SITE}/glossary/${t.slug}
+`;
+}
+
+function glossaryTerm(slug: string): Page | null {
+  const t = GLOSSARY_BY_SLUG[slug];
+  if (!t) return null;
+  const path = `/glossary/${t.slug}`;
+  const cat = GLOSSARY_CATEGORIES.find((c) => c.id === t.category)!;
+  const examples = t.examples?.length
+    ? `<h2>Examples in the sky</h2><ul>${t.examples
+        .map((id) => {
+          const s = subjectFor(id);
+          const name = !s ? id : s.kind === "dso" ? displayName(s.o) : s.kind === "planet" ? s.p.name : s.m.name;
+          return `<li>${a(`/object/${encodeURIComponent(id)}`, name)}</li>`;
+        })
+        .join("")}</ul>`
+    : "";
+  return {
+    status: 200,
+    title: `${t.term} — what it means in astronomy | AstroPilot glossary`,
+    description: plainText(t.short),
+    path,
+    markdown: `${path}.md`,
+    body: layout(
+      `<nav aria-label="Breadcrumb">${a("/glossary", "Glossary")} › ${esc(cat.label)}</nav><h1>${esc(t.term)}</h1>${t.aliases?.length ? `<p>Also called: ${esc(t.aliases.join(", "))}.</p>` : ""}<p><strong>${richHtml(t.short)}</strong></p>${t.body
+        .map((b) => `<p>${richHtml(b)}</p>`)
+        .join("")}${t.tip ? `<h2>At the eyepiece</h2><p>${richHtml(t.tip)}</p>` : ""}${t.inApp ? `<h2>In AstroPilot</h2><p>${richHtml(t.inApp)}</p>` : ""}${examples}${
+        t.related?.length ? `<h2>Related terms</h2><ul>${t.related.map((r) => `<li>${a(`/glossary/${r}`, GLOSSARY_BY_SLUG[r].term)}</li>`).join("")}</ul>` : ""
+      }`,
+    ),
+    jsonLd: [
+      breadcrumb([
+        { name: "Glossary", path: "/glossary" },
+        { name: t.term, path },
+      ]),
+      {
+        "@context": "https://schema.org",
+        "@type": "DefinedTerm",
+        name: t.term,
+        ...(t.aliases?.length ? { alternateName: t.aliases } : {}),
+        description: plainText(t.short),
+        url: `${SITE}${path}`,
+        inDefinedTermSet: `${SITE}/glossary`,
+      },
+    ],
+  };
+}
+
 function appScreen(path: string, title: string, what: string): Page {
   return {
     status: 200,
@@ -414,6 +528,8 @@ export function pageFor(pathname: string): Page {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
   const obj = /^\/object\/([^/]+)$/.exec(path);
   if (obj) return objectPage(decodeURIComponent(obj[1])) ?? notFound(path);
+  const term = /^\/glossary\/([^/]+)$/.exec(path);
+  if (term) return glossaryTerm(decodeURIComponent(term[1])) ?? notFound(path);
   switch (path) {
     case "/":
       return home();
@@ -423,6 +539,8 @@ export function pageFor(pathname: string): Page {
       return sky();
     case "/about":
       return about();
+    case "/glossary":
+      return glossaryIndex();
     case "/privacy":
     case "/terms":
     case "/support":

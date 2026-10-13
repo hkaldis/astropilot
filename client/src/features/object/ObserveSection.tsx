@@ -10,6 +10,7 @@ import type { ActiveScopeState } from "@/features/explore/InstrumentBar";
 import type { NightContext } from "@/features/explore/sky";
 import { FieldView, angleLabel } from "./FieldView";
 import { photoOf } from "@shared/objectImages";
+import { Term } from "@/features/glossary/Term";
 import { fieldShape, moonNotes, opticsTarget, planetFilterAdvice, planetNotes } from "./observing";
 import type { Subject, Tonight } from "./model";
 
@@ -30,9 +31,9 @@ function ChoiceName({ c }: { c: EyepieceChoice }) {
 
 function SetupNumbers({ c, large }: { c: EyepieceChoice; large?: boolean }) {
   const items = [
-    { v: `${Math.round(c.setup.magnification)}×`, l: "power" },
-    { v: `${c.setup.exitPupil.toFixed(1)} mm`, l: "exit pupil" },
-    { v: fieldText(c.setup.trueField), l: "true field" },
+    { v: `${Math.round(c.setup.magnification)}×`, l: "power", term: "magnification" },
+    { v: `${c.setup.exitPupil.toFixed(1)} mm`, l: "exit pupil", term: "exit-pupil" },
+    { v: fieldText(c.setup.trueField), l: "true field", term: "true-field" },
   ];
   if (!large)
     return (
@@ -45,7 +46,9 @@ function SetupNumbers({ c, large }: { c: EyepieceChoice; large?: boolean }) {
       {items.map((i) => (
         <div key={i.l}>
           <div className="num text-xl font-medium leading-tight">{i.v}</div>
-          <div className="eyebrow mt-0.5">{i.l}</div>
+          <div className="eyebrow mt-0.5">
+            <Term slug={i.term}>{i.l}</Term>
+          </div>
         </div>
       ))}
     </div>

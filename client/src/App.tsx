@@ -22,6 +22,7 @@ const Locations = lazy(() => import("@/pages/Locations"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const Auth = lazy(() => import("@/pages/Auth"));
 const Legal = lazy(() => import("@/pages/Legal"));
+const Glossary = lazy(() => import("@/pages/Glossary"));
 const Support = lazy(() => import("@/pages/Support"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
@@ -121,6 +122,8 @@ function Routes() {
                     <Route path="/privacy">{() => <Legal page="privacy" />}</Route>
                     <Route path="/terms">{() => <Legal page="terms" />}</Route>
                     <Route path="/about">{() => <Legal page="about" />}</Route>
+                    <Route path="/glossary">{() => <Glossary />}</Route>
+                    <Route path="/glossary/:slug">{(p) => <Glossary slug={decodeURIComponent(p.slug)} />}</Route>
                     <Route path="/support" component={Support} />
                     <Route path="/support/thanks" component={Support} />
                     {/* AstroPilot 1 addresses → their new homes */}

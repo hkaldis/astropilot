@@ -16,6 +16,7 @@ import {
   Sun,
   Heart,
   Trophy,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/common/Glyphs";
@@ -47,6 +48,7 @@ export const NAV_SECONDARY: NavItem[] = [
   { href: "/achievements", label: "Achievements", icon: Trophy },
   { href: "/gear", label: "My gear", icon: Telescope },
   { href: "/locations", label: "Locations", icon: MapPin },
+  { href: "/glossary", label: "Glossary", icon: GraduationCap },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

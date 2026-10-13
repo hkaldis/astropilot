@@ -8,7 +8,8 @@ import { SOLAR_SYSTEM } from "@shared/astro/planets";
 import { MOONS } from "@shared/astro/moons";
 import { FAQ } from "@shared/faq";
 import { allSubjects, catalog } from "./facts";
-import { CONTACT, REDIRECTS, SITE, objectContent, pageFor, renderShell } from "./pages";
+import { GLOSSARY, GLOSSARY_BY_SLUG } from "@shared/glossary";
+import { CONTACT, REDIRECTS, SITE, glossaryIndexMarkdown, glossaryTermMarkdown, objectContent, pageFor, renderShell } from "./pages";
 
 const text = (res: Response, type: string, body: string, maxAge = 3600) => {
   res.setHeader("Content-Type", `${type}; charset=utf-8`);
@@ -28,7 +29,11 @@ Sitemap: ${SITE}/sitemap.xml
 }
 
 function sitemap(): string {
-  const urls: { path: string; image?: string }[] = [...["/", "/explore", "/sky", "/about", "/privacy", "/terms", "/support"].map((path) => ({ path })), ...allSubjects()];
+  const urls: { path: string; image?: string }[] = [
+    ...["/", "/explore", "/sky", "/glossary", "/about", "/privacy", "/terms", "/support"].map((path) => ({ path })),
+    ...GLOSSARY.map((t) => ({ path: `/glossary/${t.slug}` })),
+    ...allSubjects(),
+  ];
   const xml = (s: string) => s.replace(/&/g, "&amp;");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
@@ -68,6 +73,13 @@ Every object has a page with a photograph of it, what it is, when it is best pla
 - Examples: [Andromeda Galaxy, M 31](${SITE}/object/M31.md), [Orion Nebula, M 42](${SITE}/object/M42.md), [Jupiter](${SITE}/object/jupiter.md), [Titan](${SITE}/object/titan.md)
 
 Ids: Messier "M1"–"M110", "NGC7000", "IC434", Caldwell "C41", planets ("jupiter", "moon"), planetary moons ("io", "titan"). For a specific place and night, send people to the app: positions, times and visibility ratings there are computed for their location and instrument.
+
+## Glossary
+
+Plain-language explanations of ${GLOSSARY.length} astronomy and stargazing terms — object types (galaxy, globular cluster, planetary nebula, double star), brightness (magnitude, surface brightness, Bortle scale, SQM), conditions (seeing, transparency, twilight), optics (aperture, focal ratio, exit pupil, true field, Barlow, coma corrector) and more:
+
+- [Glossary index (Markdown)](${SITE}/glossary.md)
+- Examples: [Exit pupil](${SITE}/glossary/exit-pupil.md), [Seeing](${SITE}/glossary/seeing.md), [Planetary nebula](${SITE}/glossary/planetary-nebula.md), [Bortle scale](${SITE}/glossary/bortle-scale.md)
 
 ## Questions
 
@@ -127,6 +139,12 @@ export function registerSeo(app: Express) {
   app.get("/llms.txt", (_req, res) => text(res, "text/plain", llms(), 86_400));
   app.get("/objects.md", (_req, res) => text(res, "text/markdown", objectsIndex(), 86_400));
   app.get("/.well-known/security.txt", (_req, res) => text(res, "text/plain", securityTxt(), 86_400));
+  app.get("/glossary.md", (_req, res) => text(res, "text/markdown", glossaryIndexMarkdown(), 86_400));
+  app.get(/^\/glossary\/([^/]+)\.md$/, (req, res) => {
+    const t = GLOSSARY_BY_SLUG[decodeURIComponent((req.params as unknown as string[])[0])];
+    if (!t) return res.status(404).type("text/plain").send("No such term.\n");
+    text(res, "text/markdown", glossaryTermMarkdown(t), 86_400);
+  });
   app.get(/^\/object\/([^/]+)\.md$/, (req, res) => {
     const c = objectContent(decodeURIComponent((req.params as unknown as string[])[0]));
     if (!c) return res.status(404).type("text/plain").send("No such object.\n");

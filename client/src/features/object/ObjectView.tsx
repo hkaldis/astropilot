@@ -36,6 +36,8 @@ import { useMoonSystem } from "@/features/moons/useMoonSystem";
 import { MoonSystemPanel } from "@/features/moons/MoonSystemPanel";
 import { ObjectActions } from "./ObjectActions";
 import { ObjectPhoto } from "./ObjectPhoto";
+import { Term } from "@/features/glossary/Term";
+import { TYPE_TERM } from "@shared/glossaryTerms";
 import { ObserveSection, OpticsFootnote } from "./ObserveSection";
 import { TonightSection } from "./TonightSection";
 import { YearStrip, yearAltitudes } from "./YearStrip";
@@ -119,10 +121,10 @@ function NotFound({ id, suggestions }: { id: string; suggestions: { id: string; 
   );
 }
 
-function StatItem({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
+function StatItem({ label, value, sub, term }: { label: string; value: React.ReactNode; sub?: React.ReactNode; term?: string }) {
   return (
     <div className="min-w-0">
-      <dt className="eyebrow">{label}</dt>
+      <dt className="eyebrow">{term ? <Term slug={term}>{label}</Term> : label}</dt>
       <dd className="num mt-1 truncate text-[1.05rem] font-medium leading-tight">{value}</dd>
       {sub && <dd className="mt-0.5 truncate text-2xs text-muted-foreground">{sub}</dd>}
     </div>
@@ -131,19 +133,19 @@ function StatItem({ label, value, sub }: { label: string; value: React.ReactNode
 
 function DeepStats({ o }: { o: CatalogObject }) {
   const sbArcmin = o.sb ?? (surfaceBrightnessArcsec(o) !== null ? surfaceBrightnessArcsec(o)! - 8.89 : null);
-  const items: { label: string; value: React.ReactNode; sub?: React.ReactNode }[] = [];
+  const items: { label: string; value: React.ReactNode; sub?: React.ReactNode; term?: string }[] = [];
   if (o.type === "double_star") {
-    items.push({ label: "Magnitudes", value: `${formatMag(o.mag)} / ${formatMag(o.mag2)}`, sub: "primary / companion" });
-    if (o.sep !== undefined) items.push({ label: "Separation", value: `${o.sep}″` });
-    if (o.pa !== undefined) items.push({ label: "Position angle", value: `${o.pa}°`, sub: "north through east" });
+    items.push({ label: "Magnitudes", value: `${formatMag(o.mag)} / ${formatMag(o.mag2)}`, sub: "primary / companion", term: "magnitude" });
+    if (o.sep !== undefined) items.push({ label: "Separation", value: `${o.sep}″`, term: "separation" });
+    if (o.pa !== undefined) items.push({ label: "Position angle", value: `${o.pa}°`, sub: "north through east", term: "position-angle" });
   } else {
-    items.push({ label: "Magnitude", value: formatMag(o.mag), sub: o.magB ? "blue (B) magnitude" : "visual" });
-    items.push({ label: "Size", value: formatAngleSize(o.size), sub: o.hubble ? `Hubble type ${o.hubble}` : undefined });
+    items.push({ label: "Magnitude", value: formatMag(o.mag), sub: o.magB ? "blue (B) magnitude" : "visual", term: "magnitude" });
+    items.push({ label: "Size", value: formatAngleSize(o.size), sub: o.hubble ? `Hubble type ${o.hubble}` : undefined, term: "angular-size" });
     if (sbArcmin !== null && sbArcmin !== undefined && o.type !== "open_cluster" && o.type !== "asterism" && o.type !== "star_cloud")
-      items.push({ label: "Surface brightness", value: `${sbArcmin.toFixed(1)}`, sub: o.sb !== undefined ? "mag/arcmin²" : "mag/arcmin², estimated" });
+      items.push({ label: "Surface brightness", value: `${sbArcmin.toFixed(1)}`, sub: o.sb !== undefined ? "mag/arcmin²" : "mag/arcmin², estimated", term: "surface-brightness" });
   }
-  items.push({ label: "Right ascension", value: formatRA(o.ra), sub: "J2000" });
-  items.push({ label: "Declination", value: formatDec(o.dec), sub: "J2000" });
+  items.push({ label: "Right ascension", value: formatRA(o.ra), sub: "J2000", term: "right-ascension" });
+  items.push({ label: "Declination", value: formatDec(o.dec), sub: "J2000", term: "declination" });
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
       {items.map((i) => (
@@ -164,10 +166,10 @@ function moonDistance(distanceAu: number, imperial: boolean) {
 function BodyStats({ id, st }: { id: string; st: BodyState }) {
   const { prefs } = usePrefs();
   const isMoon = id === "moon";
-  const items: { label: string; value: React.ReactNode; sub?: React.ReactNode }[] = [
-    { label: "Magnitude", value: formatMag(st.mag) },
-    { label: "Apparent size", value: isMoon ? `${(st.diameter / 60).toFixed(1)}′` : `${st.diameter.toFixed(st.diameter < 10 ? 1 : 0)}″` },
-    { label: "Illuminated", value: `${Math.round(st.illumination * 100)}%` },
+  const items: { label: string; value: React.ReactNode; sub?: React.ReactNode; term?: string }[] = [
+    { label: "Magnitude", value: formatMag(st.mag), term: "magnitude" },
+    { label: "Apparent size", value: isMoon ? `${(st.diameter / 60).toFixed(1)}′` : `${st.diameter.toFixed(st.diameter < 10 ? 1 : 0)}″`, term: "angular-size" },
+    { label: "Illuminated", value: `${Math.round(st.illumination * 100)}%`, term: "phase" },
     {
       label: "Distance",
       value: isMoon ? moonDistance(st.distanceAu, prefs.units === "imperial") : `${st.distanceAu.toFixed(2)} AU`,
@@ -327,7 +329,7 @@ function SubjectPage({ subject }: { subject: Subject }) {
           </div>
           <div className="min-w-0 animate-rise">
             <div className="eyebrow">
-              {typeLabel}
+              {TYPE_TERM[subject.type] ? <Term slug={TYPE_TERM[subject.type]}>{typeLabel}</Term> : typeLabel}
               {conAbbr ? ` · in ${constellationName(conAbbr)}` : ""}
             </div>
             <h1 className="mt-1.5 font-display text-[2.4rem] leading-[1.02] tracking-tight sm:text-[3rem]">{subject.name}</h1>

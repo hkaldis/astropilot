@@ -23,6 +23,7 @@ import { Welcome } from "@/features/tonight/Welcome";
 import { GuestSiteBar } from "@/features/tonight/GuestSiteBar";
 import { ScopePrompt } from "@/features/tonight/ScopePrompt";
 import { CometStrip } from "@/features/comets/CometStrip";
+import { Term } from "@/features/glossary/Term";
 
 /** Comets in reach that night (renders nothing when there are none). */
 function TonightComets({ site, night, frames, minAlt, tz, hour12 }: { site: ObservingSite; night: NightInfo; frames: NightFrames; minAlt: number; tz?: string; hour12: boolean }) {
@@ -163,7 +164,15 @@ export default function TonightPage() {
       )}
       {fq.isError && <p className="text-sm text-muted-foreground">The weather forecast is unavailable right now — sky and Moon times below are still exact.</p>}
 
-      <Section title="Hour by hour" description="Clouds, steadiness of the air (seeing), clarity (transparency), the Moon and the resulting deep-sky score.">
+      <Section
+        title="Hour by hour"
+        description={
+          <>
+            Clouds, steadiness of the air (<Term slug="seeing">seeing</Term>), clarity (<Term slug="transparency">transparency</Term>), the Moon and the resulting{" "}
+            <Term slug="observing-score">deep-sky score</Term>.
+          </>
+        }
+      >
         <div className="panel p-3 sm:p-4">
           <NightStrip
             night={ctx.night}
