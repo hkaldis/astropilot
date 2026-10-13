@@ -4,7 +4,7 @@ import catalog from "./data/catalog.json";
 import { MOONS } from "./astro/moons";
 import { SOLAR_SYSTEM } from "./astro/planets";
 import { TYPE_LABEL } from "./data/objectTypes";
-import { GLOSSARY, GLOSSARY_BY_SLUG, GLOSSARY_CATEGORIES, TYPE_TERM, plainText, richParts, searchGlossary } from "./glossary";
+import { GLOSSARY, GLOSSARY_BY_SLUG, GLOSSARY_CATEGORIES, GLOSSARY_PATHS, TYPE_TERM, plainText, richParts, searchGlossary, suggestGlossary, wordOfTheNight } from "./glossary";
 
 const objectIds = new Set([...(catalog as { id: string }[]).map((o) => o.id), ...SOLAR_SYSTEM.map((p) => p.id as string), ...MOONS.map((m) => m.id as string)]);
 
@@ -37,4 +37,27 @@ test("glossary search finds terms by name, other names and meaning", () => {
   assert.ok(searchGlossary("twinkle").some((t) => t.slug === "seeing"));
   assert.equal(searchGlossary("zzzz").length, 0);
   assert.equal(plainText("a [[seeing]] and [[exit-pupil|pupil]]"), "a seeing and pupil");
+});
+
+test("glossary paths only use real terms, once each", () => {
+  assert.equal(new Set(GLOSSARY_PATHS.map((p) => p.id)).size, GLOSSARY_PATHS.length);
+  for (const p of GLOSSARY_PATHS) {
+    for (const s of p.slugs) assert.ok(GLOSSARY_BY_SLUG[s], `${p.id}: ${s}`);
+    assert.equal(new Set(p.slugs).size, p.slugs.length, p.id);
+  }
+});
+
+test("glossary suggestions forgive typing slips", () => {
+  assert.equal(suggestGlossary("nebulla")[0].slug, "nebula");
+  assert.equal(suggestGlossary("azimut")[0].slug, "azimuth");
+  assert.ok(suggestGlossary("globlar").some((t) => t.slug === "globular-cluster"));
+  assert.ok(suggestGlossary("dobsonain").some((t) => t.slug === "dobsonian"));
+  assert.deepEqual(suggestGlossary("qq"), []);
+});
+
+test("the word of the night changes daily and never repeats within a cycle", () => {
+  const seen = new Set<string>();
+  const n = GLOSSARY.filter((t) => t.category !== "astropilot").length;
+  for (let d = 0; d < n; d++) seen.add(wordOfTheNight(new Date(Date.UTC(2026, 0, 1, 20) + d * 86_400_000)).slug);
+  assert.equal(seen.size, n);
 });

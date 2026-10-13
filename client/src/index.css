@@ -442,3 +442,90 @@ html.night-vision body::after {
     animation: none;
   }
 }
+
+/* Glossary: a burst of stars when a learning path is finished. */
+.confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.confetti span {
+  position: absolute;
+  left: 50%;
+  top: 2.6rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: hsl(var(--primary));
+  opacity: 0;
+  animation: confetti-burst 1.4s cubic-bezier(0.2, 0.7, 0.3, 1) 0.15s forwards;
+  --a: calc(var(--i) * 25.7deg);
+}
+.confetti span:nth-child(3n) {
+  background: hsl(var(--gold));
+  width: 4px;
+  height: 4px;
+}
+.confetti span:nth-child(3n + 1) {
+  background: hsl(var(--q-excellent));
+}
+@keyframes confetti-burst {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--a)) translateY(0) scale(0.6);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(calc(-70px - var(--i) * 3px)) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confetti {
+    display: none;
+  }
+}
+
+/* Object pages: light racing from an object to you along the time machine's timeline. */
+.photon {
+  animation: photon 3.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes photon {
+  0% {
+    left: var(--from);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+@keyframes map-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+.map-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: map-pulse 2.2s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .photon,
+  .map-pulse {
+    animation: none;
+  }
+}

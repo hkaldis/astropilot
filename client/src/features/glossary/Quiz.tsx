@@ -1,7 +1,11 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { ArrowRight, Check, RotateCcw, X } from "lucide-react";
-import { GLOSSARY, plainText, type GlossaryTerm } from "@shared/glossary";
+import { GLOSSARY, GLOSSARY_BY_SLUG, TYPE_TERM, plainText, type GlossaryTerm } from "@shared/glossary";
+import type { CatalogObject } from "@shared/data/types";
+import { photoOf } from "@shared/objectImages";
+import { useCatalog } from "@/hooks/useCatalog";
+import { Skel } from "@/components/common/Page";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { store } from "@/lib/storage";
@@ -29,21 +33,50 @@ function clue(t: GlossaryTerm): string {
 interface Question {
   answer: GlossaryTerm;
   options: GlossaryTerm[];
+  /** Picture rounds: a photograph of an object of this kind. */
+  photo?: { src: string; id: string; name: string };
 }
 
-function makeQuiz(): Question[] {
-  // Questions from every corner of the glossary; wrong answers from the same topic, so it's not too easy.
-  const picks = shuffle(GLOSSARY.filter((t) => t.category !== "astropilot")).slice(0, ROUNDS);
-  return picks.map((answer) => {
-    const same = shuffle(GLOSSARY.filter((t) => t.category === answer.category && t.slug !== answer.slug));
-    const others = shuffle(GLOSSARY.filter((t) => t.category !== answer.category));
-    return { answer, options: shuffle([answer, ...[...same, ...others].slice(0, 3)]) };
-  });
+/** Kinds of object that look different enough in a photograph to tell apart. */
+const PICTURE_TYPES = ["galaxy", "open_cluster", "globular_cluster", "planetary_nebula", "emission_nebula", "supernova_remnant", "double_star"] as const;
+const PICTURE_ROUNDS = 3;
+
+function makeQuiz(objects: CatalogObject[]): Question[] {
+  // A few picture rounds: well-known objects of different kinds, with the kinds as the choices.
+  const kinds = PICTURE_TYPES.map((type) => GLOSSARY_BY_SLUG[TYPE_TERM[type]]);
+  const pictures: Question[] = [];
+  for (const type of shuffle([...PICTURE_TYPES])) {
+    if (pictures.length >= PICTURE_ROUNDS) break;
+    const pool = objects.filter((o) => o.type === type && (o.m || o.c || o.showpiece) && photoOf(o.id, o));
+    if (!pool.length) continue;
+    const o = pool[Math.floor(Math.random() * pool.length)];
+    const answer = GLOSSARY_BY_SLUG[TYPE_TERM[type]];
+    pictures.push({
+      answer,
+      options: shuffle([answer, ...shuffle(kinds.filter((k) => k.slug !== answer.slug)).slice(0, 3)]),
+      photo: { src: photoOf(o.id, o)!.src, id: o.id, name: o.name },
+    });
+  }
+  // The rest from every corner of the glossary; wrong answers from the same topic, so it's not too easy.
+  const used = new Set(pictures.map((q) => q.answer.slug));
+  const words = shuffle(GLOSSARY.filter((t) => t.category !== "astropilot" && !used.has(t.slug)))
+    .slice(0, ROUNDS - pictures.length)
+    .map((answer) => {
+      const same = shuffle(GLOSSARY.filter((t) => t.category === answer.category && t.slug !== answer.slug));
+      const others = shuffle(GLOSSARY.filter((t) => t.category !== answer.category));
+      return { answer, options: shuffle([answer, ...[...same, ...others].slice(0, 3)]) };
+    });
+  // Pictures spread through the quiz rather than bunched together.
+  const out: Question[] = [...words];
+  pictures.forEach((q, k) => out.splice(1 + k * 3, 0, q));
+  return out.slice(0, ROUNDS);
 }
 
 export default function Quiz({ onClose }: { onClose: () => void }) {
   const [seed, setSeed] = useState(0);
-  const questions = useMemo(makeQuiz, [seed]);
+  const { objects, isLoading } = useCatalog();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const questions = useMemo(() => makeQuiz(objects), [seed, objects]);
   const [i, setI] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
   const [missed, setMissed] = useState<GlossaryTerm[]>([]);
@@ -59,6 +92,7 @@ export default function Quiz({ onClose }: { onClose: () => void }) {
     setScore(0);
   };
 
+  if (isLoading) return <Skel className="h-56 w-full" />;
   if (done) {
     if (score > best) store.set("ap.glossaryBest", score);
     const verdict = score === ROUNDS ? "Perfect — you speak fluent astronomer." : score >= 6 ? "Excellent: you know your way around." : score >= 4 ? "A good start — the words below are worth a look." : "Plenty to discover: the glossary has you covered.";
@@ -110,7 +144,21 @@ export default function Quiz({ onClose }: { onClose: () => void }) {
       <div className="h-1 overflow-hidden rounded-full bg-muted">
         <div className="h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${((i + (answered ? 1 : 0)) / ROUNDS) * 100}%` }} />
       </div>
-      <p className="text-[1.05rem] leading-relaxed">{clue(q.answer)}</p>
+      {q.photo ? (
+        <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-5">
+          <div className="relative aspect-square w-full max-w-[15rem] overflow-hidden rounded-xl border bg-black">
+            <img src={q.photo.src} alt="A photograph of the object in question" className="h-full w-full object-cover" />
+            {answered && (
+              <Link href={`/object/${encodeURIComponent(q.photo.id)}`} className="absolute inset-x-0 bottom-0 bg-black/70 px-3 py-1.5 text-center text-sm text-white backdrop-blur-sm hover:underline">
+                {q.photo.name}
+              </Link>
+            )}
+          </div>
+          <p className="text-[1.05rem] font-medium leading-relaxed">What kind of object is this?</p>
+        </div>
+      ) : (
+        <p className="text-[1.05rem] leading-relaxed">{clue(q.answer)}</p>
+      )}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {q.options.map((o) => {
           const right = o.slug === q.answer.slug;

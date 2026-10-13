@@ -45,6 +45,7 @@ import { horizonClass, resolveSubject, systemPlanetOf, tonightFor, type Subject,
 import { opticsTarget } from "./observing";
 import { CountsToward } from "@/features/achievements/CountsToward";
 import { nearestBrightStar, sepWords, useNamedStars } from "./finder";
+import { AboutSection, StoryHook } from "./about/AboutSection";
 
 function backHref() {
   try {
@@ -219,8 +220,7 @@ function FinderText({ o }: { o: CatalogObject }) {
   const stars = useNamedStars();
   const hint = nearestBrightStar(stars.data, o.ra, o.dec);
   return (
-    <div className="text-muted-foreground">
-      <div className="eyebrow mb-1">Finding it</div>
+    <p className="text-sm leading-relaxed text-muted-foreground">
       In <span className="text-foreground">{constellationName(o.con)}</span>
       {hint ? (
         <>
@@ -233,7 +233,20 @@ function FinderText({ o }: { o: CatalogObject }) {
         sky chart
       </Link>{" "}
       shows the star-hop.
-    </div>
+    </p>
+  );
+}
+
+/** Planets' moons: who found it, and that you find it by finding its planet. */
+function SatelliteNote({ subject }: { subject: Extract<Subject, { kind: "satellite" }> }) {
+  return (
+    <p>
+      It travels with{" "}
+      <Link href={`/object/${subject.parent.id}`} className="link">
+        {subject.parent.name}
+      </Link>
+      , so find the planet first — the sky chart and its page show where.
+    </p>
   );
 }
 
@@ -343,6 +356,7 @@ function SubjectPage({ subject }: { subject: Subject }) {
                 )}
               </div>
             )}
+            <StoryHook id={subject.id} />
           </div>
         </div>
         {hasPhoto && <ObjectPhoto subject={subject} className="mx-auto w-full max-w-[24rem] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-w-none" />}
@@ -364,7 +378,12 @@ function SubjectPage({ subject }: { subject: Subject }) {
       </header>
 
       {!ctx ? (
-        <NoSite className="mt-8" title={`See when ${subject.name} is up from where you are`} />
+        <>
+          <NoSite className="mt-8" title={`See when ${subject.name} is up from where you are`} />
+          <Section title={`About ${subject.name}`} className="mt-10 scroll-mt-20" id="about">
+            <AboutSection subject={subject} eyepieceNote={subject.kind === "satellite" ? <SatelliteNote subject={subject} /> : undefined} />
+          </Section>
+        </>
       ) : (
         <>
           <InstrumentBar scope={scope} ctx={ctx} className="mt-8" />
@@ -400,6 +419,15 @@ function SubjectPage({ subject }: { subject: Subject }) {
                 {tonight && <ObserveSection key={`${subject.id}|${scope.telescopeId ?? scope.presetId}`} subject={subject} tonight={tonight} ctx={ctx} scope={scope} moonsAt={system?.at ?? null} />}
                 <OpticsFootnote scope={scope} />
               </Section>
+              <Section title={`About ${subject.name}`} id="about" className="scroll-mt-20">
+                <AboutSection
+                  subject={subject}
+                  bodyDistanceAu={subject.kind !== "deep" ? (tonight?.body?.state.distanceAu ?? null) : null}
+                  tz={ctx.tz}
+                  hour12={ctx.hour12}
+                  eyepieceNote={subject.kind === "satellite" ? <SatelliteNote subject={subject} /> : undefined}
+                />
+              </Section>
             </div>
 
             <aside className="flex min-w-0 flex-col gap-10">
@@ -409,42 +437,11 @@ function SubjectPage({ subject }: { subject: Subject }) {
                   {circumpolar && <p className="text-xs text-muted-foreground">Circumpolar from {ctx.site.name}: it never sets.</p>}
                 </Section>
               )}
-              <Section title="About">
-                {subject.kind === "deep" ? (
-                  <div className="flex flex-col gap-3 text-sm">
-                    {subject.obj.desc ? <p className="leading-relaxed">{subject.obj.desc}</p> : <p className="text-muted-foreground">No description yet.</p>}
-                    <FinderText o={subject.obj} />
-                  </div>
-                ) : subject.kind === "satellite" ? (
-                  <div className="flex flex-col gap-3 text-sm">
-                    <p className="leading-relaxed">{subject.meta.blurb}</p>
-                    <p className="text-muted-foreground">
-                      Discovered by {subject.meta.discovered.by} in {subject.meta.discovered.year}. It travels with{" "}
-                      <Link href={`/object/${subject.parent.id}`} className="link">
-                        {subject.parent.name}
-                      </Link>
-                      , so find the planet first — the sky chart and its page show where.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-3 text-sm">
-                    {tonight?.body &&
-                      (subject.id === "moon" ? (
-                        <p className="leading-relaxed">
-                          Tonight the Moon is <span className="num">{moonDistance(tonight.body.state.distanceAu, prefs.units === "imperial")}</span> away — its
-                          light takes <span className="num">{((tonight.body.state.distanceAu * 499.005) || 0).toFixed(2)}</span> seconds to reach you. It moves
-                          about its own width eastward every hour against the stars.
-                        </p>
-                      ) : (
-                        <p className="leading-relaxed">
-                          {subject.name} is <span className="num">{tonight.body.state.distanceAu.toFixed(2)}</span> AU away: the light you'll see left it{" "}
-                          <span className="num">{Math.round((tonight.body.state.distanceAu * 499.005) / 60)}</span> minutes earlier. It's currently in{" "}
-                          {constellationName(tonight.body.state.constellation)} and drifts slowly against the stars from night to night.
-                        </p>
-                      ))}
-                  </div>
-                )}
-              </Section>
+              {subject.kind === "deep" && (
+                <Section title="Finding it">
+                  <FinderText o={subject.obj} />
+                </Section>
+              )}
               <p className="text-2xs leading-relaxed text-muted-foreground">
                 Positions from astronomy-engine (VSOP87/ELP, refraction included). Catalog data from OpenNGC and the WDS. Sky brightness from{" "}
                 {skySourcePhrase(ctx)} with Krisciunas–Schaefer moonlight. Times in {ctx.tz ?? "your time zone"}.

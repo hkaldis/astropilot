@@ -9,6 +9,9 @@ import { MOONS, type MoonMeta } from "@shared/astro/moons";
 import { PLANET_BY_ID, SOLAR_SYSTEM, type PlanetMeta } from "@shared/astro/planets";
 import { SURVEY_CREDIT, fieldText, moonCompare, photoOf, type ObjectPhoto } from "@shared/objectImages";
 import type { CatalogEntry } from "../catalog";
+import { storyFor } from "../routes/story";
+import { lookback } from "@shared/lookback";
+import { formatLightYears } from "@shared/stories";
 import { allSubjects, catalog, conName, designations, displayName, planetNow, raDec, sizeText, skyFacts, subjectFor, typeLabel } from "./facts";
 
 export const SITE = (process.env.SITE_URL ?? "https://astropilot.space").replace(/\/$/, "");
@@ -256,6 +259,40 @@ const mdFigure = (img: PageImage | null) => (img ? `![${img.alt}](${img.url})
 
 ` : "");
 
+/** An object's story for the rendered page: paragraphs (glossary links kept), "did you know" facts and the light-time line. */
+function storyParts(id: string, name: string) {
+  const data = storyFor(id);
+  const st = data?.story ?? null;
+  const d = data?.facts?.d;
+  const link = (t: string) => {
+    let out = "";
+    let last = 0;
+    for (const m of t.matchAll(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g)) {
+      out += esc(t.slice(last, m.index));
+      out += GLOSSARY_BY_SLUG[m[1]] ? a(`/glossary/${m[1]}`, m[2] ?? GLOSSARY_BY_SLUG[m[1]].term.toLowerCase()) : esc(m[2] ?? m[1]);
+      last = (m.index ?? 0) + m[0].length;
+    }
+    return out + esc(t.slice(last));
+  };
+  const mdLink = (t: string) => t.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, slug: string, label?: string) => `[${label ?? slug.replace(/-/g, " ")}](${SITE}/glossary/${slug})`);
+  const lb = d ? lookback(d) : null;
+  const light = d && lb ? `${name} is ${formatLightYears(d)} away: the light we see from it set off ${lb.when}, ${lb.moment}.` : null;
+  const disc = st?.discovered;
+  const discovered = disc ? [disc.by, disc.year, disc.note].filter(Boolean).join(", ") : null;
+  return {
+    tagline: st?.tagline ?? null,
+    html:
+      (st ? `<p><strong>${esc(st.tagline)}</strong></p>${st.story.map((p) => `<p>${link(p)}</p>`).join("")}` : "") +
+      (light ? `<p>${esc(light)}</p>` : "") +
+      (st?.facts.length ? `<h2>Did you know?</h2><ul>${st.facts.map((f) => `<li><strong>${esc(f.title)}.</strong> ${link(f.text)}</li>`).join("")}</ul>` : ""),
+    md:
+      (st ? `**${st.tagline}**\n\n${st.story.map(mdLink).join("\n\n")}\n\n` : "") +
+      (light ? `${light}\n\n` : "") +
+      (st?.facts.length ? `## Did you know?\n\n${st.facts.map((f) => `- **${f.title}.** ${mdLink(f.text)}`).join("\n")}\n\n` : ""),
+    facts: [...(d ? ([["Distance", formatLightYears(d)]] as [string, string][]) : []), ...(discovered ? ([["Discovered", discovered]] as [string, string][]) : [])],
+  };
+}
+
 function dsoContent(o: CatalogEntry): ObjectContent {
   const name = displayName(o);
   const type = typeLabel(o.type);
@@ -267,6 +304,7 @@ function dsoContent(o: CatalogEntry): ObjectContent {
   const when = `It is best placed in the evening sky around ${f.eveningMonth}, when it crosses the meridian at about 10 pm local time (around midnight in ${f.midnightMonth}). ${f.latitudes}`;
   const heights = `At its highest it stands ${f.altitudes.map((x) => (x.alt === null ? `below the horizon from ${x.label}` : `${x.alt}° up from ${x.label}`)).join(", ")}.`;
   const desc = typeof o.desc === "string" ? o.desc : "";
+  const story = storyParts(o.id, name);
   const facts: [string, string][] = [
     ["Type", type],
     ["Constellation", con],
@@ -274,6 +312,7 @@ function dsoContent(o: CatalogEntry): ObjectContent {
     ...(mag ? ([["Magnitude", mag.replace("magnitude ", "")]] as [string, string][]) : []),
     ...(size ? ([["Apparent size", size]] as [string, string][]) : []),
     ["Position", raDec(o.ra, o.dec)],
+    ...story.facts,
   ];
   const cta = `Open AstroPilot to see when ${name} is highest tonight from your location, how easy it is with your telescope or binoculars, and an eyepiece view.`;
   const image = pageImage(photoOf(o.id, o as Parameters<typeof photoOf>[1]), name, "Through a telescope it splits into separate stars.");
@@ -282,13 +321,13 @@ function dsoContent(o: CatalogEntry): ObjectContent {
     image,
     title: `${name} — when and how to see it | AstroPilot`,
     description: `${lead} Best in the evening around ${f.eveningMonth}. See when it's highest tonight from your location and how easy it is with your telescope.`,
-    html: `<h1>${esc(name)}</h1><p>${esc(lead)}</p>${figure(image)}${desc ? `<p>${esc(desc)}</p>` : ""}${
+    html: `<h1>${esc(name)}</h1><p>${esc(lead)}</p>${figure(image)}${story.html}${desc ? `<p>${esc(desc)}</p>` : ""}${
       TYPE_TERM[o.type] ? `<p>${a(`/glossary/${TYPE_TERM[o.type]}`, `What is ${/^[aeiou]/i.test(type) ? "an" : "a"} ${type.toLowerCase()}?`)}</p>` : ""
     }<h2>When and where to see it</h2><p>${esc(when)}</p><p>${esc(heights)}</p><h2>Facts</h2><dl>${facts
       .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`)
       .join("")}</dl><p>${esc(cta)}</p>`,
-    md: `# ${name}\n\n${lead}\n\n${mdFigure(image)}${desc ? `${desc}\n\n` : ""}## When and where to see it\n\n${when}\n\n${heights}\n\n## Facts\n\n${facts.map(([k, v]) => `- ${k}: ${v}`).join("\n")}\n\n${cta} ${SITE}/object/${encodeURIComponent(o.id)}\n`,
-    about: { "@type": "Thing", name: o.name, alternateName: designations(o), description: desc || lead },
+    md: `# ${name}\n\n${lead}\n\n${mdFigure(image)}${story.md}${desc ? `${desc}\n\n` : ""}## When and where to see it\n\n${when}\n\n${heights}\n\n## Facts\n\n${facts.map(([k, v]) => `- ${k}: ${v}`).join("\n")}\n\n${cta} ${SITE}/object/${encodeURIComponent(o.id)}\n`,
+    about: { "@type": "Thing", name: o.name, alternateName: designations(o), description: story.tagline ?? (desc || lead) },
   };
 }
 
@@ -297,13 +336,14 @@ function planetContent(p: PlanetMeta): ObjectContent {
   const lead = p.id === "moon" ? "The Moon is Earth's natural satellite and the easiest telescope target of all." : `${p.name} is a planet of the Solar System.`;
   const cta = `Its place changes from night to night: open AstroPilot for tonight's rise, set and best time from your location${p.id === "jupiter" ? ", and where its four Galilean moons are" : ""}.`;
   const image = pageImage(photoOf(p.id), p.name, p.id === "moon" ? "Binoculars show its dark plains; a small telescope shows craters along the shadow line." : `Through a telescope ${p.name} is a small disk.`);
+  const story = storyParts(p.id, p.name);
   return {
     name: p.name,
     image,
     title: p.id === "moon" ? "The Moon tonight — phase, rise and set, what to observe | AstroPilot" : `${p.name} tonight — where to see it and when | AstroPilot`,
     description: `${lead} ${p.blurb}${now ? ` ${now}` : ""}`,
-    html: `<h1>${esc(p.name)}</h1><p>${esc(lead)} ${esc(p.blurb)}</p>${figure(image)}${now ? `<p>${esc(now)}</p>` : ""}<p>${esc(cta)}</p>`,
-    md: `# ${p.name}\n\n${lead} ${p.blurb}\n\n${mdFigure(image)}${now ? `${now}\n\n` : ""}${cta} ${SITE}/object/${p.id}\n`,
+    html: `<h1>${esc(p.name)}</h1><p>${esc(lead)} ${esc(p.blurb)}</p>${figure(image)}${story.html}${now ? `<p>${esc(now)}</p>` : ""}<p>${esc(cta)}</p>`,
+    md: `# ${p.name}\n\n${lead} ${p.blurb}\n\n${mdFigure(image)}${story.md}${now ? `${now}\n\n` : ""}${cta} ${SITE}/object/${p.id}\n`,
     about: { "@type": "Thing", name: p.name, description: p.blurb },
   };
 }
@@ -314,15 +354,16 @@ function moonContent(m: MoonMeta): ObjectContent {
   const lead = `${m.name} (${m.designation}) is a moon of ${planet}, discovered by ${m.discovered.by} in ${m.discovered.year}. It orbits ${planet} every ${period} and shines at about magnitude ${m.mag.toFixed(1)}.`;
   const cta = `Open AstroPilot to see where ${m.name} is next to ${planet} tonight and how easy it is with your telescope.`;
   const image = pageImage(photoOf(m.id), m.name, `Through a telescope ${m.name} is a star-like point next to ${planet}.`);
+  const story = storyParts(m.id, m.name);
   return {
     name: m.name,
     image,
     title: `${m.name}, moon of ${planet} — how to see it | AstroPilot`,
     description: `${lead} ${m.blurb}`,
-    html: `<h1>${esc(m.name)}</h1><p>${esc(lead)}</p>${figure(image)}<p>${esc(m.blurb)}</p><p>Other moons of ${esc(planet)}: ${MOONS.filter((x) => x.parent === m.parent && x.id !== m.id)
+    html: `<h1>${esc(m.name)}</h1><p>${esc(lead)}</p>${figure(image)}${story.html}<p>${esc(m.blurb)}</p><p>Other moons of ${esc(planet)}: ${MOONS.filter((x) => x.parent === m.parent && x.id !== m.id)
       .map((x) => a(`/object/${x.id}`, x.name))
       .join(", ") || "none"}.</p><p>${esc(cta)}</p>`,
-    md: `# ${m.name}\n\n${lead}\n\n${mdFigure(image)}${m.blurb}\n\n${cta} ${SITE}/object/${m.id}\n`,
+    md: `# ${m.name}\n\n${lead}\n\n${mdFigure(image)}${story.md}${m.blurb}\n\n${cta} ${SITE}/object/${m.id}\n`,
     about: { "@type": "Thing", name: m.name, alternateName: [m.designation], description: m.blurb },
   };
 }

@@ -67,7 +67,7 @@ export const DESCRIPTIONS = {
   M59: "An elliptical galaxy in the Virgo Cluster, sharing a medium-power field with M60.",
   M60: "A giant elliptical galaxy in the Virgo Cluster; the small spiral NGC 4647 appears to touch its edge.",
   M61: "One of the largest spirals in the Virgo Cluster, seen face-on; large telescopes show hints of arms around its bright core. Several supernovae have been seen in it.",
-  M62: "A bright, dense globular cluster near the center of the Milky Way, visibly lopsided because of the galaxy's tidal pull.",
+  M62: "A bright, dense globular cluster near the center of the Milky Way. Its brightest part sits off-center, so it looks lopsided in the eyepiece, though the cluster itself is almost perfectly round.",
   M63: "A bright spiral whose short, patchy arms give it the look of a sunflower in photographs; telescopes show an oval glow with a bright, star-like nucleus.",
   M64: "A bright spiral with a dark band of dust across one side of its nucleus — the 'black eye' — which medium telescopes can show.",
   M65: "A bright, tilted spiral in the Leo Triplet, sharing a low-power field with M66 and NGC 3628.",
@@ -115,7 +115,7 @@ export const DESCRIPTIONS = {
   M107: "A loose globular cluster in Ophiuchus, easy to resolve in medium apertures; Helen Sawyer Hogg added it to the Messier list in 1947.",
   M108: "An edge-on barred spiral in Ursa Major, a mottled sliver of light 48′ from the Owl Nebula (M97); the two make a fine pair.",
   M109: "A barred spiral in Ursa Major just southeast of Phecda (Gamma Ursae Majoris); its bar shows as an elongated core in medium telescopes.",
-  M110: "A large elliptical satellite of the Andromeda Galaxy, fainter and more diffuse than M32, northwest of M31's core; it was the last object added to the Messier list, in 1966.",
+  M110: "A large elliptical satellite of the Andromeda Galaxy, fainter and more diffuse than M32, northwest of M31's core; it was the last object added to the Messier list, in 1967.",
 
   // ----------------------------------------------------------------- Caldwell
   NGC188: "One of the oldest open clusters known, about 7 billion years old, less than 5° from the north celestial pole; small telescopes show a faint, rich haze of stars.",

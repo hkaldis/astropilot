@@ -12,3 +12,6 @@ scripts/data/.cache
 .claude/settings.local.json
 .local
 .backups
+scripts/data/stories/cache
+scripts/data/stories/batches
+scripts/data/stories/out

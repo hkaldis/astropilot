@@ -13,6 +13,8 @@ export type GlossaryWidget = "magnitude" | "angular" | "eyepiece" | "bortle" | "
 export interface GlossaryTerm {
   slug: string;
   term: string;
+  /** How to say it, for words people are unsure of: "MESS-ee-ay" (stressed syllable in capitals). */
+  say?: string;
   /** Other names people search for ("DSO", "binary star"). */
   aliases?: string[];
   category: GlossaryCategory;
@@ -142,6 +144,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "nebula",
     term: "Nebula",
+    say: "NEB-yuh-luh; plural nebulae, NEB-yuh-lee",
     aliases: ["nebulae"],
     category: "deep-sky",
     short: "A cloud of gas and dust in space — glowing on its own, reflecting starlight, or blocking the light behind it.",
@@ -265,6 +268,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "asterism",
     term: "Asterism",
+    say: "ASS-tuh-riz-um",
     category: "deep-sky",
     short: "A recognisable pattern of stars that isn't an official constellation, like the Big Dipper or the Coathanger.",
     body: [
@@ -287,6 +291,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "magellanic-clouds",
     term: "Magellanic Clouds",
+    say: "maj-uh-LAN-ik",
     aliases: ["LMC", "SMC", "Large Magellanic Cloud", "Small Magellanic Cloud"],
     category: "deep-sky",
     short: "Two small galaxies orbiting the Milky Way, visible to the naked eye from the southern hemisphere.",
@@ -402,6 +407,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "terminator",
     term: "Terminator",
+    say: "TUR-mih-nay-ter",
     aliases: ["shadow line"],
     category: "solar-system",
     short: "The line between day and night on the Moon or a planet — where shadows are longest and detail is sharpest.",
@@ -416,6 +422,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "mare",
     term: "Mare",
+    say: "MAH-ray; plural maria, MAH-ree-uh",
     aliases: ["maria", "lunar seas"],
     category: "solar-system",
     short: "One of the Moon's dark, smooth plains — ancient lava flows, once mistaken for seas.",
@@ -440,6 +447,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "libration",
     term: "Libration",
+    say: "ly-BRAY-shun",
     category: "solar-system",
     short: "A slow rocking of the Moon as seen from Earth, which over time lets us see 59% of its surface.",
     body: [
@@ -492,6 +500,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "galilean-moons",
     term: "Galilean moons",
+    say: "gal-ih-LEE-un",
     aliases: ["Io", "Europa", "Ganymede", "Callisto"],
     category: "solar-system",
     short: "Jupiter's four large moons — Io, Europa, Ganymede and Callisto — discovered by Galileo in 1610.",
@@ -544,6 +553,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "elongation",
     term: "Elongation",
+    say: "ee-long-GAY-shun",
     aliases: ["greatest elongation"],
     category: "solar-system",
     short: "How far a planet appears from the Sun; Mercury and Venus are easiest to see at their greatest elongation.",
@@ -556,6 +566,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "ecliptic",
     term: "Ecliptic",
+    say: "ih-KLIP-tik",
     aliases: ["zodiac"],
     category: "sky",
     short: "The Sun's yearly path across the sky — the planets and the Moon always stay close to it.",
@@ -581,6 +592,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "occultation",
     term: "Occultation",
+    say: "ok-ul-TAY-shun",
     category: "events",
     short: "When one object passes in front of another and hides it — the Moon covering a star or planet, say.",
     body: [
@@ -707,6 +719,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "azimuth",
     term: "Azimuth",
+    say: "AZ-ih-muth",
     aliases: ["compass direction", "bearing"],
     category: "sky",
     short: "The compass direction of an object along the horizon: 0° north, 90° east, 180° south, 270° west.",
@@ -720,6 +733,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "zenith",
     term: "Zenith",
+    say: "ZEE-nith (or ZEN-ith)",
     category: "sky",
     short: "The point directly overhead — altitude 90°.",
     body: [
@@ -756,6 +770,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "declination",
     term: "Declination",
+    say: "dek-lih-NAY-shun",
     aliases: ["Dec"],
     category: "sky",
     short: "The sky's “latitude”: degrees north (+) or south (−) of the celestial equator.",
@@ -789,6 +804,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "circumpolar",
     term: "Circumpolar",
+    say: "sur-kum-POH-ler",
     category: "sky",
     short: "Never setting: close enough to the celestial pole that, from your latitude, it circles the pole all night.",
     body: [
@@ -936,6 +952,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "bortle-scale",
     term: "Bortle scale",
+    say: "BOR-tul",
     aliases: ["Bortle class"],
     category: "brightness",
     short: "A 1–9 scale of night-sky darkness, from 1 (pristine, the Milky Way casts shadows) to 9 (inner city).",
@@ -1257,6 +1274,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "airy-disk",
     term: "Airy disk",
+    say: "AIR-ee",
     aliases: ["diffraction", "diffraction rings"],
     category: "optics",
     short: "The tiny disk, surrounded by faint rings, that a perfect telescope makes of a star — set by its aperture.",
@@ -1303,6 +1321,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "dobsonian",
     term: "Dobsonian",
+    say: "dob-SOH-nee-un",
     aliases: ["Dob", "truss Dobsonian"],
     category: "optics",
     short: "A Newtonian reflector on a simple rocking-box mount — the easiest way to get a big aperture.",
@@ -1315,6 +1334,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "schmidt-cassegrain",
     term: "Schmidt–Cassegrain",
+    say: "SHMIT KASS-ih-grain",
     aliases: ["SCT", "catadioptric"],
     category: "optics",
     short: "A compact telescope with a mirror and a front corrector plate; long focal length (f/10) in a short tube.",
@@ -1326,6 +1346,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "maksutov",
     term: "Maksutov–Cassegrain",
+    say: "mak-SOO-tov",
     aliases: ["Mak", "Maksutov"],
     category: "optics",
     short: "A compact catadioptric telescope with a thick curved front lens: sharp, slow (f/12–f/15), great for planets and the Moon.",
@@ -1372,6 +1393,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "coma",
     term: "Coma",
+    say: "KOH-muh",
     aliases: ["coma aberration"],
     category: "optics",
     short: "A flaw of Newtonian mirrors that turns stars near the edge of the field into little comets; worse in fast telescopes.",
@@ -1518,6 +1540,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   {
     slug: "messier-catalog",
     term: "Messier catalog",
+    say: "MESS-ee-ay",
     aliases: ["Messier", "M"],
     category: "names",
     short: "Charles Messier's list of 110 bright nebulae and clusters, made in the 1700s — the classic first targets.",
@@ -1741,4 +1764,94 @@ export function searchGlossary(query: string): GlossaryTerm[] {
     if (all) scored.push({ t, score });
   }
   return scored.sort((a, b) => b.score - a.score || sortKey(a.t.term).localeCompare(sortKey(b.t.term))).map((x) => x.t);
+}
+
+/**
+ * Close spellings for a query that matched nothing ("nebulla", "azimut"): terms and other names within a
+ * couple of typing slips, best first.
+ */
+export function suggestGlossary(query: string, limit = 4): GlossaryTerm[] {
+  const q = fold(query).trim();
+  if (q.length < 3) return [];
+  const slips = q.length <= 4 ? 1 : q.length <= 8 ? 2 : 3;
+  const best: { t: GlossaryTerm; d: number }[] = [];
+  for (const t of GLOSSARY) {
+    let d = Infinity;
+    for (const name of [t.term, ...(t.aliases ?? [])].map(fold)) {
+      // The whole name, or one of its words ("azimut" ~ "azimuth", "globlar" ~ "globular cluster").
+      // A match on the whole name beats one on a single word of it.
+      d = Math.min(d, editDistance(q, name.slice(0, q.length + slips)));
+      for (const part of name.split(/[^a-z0-9]+/)) if (part.length >= 3 && part !== name) d = Math.min(d, editDistance(q, part.slice(0, q.length + slips)) + 0.5);
+    }
+    if (d <= slips + 0.5) best.push({ t, d });
+  }
+  return best.sort((a, b) => a.d - b.d || sortKey(a.t.term).localeCompare(sortKey(b.t.term))).slice(0, limit).map((x) => x.t);
+}
+
+/** Optimal string alignment distance: insertions, deletions, substitutions and swapped neighbours. */
+function editDistance(a: string, b: string): number {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  return d[a.length][b.length];
+}
+
+/** Short guided tours through the glossary, each building on the last term. */
+export interface GlossaryPath {
+  id: string;
+  title: string;
+  blurb: string;
+  slugs: string[];
+}
+
+export const GLOSSARY_PATHS: GlossaryPath[] = [
+  {
+    id: "first-night",
+    title: "Your first night out",
+    blurb: "The handful of ideas that make the night sky make sense.",
+    slugs: ["constellation", "asterism", "magnitude", "light-year", "dark-adaptation", "averted-vision", "light-pollution", "bortle-scale", "deep-sky-object"],
+  },
+  {
+    id: "telescope",
+    title: "Getting the most from a telescope",
+    blurb: "Why one eyepiece shows more than another — and when more power shows less.",
+    slugs: ["aperture", "focal-length", "focal-ratio", "eyepiece", "magnification", "exit-pupil", "true-field", "max-magnification", "barlow", "coma-corrector"],
+  },
+  {
+    id: "forecast",
+    title: "Reading the night's forecast",
+    blurb: "A clear sky isn't the whole story: what makes a night good, and for what.",
+    slugs: ["cloud-cover", "transparency", "seeing", "jet-stream", "dew", "twilight", "moonlight", "observing-score"],
+  },
+  {
+    id: "faint-fuzzies",
+    title: "Hunting faint fuzzies",
+    blurb: "Galaxies, nebulae and clusters — and how to coax them out of the dark.",
+    slugs: ["deep-sky-object", "open-cluster", "globular-cluster", "planetary-nebula", "emission-nebula", "galaxy", "surface-brightness", "nebula-filter", "star-hopping"],
+  },
+  {
+    id: "moon-planets",
+    title: "The Moon and planets",
+    blurb: "What to look for on our neighbours, and when they look their best.",
+    slugs: ["the-moon", "phase", "terminator", "planet", "opposition", "elongation", "galilean-moons", "great-red-spot", "saturns-rings"],
+  },
+];
+
+export const GLOSSARY_PATH_BY_ID: Record<string, GlossaryPath> = Object.fromEntries(GLOSSARY_PATHS.map((p) => [p.id, p]));
+
+/** One term per night, the same for everyone, cycling through the whole glossary in a shuffled order. */
+export function wordOfTheNight(date: Date = new Date()): GlossaryTerm {
+  const day = Math.floor((date.getTime() - date.getTimezoneOffset() * 60_000 - 12 * 3_600_000) / 86_400_000); // changes at local noon
+  const order = [...GLOSSARY].filter((t) => t.category !== "astropilot").sort((a, b) => hash(a.slug) - hash(b.slug));
+  return order[((day % order.length) + order.length) % order.length];
+}
+
+function hash(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return h >>> 0;
 }

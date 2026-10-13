@@ -10,6 +10,7 @@ import { registerJournal } from "./journal";
 import { registerForecast } from "./forecast";
 import { registerComets } from "./comets";
 import { registerMoons } from "./moons";
+import { registerStory } from "./story";
 
 export function registerRoutes(app: Express) {
   registerFeatures(app);
@@ -22,5 +23,6 @@ export function registerRoutes(app: Express) {
   registerForecast(app);
   registerComets(app);
   registerMoons(app);
+  registerStory(app);
   registerDonations(app);
 }

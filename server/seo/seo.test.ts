@@ -61,3 +61,12 @@ test("glossary: an index page, a page per term with structured data, and real 40
   // Object pages link their kind to the glossary.
   assert.ok(pageFor("/object/M13").body.includes('href="/glossary/globular-cluster"'));
 });
+
+test("object pages tell the object's story: tagline, facts, distance and when its light set off", () => {
+  const m13 = pageFor("/object/M13").body;
+  assert.match(m13, /Did you know\?/);
+  assert.match(m13, /the light we see from it set off about [\d,]+ years ago, when the last Ice Age/);
+  assert.match(m13, /<dt>Distance<\/dt><dd>[\d,]+ light-years<\/dd>/);
+  assert.match(m13, /<dt>Discovered<\/dt><dd>Edmond Halley, 1714<\/dd>/);
+  assert.match(objectContent("M13")?.md ?? "", /## Did you know\?/);
+});

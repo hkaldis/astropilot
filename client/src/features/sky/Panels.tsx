@@ -46,6 +46,7 @@ import { photoOf } from "@shared/objectImages";
 import { TypeGlyph } from "@/components/common/Glyphs";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { GENERATED_DESC, useStory } from "@/features/object/about/useStory";
 import { bodyTrack } from "@/features/explore/sky";
 import { horizonClass } from "@/features/object/model";
 import { useMoonSystem } from "@/features/moons/useMoonSystem";
@@ -238,8 +239,11 @@ export function InfoPanel(p: InfoProps) {
   const [badPhoto, setBadPhoto] = useState<string | null>(null);
 
   const up = pos ? pos.alt > 0 : false;
-  const desc = obj.dso?.desc ?? moon?.blurb ?? (obj.bodyId && obj.bodyId !== "sun" ? PLANET_BY_ID[obj.bodyId].blurb : null);
   const page = obj.dso?.id ?? obj.moonId ?? (obj.bodyId !== "sun" ? obj.bodyId : undefined);
+  // The story's hook, when there is one, says more than the catalog's generated line.
+  const tagline = useStory(page).data?.story?.tagline ?? null;
+  const rawDesc = obj.dso?.desc ?? moon?.blurb ?? (obj.bodyId && obj.bodyId !== "sun" ? PLANET_BY_ID[obj.bodyId].blurb : null);
+  const desc = rawDesc && tagline && GENERATED_DESC.test(rawDesc) ? null : rawDesc;
 
   const facts: { label: string; value: ReactNode }[] = [];
   if (moon && body) {
@@ -361,7 +365,7 @@ export function InfoPanel(p: InfoProps) {
         </p>
       )}
 
-      {(facts.length > 0 || desc) && (
+      {(facts.length > 0 || desc || tagline) && (
         <div className={cn("flex-col gap-4", more ? "flex" : "hidden lg:flex")}>
           {facts.length > 0 && (
             <div className="grid grid-cols-3 gap-3 border-t pt-3 lg:grid-cols-2">
@@ -370,12 +374,13 @@ export function InfoPanel(p: InfoProps) {
               ))}
             </div>
           )}
+          {tagline && <p className="text-sm font-medium leading-snug text-foreground/85">{tagline}</p>}
           {desc && <p className="text-sm leading-relaxed text-muted-foreground">{desc}</p>}
         </div>
       )}
 
       <div className="flex flex-wrap gap-2">
-        {(facts.length > 0 || desc) && (
+        {(facts.length > 0 || desc || tagline) && (
           <Button variant="ghost" size="sm" className="h-9 lg:hidden" onClick={() => setMore((m) => !m)} aria-expanded={more}>
             {more ? <ChevronUp /> : <ChevronDown />} {more ? "Less" : "More"}
           </Button>

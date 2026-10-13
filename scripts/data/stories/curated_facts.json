@@ -1,0 +1,73 @@
+{
+ "C14": {
+  "d": 7500,
+  "src": "Gaia DR3 (Hunt & Reffert 2023, NGC 869/884)",
+  "age": 14000000
+ },
+ "C99": {
+  "d": 600,
+  "src": "Wikipedia"
+ },
+ "NGC1435": {
+  "d": 440,
+  "src": "Wikipedia"
+ },
+ "IC349": {
+  "d": 440,
+  "src": "Wikipedia"
+ },
+ "NGC1555": {
+  "d": 470,
+  "src": "Wikipedia"
+ },
+ "NGC1973": {
+  "d": 1350,
+  "src": "Wikipedia"
+ },
+ "NGC1975": {
+  "d": 1350,
+  "src": "Wikipedia"
+ },
+ "NGC1999": {
+  "d": 1500,
+  "src": "Wikipedia"
+ },
+ "NGC2071": {
+  "d": 1350,
+  "src": "Wikipedia"
+ },
+ "NGC2174": {
+  "d": 6400,
+  "src": "Wikipedia"
+ },
+ "NGC2237": {
+  "d": 5200,
+  "src": "Wikipedia"
+ },
+ "NGC6188": {
+  "d": 4000,
+  "src": "Wikipedia"
+ },
+ "NGC6729": {
+  "d": 420,
+  "src": "Wikipedia"
+ },
+ "IC405": {
+  "d": 1500,
+  "src": "Wikipedia"
+ },
+ "IC4592": {
+  "d": 420,
+  "src": "Wikipedia"
+ },
+ "HCG92": {
+  "d": 290000000,
+  "src": "Wikipedia"
+ },
+ "M45": {
+  "age": 115000000
+ },
+ "C41": {
+  "age": 625000000
+ }
+}

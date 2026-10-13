@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Info, Loader2 } from "lucide-react";
 import { addDays, currentNightDate, upcomingEvents, formatDate, formatMag, formatTime, nightDateOf, nightOf } from "@shared/astro";
 import type { ObservingSite } from "@shared/api";
 import type { IssPass, SpaceWeather, StationId } from "@shared/forecast";
@@ -11,6 +11,7 @@ import { withParams } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { stagger, useCountUp, useReducedMotion } from "@/lib/motion";
 import { useNow } from "@/hooks/useNow";
+import { Term } from "@/features/glossary/Term";
 
 const KIND_DOT: Record<string, string> = {
   moon: "bg-gold",
@@ -20,6 +21,16 @@ const KIND_DOT: Record<string, string> = {
   eclipse: "bg-q-poor",
   conjunction: "bg-q-fair",
   season: "bg-muted-foreground",
+};
+
+/** The glossary entry that explains each kind of event. */
+const KIND_TERM: Record<string, string> = {
+  moon: "phase",
+  meteor: "meteor-shower",
+  opposition: "opposition",
+  elongation: "elongation",
+  eclipse: "eclipse",
+  conjunction: "conjunction",
 };
 
 export function EventsList({ site, now, tz, hour12, limit = 7 }: { site: ObservingSite; now: number; tz?: string; hour12?: boolean; limit?: number }) {
@@ -65,7 +76,15 @@ export function EventsList({ site, now, tz, hour12, limit = 7 }: { site: Observi
             <span className={cn("absolute inset-0 rounded-full", KIND_DOT[e.kind])} />
           </span>
           <div className="min-w-0">
-            <div className="text-sm font-medium leading-snug">{e.title}</div>
+            <div className="text-sm font-medium leading-snug">
+              {e.title}
+              {KIND_TERM[e.kind] && (
+                <Term slug={/occult/i.test(e.title) ? "occultation" : KIND_TERM[e.kind]} className="ml-1 inline-grid h-5 w-5 place-items-center rounded-full align-[-0.3em] text-muted-foreground no-underline hover:text-primary">
+                  <Info className="h-3.5 w-3.5" />
+                  <span className="sr-only">What does this mean?</span>
+                </Term>
+              )}
+            </div>
             <div className="text-xs text-muted-foreground">{e.detail}</div>
             {e.start !== undefined && e.end !== undefined && (
               <div className="num mt-0.5 text-2xs text-muted-foreground">

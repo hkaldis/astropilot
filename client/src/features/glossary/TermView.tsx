@@ -1,7 +1,7 @@
-import { Suspense, useEffect, useMemo } from "react";
-import { Link } from "wouter";
-import { ArrowLeft, ArrowRight, Lightbulb, Search, Sparkles } from "lucide-react";
-import { GLOSSARY_BY_SLUG, GLOSSARY_CATEGORIES, GLOSSARY_SORTED, plainText, searchGlossary } from "@shared/glossary";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { Link, useSearch } from "wouter";
+import { ArrowLeft, ArrowRight, Check, Link2, Lightbulb, PartyPopper, Search, Share2, Sparkles } from "lucide-react";
+import { GLOSSARY_BY_SLUG, GLOSSARY_CATEGORIES, GLOSSARY_PATH_BY_ID, GLOSSARY_SORTED, plainText, searchGlossary, suggestGlossary, type GlossaryPath } from "@shared/glossary";
 import { MOON_BY_ID, PLANET_BY_ID } from "@shared/astro";
 import { photoOf } from "@shared/objectImages";
 import { TYPE_LABEL } from "@/lib/objects";
@@ -14,6 +14,7 @@ import { RichText } from "./RichText";
 import { Term } from "./Term";
 import { WIDGETS, WIDGET_TITLE } from "./widgets";
 import { CATEGORY_STYLE } from "./style";
+import { markSeen, useSeenTerms } from "./progress";
 
 function BackLink() {
   return (
@@ -45,19 +46,130 @@ function Example({ id }: { id: string }) {
   );
 }
 
+/** Copy or share the term's address. */
+function ShareButton({ title, text }: { title: string; text: string }) {
+  const [copied, setCopied] = useState(false);
+  const share = async () => {
+    const url = location.href.split("?")[0];
+    try {
+      if (navigator.share && matchMedia("(pointer: coarse)").matches) await navigator.share({ title, text, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      }
+    } catch {
+      /* cancelled */
+    }
+  };
+  return (
+    <Button variant="ghost" size="sm" onClick={share} className="text-muted-foreground" aria-live="polite">
+      {copied ? <Check /> : typeof navigator !== "undefined" && "share" in navigator ? <Share2 /> : <Link2 />}
+      {copied ? "Link copied" : "Share"}
+    </Button>
+  );
+}
+
+/** Where you are in a guided path, with a dot per step. */
+function PathBar({ path, slug }: { path: GlossaryPath; slug: string }) {
+  const seen = useSeenTerms();
+  const i = path.slugs.indexOf(slug);
+  return (
+    <div className="mt-3 flex flex-col gap-2 rounded-xl border bg-card px-4 py-3">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <Link href="/glossary#paths" className="min-w-0 truncate font-medium hover:text-primary">
+          {path.title}
+        </Link>
+        <span className="num shrink-0 text-xs text-muted-foreground">
+          {i + 1} of {path.slugs.length}
+        </span>
+      </div>
+      <div className="flex gap-1">
+        {path.slugs.map((s, k) => (
+          <Link
+            key={s}
+            href={`/glossary/${s}?path=${path.id}`}
+            title={GLOSSARY_BY_SLUG[s].term}
+            aria-label={`${k + 1}. ${GLOSSARY_BY_SLUG[s].term}`}
+            aria-current={s === slug ? "step" : undefined}
+            className={cn("h-1.5 flex-1 rounded-full transition-colors", s === slug ? "bg-primary" : seen.has(s) ? "bg-primary/45" : "bg-muted hover:bg-muted-foreground/30")}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The end of a path: a small celebration when every step is read, else the steps still to read. */
+function PathDone({ path }: { path: GlossaryPath }) {
+  const seen = useSeenTerms();
+  const unread = path.slugs.filter((s) => !seen.has(s));
+  if (unread.length)
+    return (
+      <div className="mt-10 rounded-2xl border bg-card p-5">
+        <div className="font-semibold">Last step of “{path.title}”</div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {path.slugs.length - unread.length} of {path.slugs.length} read. Still to read:{" "}
+          {unread.map((s, i) => (
+            <span key={s}>
+              {i > 0 && ", "}
+              <Link href={`/glossary/${s}?path=${path.id}`} className="link">
+                {GLOSSARY_BY_SLUG[s].term}
+              </Link>
+            </span>
+          ))}
+          .
+        </p>
+      </div>
+    );
+  return (
+    <div className="relative mt-10 overflow-hidden rounded-2xl border border-q-excellent/30 bg-q-excellent/[0.06] p-5 text-center">
+      <div className="confetti" aria-hidden="true">
+        {Array.from({ length: 14 }, (_, k) => (
+          <span key={k} style={{ "--i": k } as React.CSSProperties} />
+        ))}
+      </div>
+      <PartyPopper className="mx-auto h-7 w-7 text-q-excellent" />
+      <div className="mt-2 font-display text-2xl">Path complete</div>
+      <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+        You've worked through “{path.title}”. Pick another path, or put it to use under tonight's sky.
+      </p>
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        <Button asChild>
+          <Link href="/glossary#paths">More paths</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/">Tonight's sky</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function TermView({ slug }: { slug: string }) {
   const t = GLOSSARY_BY_SLUG[slug];
+  const pathId = new URLSearchParams(useSearch()).get("path");
+  const path = pathId && GLOSSARY_PATH_BY_ID[pathId]?.slugs.includes(slug) ? GLOSSARY_PATH_BY_ID[pathId] : null;
   usePageTitle(t ? `${t.term} — glossary` : "Glossary");
   useEffect(() => {
     window.scrollTo({ top: 0 });
+    if (GLOSSARY_BY_SLUG[slug]) markSeen(slug);
   }, [slug]);
+  // Previous and next: along the path when following one, else alphabetical.
   const [prev, next] = useMemo(() => {
+    if (path) {
+      const i = path.slugs.indexOf(slug);
+      return [i > 0 ? GLOSSARY_BY_SLUG[path.slugs[i - 1]] : null, i < path.slugs.length - 1 ? GLOSSARY_BY_SLUG[path.slugs[i + 1]] : null];
+    }
     const i = GLOSSARY_SORTED.findIndex((x) => x.slug === slug);
     return [GLOSSARY_SORTED[(i - 1 + GLOSSARY_SORTED.length) % GLOSSARY_SORTED.length], GLOSSARY_SORTED[(i + 1) % GLOSSARY_SORTED.length]];
-  }, [slug]);
+  }, [slug, path]);
+  const q = path ? `?path=${path.id}` : "";
 
   if (!t) {
-    const close = searchGlossary(slug.replace(/-/g, " ")).slice(0, 6);
+    const words = slug.replace(/-/g, " ");
+    const found = searchGlossary(words).slice(0, 6);
+    const close = found.length ? found : suggestGlossary(words, 6);
     return (
       <div className="flex flex-col gap-6">
         <BackLink />
@@ -95,13 +207,27 @@ export function TermView({ slug }: { slug: string }) {
 
   return (
     <article className="mx-auto flex w-full max-w-3xl flex-col">
-      <BackLink />
+      <div className="flex items-center justify-between gap-2">
+        <BackLink />
+        <ShareButton title={`${t.term} — AstroPilot glossary`} text={plainText(t.short)} />
+      </div>
+      {path && <PathBar path={path} slug={slug} />}
       <header className="mt-3 flex animate-rise flex-col gap-3">
         <Link href={`/glossary?c=${t.category}`} className={cn("inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium", st.tint)}>
           <Icon className="h-3.5 w-3.5" /> {cat.label}
         </Link>
         <h1 className="font-display text-[2.4rem] leading-[1.05] tracking-tight sm:text-[3rem]">{t.term}</h1>
-        {t.aliases && t.aliases.length > 0 && <p className="-mt-1 text-sm text-muted-foreground">Also: {t.aliases.join(" · ")}</p>}
+        {(t.say || (t.aliases && t.aliases.length > 0)) && (
+          <p className="-mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            {t.say && (
+              <span>
+                <span className="eyebrow mr-1.5 text-[10px]">Say it</span>
+                {t.say}
+              </span>
+            )}
+            {t.aliases && t.aliases.length > 0 && <span>Also: {t.aliases.join(" · ")}</span>}
+          </p>
+        )}
         <p className="text-lg leading-relaxed text-foreground/90">
           <RichText text={t.short} />
         </p>
@@ -184,19 +310,29 @@ export function TermView({ slug }: { slug: string }) {
         </section>
       )}
 
-      <nav className="mt-10 grid grid-cols-2 gap-3 border-t pt-6" aria-label="More terms">
-        <Link href={`/glossary/${prev.slug}`} className="group flex flex-col gap-0.5 rounded-xl border p-3 hover:border-primary/40">
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <ArrowLeft className="h-3.5 w-3.5" /> Previous
-          </span>
-          <span className="truncate font-medium group-hover:text-primary">{prev.term}</span>
-        </Link>
-        <Link href={`/glossary/${next.slug}`} className="group flex flex-col items-end gap-0.5 rounded-xl border p-3 text-right hover:border-primary/40">
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            Next <ArrowRight className="h-3.5 w-3.5" />
-          </span>
-          <span className="truncate font-medium group-hover:text-primary">{next.term}</span>
-        </Link>
+      {path && !next && <PathDone path={path} />}
+      <nav className={cn("mt-10 grid grid-cols-2 gap-3 border-t pt-6", path && !next && "mt-6")} aria-label={path ? `${path.title}: more steps` : "More terms"}>
+        {prev ? (
+          <Link href={`/glossary/${prev.slug}${q}`} className="group flex flex-col gap-0.5 rounded-xl border p-3 hover:border-primary/40">
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <ArrowLeft className="h-3.5 w-3.5" /> Previous
+            </span>
+            <span className="truncate font-medium group-hover:text-primary">{prev.term}</span>
+          </Link>
+        ) : (
+          <span />
+        )}
+        {next && (
+          <Link
+            href={`/glossary/${next.slug}${q}`}
+            className={cn("group flex flex-col items-end gap-0.5 rounded-xl border p-3 text-right hover:border-primary/40", path && "border-primary/40 bg-primary/[0.06]")}
+          >
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              {path ? "Next step" : "Next"} <ArrowRight className="h-3.5 w-3.5" />
+            </span>
+            <span className="truncate font-medium group-hover:text-primary">{next.term}</span>
+          </Link>
+        )}
       </nav>
       <p className="mt-6 text-center text-xs text-muted-foreground">{plainText(cat.blurb)}</p>
     </article>
