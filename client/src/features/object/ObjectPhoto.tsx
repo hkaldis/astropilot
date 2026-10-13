@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { Maximize2 } from "lucide-react";
+import { Lightbox } from "@/components/common/Lightbox";
 import { SURVEY_CREDIT, fieldText, moonCompare, photoOf } from "@shared/objectImages";
 import { cn } from "@/lib/utils";
 import type { Subject } from "./model";
@@ -21,6 +23,8 @@ export function ObjectPhoto({ subject, className }: { subject: Subject; classNam
   const photo = photoOf(subject.id, subject.kind === "deep" ? subject.obj : null);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [full, setFull] = useState(false);
+  const closeFull = useCallback(() => setFull(false), []);
   if (!photo || failed) return null;
 
   let caption: React.ReactNode;
@@ -54,13 +58,20 @@ export function ObjectPhoto({ subject, className }: { subject: Subject; classNam
     );
   }
 
+  const alt = photo.kind === "survey" ? `${subject.name}: sky-survey photograph, north up` : `${subject.name}`;
   return (
     <figure className={cn("flex flex-col gap-2", className)}>
-      <div className="relative aspect-square overflow-hidden rounded-2xl border bg-black">
+      <button
+        type="button"
+        onClick={() => setFull(true)}
+        disabled={!loaded}
+        className="group relative block aspect-square cursor-zoom-in overflow-hidden rounded-2xl border bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={`View the picture of ${subject.name} full screen`}
+      >
         {!loaded && <div className="skeleton absolute inset-0" aria-hidden="true" />}
         <img
           src={photo.src}
-          alt={photo.kind === "survey" ? `${subject.name}: sky-survey photograph, north up` : `${subject.name}`}
+          alt={alt}
           width={512}
           height={512}
           decoding="async"
@@ -75,8 +86,24 @@ export function ObjectPhoto({ subject, className }: { subject: Subject; classNam
             <span className="num absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white/85">{fieldText(photo.fovArcmin)}</span>
           </>
         )}
-      </div>
+        {loaded && (
+          <span className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/55 text-white/90 backdrop-blur-sm transition-transform group-hover:scale-110" aria-hidden="true">
+            <Maximize2 className="h-4 w-4" />
+          </span>
+        )}
+      </button>
       <figcaption className="text-2xs leading-relaxed text-muted-foreground">{caption}</figcaption>
+      <Lightbox open={full} onClose={closeFull} title={subject.name} caption={caption}>
+        <div className="relative inline-block max-h-full max-w-full">
+          <img src={photo.src} alt={alt} draggable={false} className="block max-h-[calc(100dvh-9rem)] w-auto max-w-full object-contain" />
+          {photo.kind === "survey" && (
+            <>
+              <span className="absolute left-1/2 top-2 -translate-x-1/2 text-xs font-semibold text-white/80 [text-shadow:0_1px_2px_#000]">N</span>
+              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-semibold text-white/80 [text-shadow:0_1px_2px_#000]">E</span>
+            </>
+          )}
+        </div>
+      </Lightbox>
     </figure>
   );
 }

@@ -1,4 +1,6 @@
-import { useId, useMemo } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
+import { Maximize2 } from "lucide-react";
+import { Lightbox } from "@/components/common/Lightbox";
 import { bvTemperature, colourWord, starRgb } from "@shared/starColor";
 import { cn } from "@/lib/utils";
 
@@ -57,17 +59,36 @@ export function StarArt({ bv, mag = 2, seed = 1, className, twinkle = true }: { 
 export function StarPortrait({ name, bv, sp, mag, className }: { name: string; bv?: number; sp?: string; mag?: number; className?: string }) {
   const word = colourWord(bv);
   const temp = bv !== undefined ? Math.round(bvTemperature(bv) / 100) * 100 : null;
+  const [full, setFull] = useState(false);
+  const closeFull = useCallback(() => setFull(false), []);
+  const seed = name.length * 7 + name.charCodeAt(0);
+  const caption = (
+    <>
+      {name} painted in its true colour{word ? ` — ${word}` : ""}
+      {temp ? `, a surface near ${temp.toLocaleString("en-US")} K` : ""}
+      {sp ? ` (spectral type ${sp})` : ""}. Through a telescope a star stays a point of light at any power; its colour is the thing to look for.
+    </>
+  );
   return (
     <figure className={cn("flex flex-col gap-2", className)}>
-      <div className="relative aspect-square overflow-hidden rounded-2xl border bg-black">
-        <StarArt bv={bv} mag={mag} seed={name.length * 7 + name.charCodeAt(0)} />
+      <button
+        type="button"
+        onClick={() => setFull(true)}
+        className="group relative block aspect-square cursor-zoom-in overflow-hidden rounded-2xl border bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={`View ${name} full screen`}
+      >
+        <StarArt bv={bv} mag={mag} seed={seed} />
         {word && <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white/85">{word}</span>}
-      </div>
-      <figcaption className="text-2xs leading-relaxed text-muted-foreground">
-        {name} painted in its true colour{word ? ` — ${word}` : ""}
-        {temp ? `, a surface near ${temp.toLocaleString("en-US")} K` : ""}
-        {sp ? ` (spectral type ${sp})` : ""}. Through a telescope a star stays a point of light at any power; its colour is the thing to look for.
-      </figcaption>
+        <span className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/55 text-white/90 backdrop-blur-sm transition-transform group-hover:scale-110" aria-hidden="true">
+          <Maximize2 className="h-4 w-4" />
+        </span>
+      </button>
+      <figcaption className="text-2xs leading-relaxed text-muted-foreground">{caption}</figcaption>
+      <Lightbox open={full} onClose={closeFull} title={name} caption={caption}>
+        <div className="aspect-square h-auto max-h-[calc(100dvh-9rem)] w-full max-w-[calc(100dvh-9rem)]">
+          <StarArt bv={bv} mag={mag} seed={seed} />
+        </div>
+      </Lightbox>
     </figure>
   );
 }

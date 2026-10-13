@@ -24,7 +24,8 @@ export function registerStory(app: Express) {
         res.status(404).json({ message: "No story for that object" });
         return;
       }
-      res.setHeader("Cache-Control", "public, max-age=86400");
+      // An hour, then refreshed in the background: new stories reach people soon after a deploy.
+      res.setHeader("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
       res.json(data);
     }),
   );

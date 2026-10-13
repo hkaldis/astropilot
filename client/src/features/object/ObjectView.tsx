@@ -37,6 +37,7 @@ import { MoonSystemPanel } from "@/features/moons/MoonSystemPanel";
 import { ObjectActions } from "./ObjectActions";
 import { ObjectPhoto } from "./ObjectPhoto";
 import { StarPortrait } from "./StarPortrait";
+import { ShareObject } from "./ShareObject";
 import { bvTemperature, colourWord } from "@shared/starColor";
 import { Term } from "@/features/glossary/Term";
 import { TYPE_TERM } from "@shared/glossaryTerms";
@@ -359,7 +360,10 @@ function SubjectPage({ subject }: { subject: Subject }) {
 
   return (
     <div className="flex flex-col">
-      <BackLink />
+      <div className="flex items-center justify-between gap-2">
+        <BackLink />
+        <ShareObject id={subject.id} name={subject.name} className="-mr-2 text-muted-foreground" />
+      </div>
 
       {/* ------------------------------------------------------------ header */}
       {/* Phones: title, photo, actions, figures. Wider: the photo sits beside the title and actions. */}

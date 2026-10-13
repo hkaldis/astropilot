@@ -328,7 +328,10 @@ function dsoContent(o: CatalogEntry): ObjectContent {
     name,
     image,
     title: `${name} — when and how to see it | AstroPilot`,
-    description: `${lead} Best in the evening around ${f.eveningMonth}. See when it's highest tonight from your location and how easy it is with your telescope.`,
+    // The story's hook makes the better link preview when someone shares the page.
+    description: story.tagline
+      ? `${story.tagline} ${name} is best in the evening around ${f.eveningMonth}: see when it's highest tonight from your location and how easy it is with your telescope.`
+      : `${lead} Best in the evening around ${f.eveningMonth}. See when it's highest tonight from your location and how easy it is with your telescope.`,
     html: `<h1>${esc(name)}</h1><p>${esc(lead)}</p>${figure(image)}${story.html}${desc ? `<p>${esc(desc)}</p>` : ""}${
       TYPE_TERM[o.type] ? `<p>${a(`/glossary/${TYPE_TERM[o.type]}`, `What is ${/^[aeiou]/i.test(type) ? "an" : "a"} ${type.toLowerCase()}?`)}</p>` : ""
     }<h2>When and where to see it</h2><p>${esc(when)}</p><p>${esc(heights)}</p><h2>Facts</h2><dl>${facts
@@ -349,7 +352,7 @@ function planetContent(p: PlanetMeta): ObjectContent {
     name: p.name,
     image,
     title: p.id === "moon" ? "The Moon tonight — phase, rise and set, what to observe | AstroPilot" : `${p.name} tonight — where to see it and when | AstroPilot`,
-    description: `${lead} ${p.blurb}${now ? ` ${now}` : ""}`,
+    description: story.tagline ? `${story.tagline} ${p.blurb}${now ? ` ${now}` : ""}` : `${lead} ${p.blurb}${now ? ` ${now}` : ""}`,
     html: `<h1>${esc(p.name)}</h1><p>${esc(lead)} ${esc(p.blurb)}</p>${figure(image)}${story.html}${now ? `<p>${esc(now)}</p>` : ""}<p>${esc(cta)}</p>`,
     md: `# ${p.name}\n\n${lead} ${p.blurb}\n\n${mdFigure(image)}${story.md}${now ? `${now}\n\n` : ""}${cta} ${SITE}/object/${p.id}\n`,
     about: { "@type": "Thing", name: p.name, description: p.blurb },
@@ -367,7 +370,7 @@ function moonContent(m: MoonMeta): ObjectContent {
     name: m.name,
     image,
     title: `${m.name}, moon of ${planet} — how to see it | AstroPilot`,
-    description: `${lead} ${m.blurb}`,
+    description: story.tagline ? `${story.tagline} ${lead}` : `${lead} ${m.blurb}`,
     html: `<h1>${esc(m.name)}</h1><p>${esc(lead)}</p>${figure(image)}${story.html}<p>${esc(m.blurb)}</p><p>Other moons of ${esc(planet)}: ${MOONS.filter((x) => x.parent === m.parent && x.id !== m.id)
       .map((x) => a(`/object/${x.id}`, x.name))
       .join(", ") || "none"}.</p><p>${esc(cta)}</p>`,
