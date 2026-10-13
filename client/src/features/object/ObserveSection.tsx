@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Filter, Info } from "lucide-react";
-import { filterAdvice, formatMag, formatTime, idealMagnification, rankEyepieces, resolutionArcsec, scopeLimits, type EyepieceChoice, type MoonPos } from "@shared/astro";
+import { comaArcsec, filterAdvice, formatMag, formatTime, idealMagnification, rankEyepieces, resolutionArcsec, scopeLimits, type EyepieceChoice, type MoonPos } from "@shared/astro";
 import { useGear } from "@/hooks/useScope";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -91,7 +91,14 @@ export function ObserveSection({
   const limits = scopeLimits(scope.scope);
   // Alternatives are your own eyepieces; a Barlow combination is shown only when it's the best you have.
   const natives = choices.filter((c) => !c.barlow && c.verdict !== "poor");
-  const options = (choices[0]?.barlow ? [choices[0], ...natives] : natives.length ? natives : choices.slice(0, 1)).slice(0, 3);
+  let options = (choices[0]?.barlow ? [choices[0], ...natives] : natives.length ? natives : choices.slice(0, 1)).slice(0, 3);
+  // The Moon: the close-up comes first, and the best view of the whole disk is always one of the options.
+  if (target.type === "moon" && sizeArcmin) {
+    const fits = (c: EyepieceChoice) => c.setup.trueField * 60 >= sizeArcmin * 1.2;
+    const whole = choices.find((c) => !c.barlow && fits(c)) ?? choices.find(fits);
+    // Scored against close-up power it looks weak, but for its own purpose — the whole disk — it's good.
+    if (whole && !options.includes(whole)) options = [...options.slice(0, 2), whole.verdict === "usable" || whole.verdict === "poor" ? { ...whole, verdict: "good" } : whole];
+  }
   const [sel, setSel] = useState(0);
   const chosen = options[Math.min(sel, options.length - 1)];
   const at = tonight.bestTime ?? ctx.now;
@@ -245,6 +252,22 @@ export function ObserveSection({
                 With your {scope.corrector.name ?? "coma corrector"} in the focuser, as it should be for every eyepiece on a fast Newtonian
                 {Math.abs(scope.corrector.factor - 1) > 0.02 ? ` — the powers include its ${scope.corrector.factor}×` : ""}. Barlows only come up when none
                 of your eyepieces gives the power on its own.
+                {(target.type === "planet" || target.type === "moon" || target.type === "satellite") &&
+                  (() => {
+                    // Coma is nil at the centre, but an untracked Dob lets the planet drift to the edge between nudges.
+                    const native = scope.scope.focalLength / scope.corrector.factor / scope.scope.aperture;
+                    const edge = (chosen.setup.trueField * 60) / 2;
+                    const what = target.type === "moon" ? "the Moon" : "planets";
+                    return (
+                      <>
+                        {" "}
+                        Keep it in for {what} too: at f/{native.toFixed(1)} coma would smear detail by about{" "}
+                        <span className="num">{Math.round(comaArcsec(native, edge))}″</span> at the edge of this{" "}
+                        <span className="num">{Math.round(edge * 2)}′</span> field
+                        {target.type === "moon" ? ", across the terminator" : ", where an untracked Dob lets the planet drift between nudges"}.
+                      </>
+                    );
+                  })()}
               </p>
             )}
             {scope.source === "preset" && (

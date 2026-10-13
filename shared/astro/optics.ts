@@ -58,6 +58,14 @@ export function takesComaCorrector(t: ScopeSpec & { type?: string | null; name?:
   return newtonian && t.focalLength / t.aperture < 5.5;
 }
 
+/**
+ * Length of a paraboloid's coma blur (tangential), in arcseconds, for a star `offAxisArcmin` from the centre
+ * of the field: 3θ / (16 N²). It's zero in the middle and grows straight out to the edge.
+ */
+export function comaArcsec(fRatio: number, offAxisArcmin: number): number {
+  return ((3 * offAxisArcmin) / (16 * fRatio * fRatio)) * 60;
+}
+
 export interface OpticalTrain {
   /** The telescope as its eyepieces see it: with the corrector's extra focal length. */
   scope: ScopeSpec;
@@ -162,7 +170,8 @@ export function viewKind(o: TargetLike & { id?: string }): ViewKind {
     case "globular_cluster":
       return "globular";
     case "planetary_nebula":
-      return size && size > 2 ? "planetary_large" : "planetary_small";
+      // The Helix and other huge, faint planetaries want low power and a big exit pupil, like any nebula.
+      return size >= 10 ? "nebula" : size > 2 ? "planetary_large" : "planetary_small";
     case "galaxy":
     case "galaxy_group":
       return size >= 40 ? "galaxy_large" : size >= 6 ? "galaxy" : "galaxy_small";
@@ -182,13 +191,13 @@ export function viewKind(o: TargetLike & { id?: string }): ViewKind {
 /** Target exit pupil (mm) range and ideal for each kind of view. */
 const PUPIL: Record<ViewKind, { min: number; ideal: number; max: number; why: string }> = {
   planet: { min: 0.5, ideal: 0.8, max: 1.3, why: "high power for fine planetary detail" },
-  moon: { min: 0.6, ideal: 1.2, max: 3, why: "crisp terminator detail" },
+  moon: { min: 0.6, ideal: 1.2, max: 3, why: "high power for craters and mountains along the shadow line" },
   double: { min: 0.5, ideal: 1, max: 2, why: "enough power to separate the pair" },
   globular: { min: 0.8, ideal: 1.3, max: 2.2, why: "high power resolves the cluster into stars" },
   planetary_small: { min: 0.6, ideal: 1, max: 1.8, why: "magnify the tiny disk above the star field" },
   planetary_large: { min: 1.5, ideal: 2.5, max: 4, why: "a medium exit pupil keeps this large planetary bright" },
-  galaxy_small: { min: 1.2, ideal: 2, max: 3, why: "moderate power darkens the background around a compact galaxy" },
-  galaxy: { min: 1.8, ideal: 3, max: 4.5, why: "medium power balances contrast and brightness" },
+  galaxy_small: { min: 1, ideal: 1.7, max: 2.6, why: "moderate-high power darkens the background and enlarges a compact galaxy" },
+  galaxy: { min: 1.8, ideal: 2.5, max: 4, why: "medium power balances contrast and brightness" },
   galaxy_large: { min: 3.5, ideal: 5, max: 7, why: "low power to fit the whole galaxy" },
   nebula: { min: 2.5, ideal: 4, max: 6, why: "a large exit pupil keeps faint nebulosity bright (ideal with a filter)" },
   nebula_large: { min: 4, ideal: 5.5, max: 7, why: "the widest, brightest view for a sprawling nebula" },
@@ -221,15 +230,34 @@ export interface RecommendOptions {
  * Your own eyepieces come first. A Barlow adds glass, length and weight to the focuser; stacked on a coma
  * corrector it also moves the eyepiece away from where the corrector expects it (Tele Vue only documents
  * its Powermates for that). So a Barlow combination has to be clearly better to be suggested, and one that
- * repeats a power an eyepiece already gives on its own (within 15%) is all but ruled out.
+ * repeats a power an eyepiece already gives on its own (within 30%) is all but ruled out.
  */
 const BARLOW_COST = 0.88;
 const BARLOW_ON_CORRECTOR_COST = 0.8;
 const BARLOW_REPEATS_COST = 0.55;
 
-function gaussLog(x: number, ideal: number, width: number) {
-  const d = Math.log(x / ideal) / Math.log(width);
+/**
+ * How close a magnification is to the ideal (1 at the ideal, falling off on a log scale). `over` makes
+ * overshooting cost more than falling short: for the Moon, planets and doubles the air rarely holds the
+ * highest powers, so observers start lower and go up only when the seeing allows.
+ */
+function gaussLog(x: number, ideal: number, width: number, over = 1) {
+  let d = Math.log(x / ideal) / Math.log(width);
+  if (d > 0) d *= over;
   return Math.exp(-d * d);
+}
+
+/** Kinds whose best power is set by the steadiness of the air. */
+const SEEING_LIMITED = new Set<ViewKind>(["planet", "moon", "satellite", "double"]);
+const OVERSHOOT = 1.35;
+
+/**
+ * Comfortable power for a double star: about 2–3× what just splits it (800/sep^0.9), more when the
+ * companion is much fainter — it has to be pulled out of the primary's glare (Rigel, Antares, Polaris).
+ */
+export function doublePower(sep: number, mag?: number, mag2?: number): number {
+  const dm = mag !== undefined && mag2 !== undefined ? Math.abs(mag2 - mag) : 0;
+  return (800 / Math.pow(sep, 0.9)) * (1 + 0.12 * Math.max(0, dm - 2));
 }
 
 /** A zoom eyepiece's focal-length range, read from its name ("8–24 mm zoom"); null for fixed eyepieces. */
@@ -297,26 +325,40 @@ export function rankEyepieces(
 
   const setups = combos.map(({ e, b }) => ({ e, b, s: setup(scope, e, b) }));
   const widestField = Math.max(...setups.map((x) => x.s.trueField)) * 60; // arcmin
-  const ownPowers = setups.filter((x) => !x.b).map((x) => x.s.magnification);
+  // Powers your eyepieces give alone — not counting any too low to split the double (then a Barlow is no luxury).
+  const splitNeed = kind === "double" && target.sep ? 240 / target.sep : 0;
+  const ownPowers = setups.filter((x) => !x.b && x.s.magnification >= splitNeed).map((x) => x.s.magnification);
+  const tightPair = kind === "double" && !!target.sep && target.sep < 3 * lim.dawes;
   // Doubles: wide pairs look best at low-medium power (colour, context); close pairs need high power.
-  const doubleIdealMag = kind === "double" && target.sep ? clamp(800 / Math.pow(target.sep, 0.9), lim.minUsefulMag, seeingCap) : null;
+  const doubleIdealMag = kind === "double" && target.sep ? clamp(doublePower(target.sep, target.mag, target.mag2), lim.minUsefulMag, seeingCap) : null;
+  // Overshooting only hurts where the air limits the view: not wide doubles, which split at any power.
+  const over = SEEING_LIMITED.has(kind) && !(kind === "double" && (target.sep ?? 0) >= 5) ? OVERSHOOT : 1;
 
   const results = setups.map(({ e, b, s }) => {
     const reasons: string[] = [];
+    // A wide pair (10″ or more: Albireo, Mizar) looks as good anywhere from its ideal to 2.5× that.
+    const wide = doubleIdealMag !== null && (target.sep ?? 0) >= 10;
+    const wideBand = wide && s.magnification >= doubleIdealMag! && s.magnification <= doubleIdealMag! * 2.5;
     let score =
       doubleIdealMag !== null
-        ? 100 * gaussLog(s.magnification, doubleIdealMag, 2.2)
-        : 100 * gaussLog(s.magnification, idealMag, width);
+        ? wideBand
+          ? 100
+          : 100 * gaussLog(wide && s.magnification > doubleIdealMag ? s.magnification / 2.5 : s.magnification, doubleIdealMag, 2.2, over)
+        : 100 * gaussLog(s.magnification, idealMag, width, over);
 
-    // Framing: extended objects should fit with some margin.
-    if (size > 0 && kind !== "planet" && kind !== "double") {
+    // Framing: extended objects should fit with some margin. (The Moon is mostly a close-up target; the
+    // object page adds the best whole-disk view as an alternative.)
+    if (size > 0 && kind !== "planet" && kind !== "double" && kind !== "moon") {
       const fieldArcmin = s.trueField * 60;
       const fill = size / fieldArcmin;
       if (fill > 1.05) {
         if (size > widestField * 1.05) {
-          // Nothing you own frames it: judge against your widest view instead.
+          // Nothing you own frames it: judge against your widest view instead — which is then as good as it gets.
           score *= clamp(Math.pow(fieldArcmin / widestField, 1.5), 0.15, 1);
-          if (fieldArcmin >= widestField * 0.98) reasons.push(`the ${size.toFixed(0)}′ object is wider than your widest field (${fieldArcmin.toFixed(0)}′) — you'll see the bright core`);
+          if (fieldArcmin >= widestField * 0.98) {
+            score = Math.max(score, 55);
+            reasons.push(`the ${size.toFixed(0)}′ object is wider than your widest field (${fieldArcmin.toFixed(0)}′) — you'll see the bright core`);
+          }
         } else {
           score *= clamp(1 / (fill * fill), 0.15, 1);
           reasons.push(`field ${fieldArcmin.toFixed(0)}′ is smaller than the ${size.toFixed(0)}′ object`);
@@ -327,8 +369,8 @@ export function rankEyepieces(
     }
 
     if (kind === "moon") {
-      if (s.trueField >= 0.6) reasons.push("whole lunar disk in view");
-      else reasons.push("close-up of craters and the terminator");
+      if (s.trueField * 60 >= (size || 31) * 1.2) reasons.push("the whole lunar disk in view, with a little sky around it");
+      else reasons.push("a close-up of craters and mountains along the terminator");
     }
 
     // Doubles: magnification must split the pair comfortably (~240″ / separation).
@@ -346,13 +388,15 @@ export function rankEyepieces(
       score *= s.magnification > lim.maxTheoreticalMag ? 0.15 : 0.55;
       reasons.push(`${Math.round(s.magnification)}× is above what the scope or typical seeing supports`);
     }
+    // Below a 0.7 mm exit pupil the image turns dim and soft; only pairs near the resolution limit need it.
+    if (s.exitPupil < 0.7 && !tightPair) score *= 0.9;
     if (s.exitPupil > 7.2) {
       score *= 0.6;
       reasons.push("exit pupil wider than a dark-adapted eye — wastes light");
     }
     if (b) {
       score *= opts.corrector ? BARLOW_ON_CORRECTOR_COST : BARLOW_COST;
-      const twin = ownPowers.find((m) => Math.abs(Math.log(m / s.magnification)) < Math.log(1.15));
+      const twin = ownPowers.find((m) => Math.abs(Math.log(m / s.magnification)) < Math.log(1.3));
       if (twin !== undefined) score *= BARLOW_REPEATS_COST;
       else reasons.push(`no eyepiece of yours gives ${Math.round(s.magnification)}× on its own`);
       if (opts.corrector) reasons.push(`stacked on your ${opts.corrector.name ?? "coma corrector"}: if the view softens, a Powermate (or a shorter eyepiece) works better`);
@@ -379,9 +423,9 @@ export function idealMagnification(scope: ScopeSpec, target: TargetLike & { id?:
   const rule = PUPIL[kind];
   const lim = scopeLimits(scope);
   let mag = scope.aperture / rule.ideal;
-  if (kind === "double" && target.sep) mag = 800 / Math.pow(target.sep, 0.9);
+  if (kind === "double" && target.sep) mag = doublePower(target.sep, target.mag, target.mag2);
   const size = opts.sizeArcmin ?? target.size?.[0];
-  if (size && kind !== "planet" && kind !== "double") {
+  if (size && kind !== "planet" && kind !== "double" && kind !== "moon") {
     const maxForField = (DEFAULT_AFOV * 60) / (size * 1.3);
     mag = Math.min(mag, maxForField);
   }

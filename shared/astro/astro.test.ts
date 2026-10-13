@@ -12,6 +12,8 @@ import {
   sqmForBortle,
   rankEyepieces,
   opticalTrain,
+  doublePower,
+  comaArcsec,
   bodyState,
   moonQuarters,
   formatDec,
@@ -170,6 +172,32 @@ test("a coma corrector stays in on a fast Newtonian, and Barlows only fill real 
   const m13 = rankEyepieces(dob.scope, sparse, dob.barlows, { type: "globular_cluster", size: [20] }, opts);
   assert.equal(m13[0].barlow?.id, 2);
   assert.ok(m13[0].reasons.some((r) => /no eyepiece of yours gives/.test(r)));
+});
+
+test("eyepiece advice across telescopes: Moon close-ups, the Helix, unequal doubles, small scopes", () => {
+  const dob16 = opticalTrain({ aperture: 406, focalLength: 1828, type: "dobsonian" }, [{ id: 1, name: "Paracorr", factor: 1.15 }]);
+  const es82 = [30, 24, 14, 8.8, 6.7].map((f) => ({ focalLength: f, afov: 82 }));
+  // The Moon: a close-up first; a whole-disk view is still among the choices.
+  const moon = rankEyepieces(dob16.scope, es82, [], { type: "moon" }, { sizeArcmin: 31, corrector: dob16.corrector });
+  assert.ok(moon[0].setup.magnification > 150 && moon[0].setup.trueField * 60 < 31);
+  assert.ok(moon.some((c) => c.setup.trueField * 60 >= 33));
+  // The Helix is huge and faint: low power, not a small planetary's high power.
+  const helix = rankEyepieces(dob16.scope, es82, [], { type: "planetary_nebula", size: [16.3] }, { corrector: dob16.corrector });
+  assert.ok(helix[0].setup.exitPupil >= 3.5, `${helix[0].setup.exitPupil}`);
+  // A faint companion in a bright star's glare needs more power than the separation alone suggests.
+  assert.ok(doublePower(9.4, 0.3, 6.8) > doublePower(9.4, 5, 5.5) * 1.4);
+  // A 6″ f/8 with only 25 and 10 mm and a Barlow: Jupiter at 120×, not a Barlowed 240× the air rarely holds.
+  const six = rankEyepieces({ aperture: 150, focalLength: 1200 }, [25, 10].map((f) => ({ focalLength: f, afov: 52 })), [{ id: 2, factor: 2 }], { type: "planet" }, { sizeArcmin: 0.75 });
+  assert.equal(six[0].barlow, null);
+  // An 80 mm needs its Barlow to split ε Lyrae (114×): the 6 mm's 100× doesn't count as "the same power".
+  const kit80 = [25, 10, 6].map((f) => ({ focalLength: f, afov: 52 }));
+  const eps = rankEyepieces({ aperture: 80, focalLength: 600 }, kit80, [{ id: 2, factor: 2 }], { type: "double_star", sep: 2.1, mag: 5, mag2: 6 });
+  assert.equal(eps[0].barlow?.id, 2);
+  // A wide pair on an SCT: the 40 mm alone, not the reducer.
+  const sct = rankEyepieces({ aperture: 203, focalLength: 2032 }, [{ focalLength: 40, afov: 43 }, { focalLength: 25, afov: 52 }], [{ id: 3, factor: 0.63 }], { type: "double_star", sep: 34.4, mag: 3.2, mag2: 5.1 });
+  assert.equal(sct[0].barlow, null);
+  // Coma at f/4.5 ten arcminutes out: about 5.6″.
+  assert.ok(Math.abs(comaArcsec(4.5, 10) - 5.56) < 0.05);
 });
 
 test("coordinate formatting handles negative declinations and rounding", () => {
