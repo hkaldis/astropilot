@@ -10,7 +10,7 @@ Sources, best first for each kind of object:
   nebulae: SIMBAD measurements (Gaia parallaxes of the central/exciting stars first), then curated values
 Discoverers and years: Wikidata (P61, P575).
 Writes a review list of disagreements with Wikidata's "distance from Earth" to cache/facts-review.txt."""
-import csv, json, math, os, re, statistics, sys
+import math, csv, json, math, os, re, statistics, sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.join(ROOT, "../../..")
@@ -204,6 +204,44 @@ def star_record(o):
             return v
     return None
 
+def bc_v(teff):
+    """Bolometric correction to the V magnitude for a star of this temperature (Torres 2010, from Flower 1996)."""
+    lt = math.log10(teff)
+    if lt < 3.70:
+        c = (-0.190537291496456e+05, 0.155144866764412e+05, -0.421278819301717e+04, 0.381476328422343e+03)
+    elif lt < 3.90:
+        c = (-0.370510203809015e+05, 0.385672629965804e+05, -0.150651486316025e+05, 0.261724637119416e+04, -0.170623810323864e+03)
+    else:
+        c = (-0.118115450538963e+06, 0.137145973583929e+06, -0.636233812100225e+05, 0.147412923562646e+05, -0.170587278406872e+04, 0.788731721804990e+02)
+    return sum(k * lt ** i for i, k in enumerate(c))
+
+def consistent_star(f, o):
+    """Radius, luminosity and temperature must agree (L = R² (T / 5772 K)⁴). Wikipedia's infoboxes sometimes put a
+    number in the wrong field (a radius of exactly 1, a radius equal to the luminosity…). When the three disagree by
+    more than a factor of 4 in luminosity, the star's own brightness and distance decide which figure is wrong: the
+    luminosity they imply gives a radius to compare both candidates with. Without them, the radius is dropped."""
+    r, lum, t = f.get("r"), f.get("lum"), f.get("teff")
+    if not (r and lum and t): return
+    r_lt = math.sqrt(lum) * (5772 / t) ** 2
+    if max(r, r_lt) / min(r, r_lt) <= 2: return
+    mag, d = o.get("mag"), f.get("d")
+    # The bolometric correction holds from about 2,600 to 45,000 K; outside it, or without a magnitude and distance,
+    # there is nothing to judge by, so the doubtful radius goes.
+    if mag is None or not d or not 2600 <= t <= 45000:
+        review.append(f"{o['id']:<14} star               r {r} vs {r_lt:.3g} from L,T — dropped r"); del f["r"]; return
+    l_phot = 10 ** ((4.74 - (mag - 5 * math.log10(d / LY_PER_PC / 10) + bc_v(t))) / 2.5)
+    r_phot = math.sqrt(l_phot) * (5772 / t) ** 2
+    # Far fainter than both candidates: its light is dimmed by its own dust (Eta Carinae), so photometry can't judge.
+    if l_phot * 3 < min(lum, r ** 2 * (t / 5772) ** 4):
+        review.append(f"{o['id']:<14} star               r {r} vs {r_lt:.3g} from L,T, dust-dimmed — dropped r"); del f["r"]; return
+    if abs(math.log(r_lt / r_phot)) < abs(math.log(r / r_phot)):
+        review.append(f"{o['id']:<14} star               radius {r} → {r_lt:.3g} (from L and T; photometry says {r_phot:.3g})")
+        f["r"] = float(f"{r_lt:.3g}")
+    else:
+        lum_rt = r ** 2 * (t / 5772) ** 4
+        review.append(f"{o['id']:<14} star               luminosity {lum} → {lum_rt:.3g} (from R and T; photometry says {l_phot:.3g})")
+        f["lum"] = float(f"{lum_rt:.3g}")
+
 def star_facts(o):
     """Distance from the Hipparcos parallax for naked-eye stars (Gaia saturates on them), else SIMBAD's best; and the
     star's size, power, temperature and mass from its Wikipedia infobox, within sanity limits."""
@@ -226,6 +264,7 @@ def star_facts(o):
         if v is not None and lo <= v <= hi: f[name] = float(f"{v:.3g}")
     if box.get("age_gyr") and 0 < box["age_gyr"] < 14: f["age"] = rnd(box["age_gyr"] * 1e9)
     elif box.get("age_myr") and 0 < box["age_myr"] < 14000: f["age"] = rnd(box["age_myr"] * 1e6)
+    consistent_star(f, o)
     return f
 TRUST_OURS = {"open_cluster"}  # Gaia DR3 beats the older values often quoted on Wikipedia
 
@@ -294,6 +333,7 @@ for o in CAT:
             for keys, lo, hi, name in ((("radius",), 0.05, 3000, "r"), (("luminosity", "luminosity_bolometric"), 1e-5, 1e7, "lum"), (("temperature",), 2000, 60000, "teff")):
                 v = box_number(box_field(o, *keys))
                 if v is not None and lo <= v <= hi: f[name] = float(f"{v:.3g}")
+            consistent_star(f, o)
     if by: f["_by"] = by; labels_needed.update(by)
     if yr: f["year"] = yr
     facts[o["id"]] = f

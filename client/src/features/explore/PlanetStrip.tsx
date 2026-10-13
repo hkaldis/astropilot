@@ -40,6 +40,8 @@ function OffLine({ b, ctx }: { b: BodyTonight; ctx: NightContext }) {
 function WhenLine({ b, ctx }: { b: BodyTonight; ctx: NightContext }) {
   const tf = { tz: ctx.tz, hour12: ctx.hour12 };
   const t = b.track;
+  // Midnight sun or white nights: no observing time to quote a time in.
+  if (t.noDarkness) return <span className="text-muted-foreground">No darkness tonight{t.maxAlt > 0 ? <> · up to <span className="num">{Math.round(t.maxAlt)}°</span></> : null}</span>;
   if (!t.window) {
     // Up after dark, but never as high as the minimum altitude: how high, and when (usually at dusk or dawn).
     return t.maxAlt > 0 ? (

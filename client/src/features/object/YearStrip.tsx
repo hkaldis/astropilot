@@ -18,6 +18,42 @@ export interface YearMonth {
 const HOUR = 3_600_000;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+/**
+ * The highest altitude within ±2 h of `t`: the best of half-hourly samples, then refined to the exact moment
+ * (golden-section search) — near the zenith a half-hour sample can read nearly a degree low.
+ */
+function bestAltAround(t: number, altOf: (t: number) => number): number {
+  let bestK = 0;
+  let best = -90;
+  for (let k = -4; k <= 4; k++) {
+    const a = altOf(t + k * 0.5 * HOUR);
+    if (a > best) [best, bestK] = [a, k];
+  }
+  let lo = t + Math.max(-4, bestK - 1) * 0.5 * HOUR;
+  let hi = t + Math.min(4, bestK + 1) * 0.5 * HOUR;
+  const g = (Math.sqrt(5) - 1) / 2;
+  let x1 = hi - g * (hi - lo);
+  let x2 = lo + g * (hi - lo);
+  let f1 = altOf(x1);
+  let f2 = altOf(x2);
+  while (hi - lo > 60_000) {
+    if (f1 > f2) {
+      hi = x2;
+      x2 = x1;
+      f2 = f1;
+      x1 = hi - g * (hi - lo);
+      f1 = altOf(x1);
+    } else {
+      lo = x1;
+      x1 = x2;
+      f1 = f2;
+      x2 = lo + g * (hi - lo);
+      f2 = altOf(x2);
+    }
+  }
+  return Math.max(best, f1, f2);
+}
+
 export function yearAltitudes(site: Site, now: number, pos: { ra: number; dec: number } | { body: A.Body }): YearMonth[] {
   const [y0, m0] = solarDateOf(now, site.lon).split("-").map(Number);
   const out: YearMonth[] = [];
@@ -26,11 +62,7 @@ export function yearAltitudes(site: Site, now: number, pos: { ra: number; dec: n
     const y = y0 + Math.floor((m0 - 1 + i) / 12);
     // Local mean solar midnight between the 15th and the 16th; best altitude within ±2 h of it.
     const t = Date.UTC(y, m, 16, 0, 0) - (site.lon / 15) * HOUR;
-    let alt = -90;
-    for (let k = -4; k <= 4; k++) {
-      const tk = t + k * 0.5 * HOUR;
-      alt = Math.max(alt, "body" in pos ? bodyAltAz(pos.body, tk, site).alt : altAzRaDec(pos.ra, pos.dec, tk, site).alt);
-    }
+    const alt = bestAltAround(t, (tk) => ("body" in pos ? bodyAltAz(pos.body, tk, site).alt : altAzRaDec(pos.ra, pos.dec, tk, site).alt));
     out.push({ month: m, year: y, t, alt, sunAlt: sunAltitude(t, site) });
   }
   return out;
@@ -155,8 +187,7 @@ export function moonYear(site: Site, now: number): YearMonth[] {
     // The local mean solar midnight nearest the full Moon; its best altitude within ±2 h of it.
     const shift = (site.lon / 15) * HOUR;
     const mid = Math.round((t + shift) / (24 * HOUR)) * 24 * HOUR - shift;
-    let alt = -90;
-    for (let k = -4; k <= 4; k++) alt = Math.max(alt, bodyAltAz(A.Body.Moon, mid + k * 0.5 * HOUR, site).alt);
+    const alt = bestAltAround(mid, (tk) => bodyAltAz(A.Body.Moon, tk, site).alt);
     const local = new Date(t + shift);
     out.push({ month: local.getUTCMonth(), year: local.getUTCFullYear(), t: mid, alt, sunAlt: sunAltitude(mid, site) });
     from = new Date(t + 5 * 86_400_000);
