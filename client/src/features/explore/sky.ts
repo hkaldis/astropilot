@@ -29,6 +29,7 @@ import {
   type Site,
   type SolarSystemId,
   type TrackPoint,
+  refineSegments,
 } from "@shared/astro";
 import type { ObservingSite } from "@shared/api";
 import { siteTz, useSite } from "@/hooks/useSite";
@@ -231,6 +232,7 @@ export function deriveTrack(points: TrackPoint[], dark: boolean[], minAlt: numbe
       }
     }
   }
+  refineSegments(segments, points, (i) => dark[i], minAlt, edges?.[0] ?? null, edges?.[1] ?? null);
   const window =
     segments.find(([a, b]) => bestT !== null && bestT >= a - step && bestT <= b + step) ??
     segments.reduce<[number, number] | null>((best, sg) => (!best || sg[1] - sg[0] > best[1] - best[0] ? sg : best), null);
@@ -347,10 +349,16 @@ export function altAt(track: ObjectTrack, t: number | null): number {
 }
 
 /** Evaluate a planet (or the Moon) for tonight, sampling its real motion at every frame. */
+/** Bright bodies worth looking for low down, and how low. */
+export const BRIGHT_LOW = new Set<SolarSystemId>(["moon", "venus", "mercury"]);
+export const BRIGHT_LOW_ALT = 10;
+
 export function evaluateBody(id: SolarSystemId, ctx: Pick<NightContext, "frames" | "site" | "night" | "minAlt" | "sqm">, apertureMm: number): BodyTonight {
   const { frames: nf, site, night, minAlt, sqm } = ctx;
   const meta = PLANET_BY_ID[id];
-  const track = bodyTrack(id, nf, site, minAlt);
+  // The minimum altitude is set for faint deep-sky objects, which drown in the murk near the horizon. The Moon,
+  // Venus and Mercury shine through it — and Mercury and Venus are usually low — so 10° is enough for them.
+  const track = bodyTrack(id, nf, site, BRIGHT_LOW.has(id) ? Math.min(minAlt, BRIGHT_LOW_ALT) : minAlt);
   const bestTime = track.maxAltTime;
   const state = bodyState(id, bestTime ?? night.solarMidnight, site);
   const events = bodyEvents(id, night.noon, site);

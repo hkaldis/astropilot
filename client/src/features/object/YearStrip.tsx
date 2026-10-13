@@ -140,3 +140,36 @@ export function YearStrip({ months, minAlt, className }: { months: YearMonth[]; 
     </div>
   );
 }
+
+/**
+ * The Moon's year: how high each of the next twelve full Moons climbs around local midnight. The full Moon sits
+ * opposite the Sun, so it rides high on winter nights and low in summer — the one thing that changes month by month.
+ */
+export function moonYear(site: Site, now: number): YearMonth[] {
+  const out: YearMonth[] = [];
+  let from = new Date(now - 2 * 86_400_000);
+  for (let i = 0; i < 12; i++) {
+    const full = A.SearchMoonPhase(180, from, 40);
+    if (!full) break;
+    const t = full.date.getTime();
+    // The local mean solar midnight nearest the full Moon; its best altitude within ±2 h of it.
+    const shift = (site.lon / 15) * HOUR;
+    const mid = Math.round((t + shift) / (24 * HOUR)) * 24 * HOUR - shift;
+    let alt = -90;
+    for (let k = -4; k <= 4; k++) alt = Math.max(alt, bodyAltAz(A.Body.Moon, mid + k * 0.5 * HOUR, site).alt);
+    const local = new Date(t + shift);
+    out.push({ month: local.getUTCMonth(), year: local.getUTCFullYear(), t: mid, alt, sunAlt: sunAltitude(mid, site) });
+    from = new Date(t + 5 * 86_400_000);
+  }
+  return out;
+}
+
+/** For an object that never rises from here. */
+export function NeverViewable({ name, siteName, lat }: { name: string; siteName: string; lat: number }) {
+  return (
+    <p className="rounded-lg border border-dashed bg-muted/30 px-3 py-2.5 text-sm leading-relaxed">
+      <span className="font-medium">{name} is never viewable from {siteName}.</span> At latitude {Math.abs(Math.round(lat))}° {lat >= 0 ? "N" : "S"} it never rises above
+      the horizon, in any month.
+    </p>
+  );
+}

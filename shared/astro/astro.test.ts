@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as A from "astronomy-engine";
 import {
+  backAfterDark,
+  refineSegments,
   nightOf,
   currentNightDate,
   altAzOf,
@@ -216,4 +218,25 @@ test("planSequence: two targets wanting the last slot before dawn both get one",
   assert.equal(plan.length, 3);
   for (let i = 1; i < plan.length; i++) assert.ok(plan[i].at >= plan[i - 1].at + 25 * 60_000 - 1);
   for (const s of plan) assert.ok(s.at >= s.target.track.window[0] && s.at + 25 * 60_000 <= s.target.track.window[1] + 1);
+});
+
+test("observing windows end at the exact crossing, not on the 10-minute grid", () => {
+  const min = 60_000;
+  // Climbing 1° a minute through 20° between the samples at 0 and 10 min; dark only from 25 min to the end.
+  const points = [0, 10, 20, 30, 40].map((m) => ({ t: m * min, alt: 15 + m }));
+  const dark = [true, true, true, true, true];
+  const seg: [number, number][] = [[10 * min, 40 * min]];
+  refineSegments(seg, points, (i) => dark[i], 20, null, null);
+  assert.equal(seg[0][0], 5 * min);
+  // Observing time starting between samples: the window starts with it.
+  const seg2: [number, number][] = [[30 * min, 40 * min]];
+  refineSegments(seg2, points, (i) => i >= 3, 20, 25 * min, null);
+  assert.equal(seg2[0][0], 25 * min);
+});
+
+test("a planet lost in the Sun's glare: the night it is back", () => {
+  // Venus passes between us and the Sun on 24 Oct 2026; from Athens it is 5° up at civil dawn on 2 Nov.
+  const r = backAfterDark("venus", Date.parse("2026-10-14T09:30:00Z"), { lat: 37.98, lon: 23.73, elevation: 100 });
+  assert.equal(r?.side, "morning");
+  assert.equal(new Date(r!.t).toISOString().slice(0, 10), "2026-11-02");
 });

@@ -187,6 +187,42 @@ function angleBetween(a: Vec3, b: Vec3) {
   return Math.acos(clamp(a[0] * b[0] + a[1] * b[1] + a[2] * b[2], -1, 1)) / DEG;
 }
 
+/**
+ * Observing windows end at the exact moments, not on the sampling grid: where the altitude crosses `minAlt`
+ * between two samples (linearly — good to well under a minute over a 10-minute step), or where observing time
+ * begins or ends between them. Windows only ever widen, so every sample inside one stays inside.
+ */
+export function refineSegments(
+  segments: [number, number][],
+  points: { t: number; alt: number }[],
+  isDark: (i: number) => boolean,
+  minAlt: number,
+  darkStart: number | null,
+  darkEnd: number | null,
+): void {
+  if (points.length < 2) return;
+  const t0 = points[0].t;
+  const step = points[1].t - t0;
+  for (const sg of segments) {
+    const i = Math.round((sg[0] - t0) / step);
+    if (i > 0) {
+      const q = points[i - 1];
+      const p = points[i];
+      let start = q.alt < minAlt ? q.t + ((minAlt - q.alt) / (p.alt - q.alt)) * step : q.t;
+      if (!isDark(i - 1)) start = Math.max(start, darkStart !== null && darkStart > q.t && darkStart <= p.t ? darkStart : p.t);
+      sg[0] = Math.min(sg[0], start);
+    }
+    const j = Math.round((sg[1] - t0) / step);
+    if (j < points.length - 1) {
+      const p = points[j];
+      const q = points[j + 1];
+      let end = q.alt < minAlt ? p.t + ((p.alt - minAlt) / (p.alt - q.alt)) * step : q.t;
+      if (!isDark(j + 1)) end = Math.min(end, darkEnd !== null && darkEnd >= p.t && darkEnd < q.t ? darkEnd : p.t);
+      sg[1] = Math.max(sg[1], end);
+    }
+  }
+}
+
 export function objectTrack(raHours: number, decDeg: number, nf: NightFrames, minAlt = 20): ObjectTrack {
   const v = eqjVector(raHours, decDeg);
   const points = nf.frames.map((f) => ({ t: f.t, ...altAzOf(f, v) }));
@@ -254,6 +290,7 @@ export function objectTrack(raHours: number, decDeg: number, nf: NightFrames, mi
       }
     }
   }
+  refineSegments(segments, points, (i) => inDark(points[i].t), minAlt, hasDark ? nf.darkStart : null, hasDark ? nf.darkEnd : null);
   const window =
     segments.find(([a, b]) => bestT !== null && bestT >= a - step && bestT <= b + step) ??
     segments.reduce<[number, number] | null>((best, s) => (!best || s[1] - s[0] > best[1] - best[0] ? s : best), null);

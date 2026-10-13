@@ -1,6 +1,7 @@
 /** Resolve an object-page id to a catalog object or a solar-system body, and describe its night. */
 import {
   EXTINCTION_V,
+  backAfterDark,
   MOON_BY_ID,
   MOONS,
   PLANET_BY_ID,
@@ -262,8 +263,15 @@ export function horizonClass(lat: number, dec: number): "never-rises" | "circump
   return "normal";
 }
 
-export function verdictFor(t: Tonight, ctx: NightContext, opts: { dec?: number; isBody: boolean; elongation?: number }): Verdict {
+export function verdictFor(t: Tonight, ctx: NightContext, opts: { dec?: number; isBody: boolean; elongation?: number; bodyId?: SolarSystemId }): Verdict {
   const tf = { tz: ctx.tz, hour12: ctx.hour12 };
+  // For a planet lost in the Sun's glare: the night it is back in a dark-enough sky.
+  const backLine = () => {
+    const b = opts.bodyId ? backAfterDark(opts.bodyId, ctx.night.noon, ctx.site) : null;
+    if (!b) return null;
+    const day = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", timeZone: ctx.tz ?? undefined }).format(b.t);
+    return `It’s back ${b.side === "morning" ? "in the morning sky, low at dawn," : "in the evening sky, low at dusk,"} from ${day}.`;
+  };
   const tr = t.track;
   const min = ctx.minAlt;
   const lat = ctx.site.lat;
@@ -294,7 +302,7 @@ export function verdictFor(t: Tonight, ctx: NightContext, opts: { dec?: number; 
       tone: "bad",
       headline: "Below the horizon tonight",
       detail: opts.isBody
-        ? "It's only up in daylight at the moment, too close to the Sun to observe."
+        ? ["It's only up in daylight at the moment, too close to the Sun to observe.", backLine()].filter(Boolean).join(" ")
         : "At this time of year it's up during the day. Check the year view for its season.",
     };
   }
@@ -303,7 +311,7 @@ export function verdictFor(t: Tonight, ctx: NightContext, opts: { dec?: number; 
     return {
       tone: "bad",
       headline: "Too close to the Sun",
-      detail: `Only ${Math.round(opts.elongation)}° from the Sun, it sets or rises in bright twilight — wait a few weeks for it to pull away.`,
+      detail: `Only ${Math.round(opts.elongation)}° from the Sun, it sets or rises in bright twilight. ${backLine() ?? "Wait a few weeks for it to pull away."}`,
     };
   }
   if (tr.neverUp && tr.maxAlt < 5) {

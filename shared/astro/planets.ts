@@ -111,6 +111,30 @@ export function bodyState(id: SolarSystemId, ms: number, site: Site): BodyState 
   };
 }
 
+/**
+ * For a planet (or the Moon) lost in the Sun's glare: the first civil dusk or dawn (Sun 6° down), searching ahead,
+ * when it stands at least 5° up — the night it is back in a dark-enough sky, and on which side of the night.
+ */
+export function backAfterDark(id: SolarSystemId, fromMs: number, site: Site, maxDays = 400): { t: number; side: "morning" | "evening" } | null {
+  const meta = PLANET_BY_ID[id];
+  const obs = observerOf(site);
+  const at = (d: number) => {
+    const t = new Date(fromMs + d * 86_400_000);
+    const e = A.Elongation(meta.body, t);
+    if (e.elongation < 8) return null;
+    const side: "morning" | "evening" = e.visibility === "morning" ? "morning" : "evening";
+    const twilight = A.SearchAltitude(A.Body.Sun, obs, side === "morning" ? +1 : -1, t, 1, -6);
+    return twilight && bodyAltAz(meta.body, twilight.date, obs).alt >= 5 ? { t: twilight.date.getTime(), side } : null;
+  };
+  // Every other day to find it, then the day before, so the date is exact.
+  const step = id === "moon" ? 0.5 : 2;
+  for (let d = step; d <= maxDays; d += step) {
+    const hit = at(d);
+    if (hit) return (step > 1 && at(d - 1)) || hit;
+  }
+  return null;
+}
+
 export interface BodyNightEvents {
   rise: number | null;
   set: number | null;

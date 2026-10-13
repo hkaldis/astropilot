@@ -191,31 +191,27 @@ export function MoonGlyph({ elongation, size = 44, className, southern = false }
 }
 
 // ------------------------------------------------------------------------------------
-// Planets: each one drawn from its real look (colours are intrinsic, so they stay fixed in every theme).
+// Planets, Earth, the Moon and the Sun as flat illustrations: solid colours, crisp shapes and a flat crescent of
+// shade on the night side. Their colours are intrinsic, so they stay fixed in every theme.
 // ------------------------------------------------------------------------------------
 
-const PLANET_STYLE: Record<string, { base: string; light: string; dark: string }> = {
-  mercury: { base: "#9a8f86", light: "#cfc6bd", dark: "#5f5650" },
-  venus: { base: "#e9d9a8", light: "#fbf3d6", dark: "#b8a46c" },
-  mars: { base: "#c4562f", light: "#ec8a5c", dark: "#7e2f19" },
-  jupiter: { base: "#d9b88f", light: "#f3e2c4", dark: "#9c7a55" },
-  saturn: { base: "#e3c98f", light: "#f7e8bf", dark: "#a88c55" },
-  uranus: { base: "#9fdbe0", light: "#d4f3f4", dark: "#5fa9b2" },
-  neptune: { base: "#3f66d1", light: "#7f9ff0", dark: "#22398a" },
-};
-
-/** Earth, our Moon and the Sun, drawn the same way, for pictures that set things side by side. */
-const BODY_STYLE: Record<string, { base: string; light: string; dark: string }> = {
-  ...PLANET_STYLE,
-  earth: { base: "#2f6fd1", light: "#7fb2f2", dark: "#173f86" },
-  moon: { base: "#b8b2a6", light: "#ece6da", dark: "#77716a" },
-  sun: { base: "#ffc23d", light: "#fff4c2", dark: "#f0821a" },
+const PLANET_STYLE: Record<string, { base: string }> = {
+  mercury: { base: "#a9a39b" },
+  venus: { base: "#eedcaa" },
+  mars: { base: "#d4643a" },
+  jupiter: { base: "#ecd8b4" },
+  saturn: { base: "#ead39c" },
+  uranus: { base: "#a6e1e6" },
+  neptune: { base: "#4b74e0" },
 };
 
 /** The radius of each glyph's globe in its 24-unit box, so a picture can draw it to scale… */
 export const GLYPH_BODY_R: Record<string, number> = { mercury: 6.8, venus: 8.6, earth: 8.6, moon: 8, mars: 8.5, jupiter: 9.5, saturn: 6.2, uranus: 7.4, neptune: 7.6, sun: 9.2 };
 /** …and how far its rings or glow reach beyond the globe, across and up. */
-export const GLYPH_EXTENT: Record<string, [number, number]> = { saturn: [1.78, 1], uranus: [1.05, 1.47], sun: [1.24, 1.24] };
+export const GLYPH_EXTENT: Record<string, [number, number]> = { saturn: [1.78, 1], uranus: [1.05, 1.47], sun: [1.22, 1.22] };
+
+/** A circle as a path, for even-odd cut-outs. */
+const circlePath = (cx: number, cy: number, r: number) => `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`;
 
 /**
  * A small, recognisable portrait of each planet (and of Earth, the Moon and the Sun). Inside another SVG, pass
@@ -223,167 +219,211 @@ export const GLYPH_EXTENT: Record<string, [number, number]> = { saturn: [1.78, 1
  */
 export function PlanetGlyph({ id, className, title, x, y, size }: { id: string; className?: string; title?: string; x?: number; y?: number; size?: number }) {
   const uid = useId().replace(/:/g, "");
-  const st = BODY_STYLE[id] ?? PLANET_STYLE.mercury;
-  const shade = `pl-sh-${uid}`;
   const clip = `pl-cl-${uid}`;
   const c = cn("h-5 w-5 shrink-0", className);
   const box = size === undefined ? { className: c } : { x, y, width: size, height: size, overflow: "visible" as const };
-  const body = (r: number, cx = 12, cy = 12) => (
-    <>
-      <circle cx={cx} cy={cy} r={r} fill={`url(#${shade})`} />
-    </>
-  );
-  const defs = (r: number, cx = 12, cy = 12) => (
-    <defs>
-      <radialGradient id={shade} cx="35%" cy="32%" r="75%">
-        <stop offset="0" style={{ stopColor: st.light }} />
-        <stop offset="0.55" style={{ stopColor: st.base }} />
-        <stop offset="1" style={{ stopColor: st.dark }} />
-      </radialGradient>
-      <clipPath id={clip}>
-        <circle cx={cx} cy={cy} r={r} />
-      </clipPath>
-    </defs>
-  );
   const label = title ?? id.charAt(0).toUpperCase() + id.slice(1);
+  const R = GLYPH_BODY_R[id] ?? 8;
+  const clipped = (children: React.ReactNode) => <g clipPath={`url(#${clip})`}>{children}</g>;
+  // The night side: the disc minus itself nudged towards the light leaves a crescent of shade at the lower right.
+  const shade = (opacity = 0.24) => (
+    <path d={circlePath(12, 12, R) + circlePath(12 - R * 0.3, 12 - R * 0.3, R * 1.04)} fillRule="evenodd" fill="#0b1020" opacity={opacity} clipPath={`url(#${clip})`} />
+  );
+  const disc = (fill: string) => <circle cx="12" cy="12" r={R} fill={fill} />;
+  const svg = (children: React.ReactNode) => (
+    <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
+      <defs>
+        <clipPath id={clip}>
+          <circle cx="12" cy="12" r={R} />
+        </clipPath>
+      </defs>
+      {children}
+    </svg>
+  );
   switch (id) {
-    case "saturn":
-      return (
-        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
-          {defs(6.2)}
-          {/* ring behind the globe */}
-          <ellipse cx="12" cy="12" rx="11" ry="3.4" transform="rotate(-16 12 12)" fill="none" stroke="#cbb27a" strokeWidth="1.6" opacity="0.55" />
-          {body(6.2)}
-          <g clipPath={`url(#${clip})`}>
-            <rect x="4" y="10.2" width="16" height="1.1" fill={st.dark} opacity="0.35" />
-            <rect x="4" y="13.2" width="16" height="0.8" fill={st.dark} opacity="0.25" />
-          </g>
-          {/* front half of the ring */}
-          <path d="M1.427 15.032 A11 3.4 -16 0 0 22.573 8.968" fill="none" stroke="#e8d3a0" strokeWidth="1.6" />
-        </svg>
-      );
-    case "jupiter":
-      return (
-        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
-          {defs(9.5)}
-          {body(9.5)}
-          <g clipPath={`url(#${clip})`}>
-            <rect x="2" y="6.2" width="20" height="1.6" fill="#a9825b" opacity="0.75" />
-            <rect x="2" y="9.4" width="20" height="2.2" fill="#9a6f4a" opacity="0.8" />
-            <rect x="2" y="13.4" width="20" height="2" fill="#a07650" opacity="0.75" />
-            <rect x="2" y="16.6" width="20" height="1.2" fill="#b08a63" opacity="0.6" />
-            <ellipse cx="15" cy="14.6" rx="2.1" ry="1.1" fill="#b4472f" />
-          </g>
-        </svg>
-      );
-    case "mars":
-      return (
-        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
-          {defs(8.5)}
-          {body(8.5)}
-          <g clipPath={`url(#${clip})`}>
-            <ellipse cx="12" cy="4" rx="4.6" ry="1.9" fill="#f6efe8" />
-            <path d="M6.5 11.5c1.6-1.1 3.4-.9 4.6.4.8.9 2.4 1 3.3.1 1-.9 2.6-.7 3.6.5-1 2-3 2.4-4.4 1.6-1.2-.6-2.4-.4-3.5.5-1.4 1.1-3.3.4-3.6-1.4z" fill="#7a2c18" opacity="0.65" />
-          </g>
-        </svg>
+    case "mercury":
+      return svg(
+        <>
+          {disc(PLANET_STYLE.mercury.base)}
+          {clipped(
+            <g fill="#8d877f">
+              <circle cx="10" cy="10" r="1.3" />
+              <circle cx="14.3" cy="13.4" r="1.6" />
+              <circle cx="9.6" cy="15" r="0.9" />
+              <circle cx="14.6" cy="8.7" r="0.8" />
+              <circle cx="12.2" cy="12.3" r="0.5" />
+            </g>,
+          )}
+          {shade()}
+        </>,
       );
     case "venus":
-      return (
-        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
-          {defs(8.6)}
-          {body(8.6)}
-          <g clipPath={`url(#${clip})`} fill="none" stroke="#c9b37a" strokeWidth="1" opacity="0.55">
-            <path d="M4 9c3-1.5 6 1.2 9 0s5-1.4 7 0" />
-            <path d="M3.5 13c3.5-1.2 6.5 1.4 9.5.2s5.2-1 7.5.2" />
-            <path d="M5 16.8c3-1 5.5.9 8.2 0 2.3-.8 3.9-.6 5.4.2" />
-          </g>
-        </svg>
-      );
-    case "mercury":
-      return (
-        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
-          {defs(6.8)}
-          {body(6.8)}
-          <g clipPath={`url(#${clip})`} fill={st.dark} opacity="0.55">
-            <circle cx="10" cy="10" r="1.2" />
-            <circle cx="14.2" cy="13.4" r="1.5" />
-            <circle cx="9.6" cy="15" r="0.8" />
-            <circle cx="14.6" cy="8.6" r="0.7" />
-          </g>
-        </svg>
-      );
-    case "uranus":
-      return (
-        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
-          {defs(7.4)}
-          {/* Uranus is tipped on its side: the ring system stands almost upright */}
-          <ellipse cx="12" cy="12" rx="2.6" ry="10.6" transform="rotate(8 12 12)" fill="none" stroke="#bfe9ec" strokeWidth="0.9" opacity="0.7" />
-          {body(7.4)}
-          <path d="M13.475 1.503 A2.6 10.6 8 0 1 10.525 22.497" fill="none" stroke="#e1f7f8" strokeWidth="0.9" opacity="0.9" />
-        </svg>
-      );
-    case "neptune":
-      return (
-        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
-          {defs(7.6)}
-          {body(7.6)}
-          <g clipPath={`url(#${clip})`}>
-            <ellipse cx="10.4" cy="13.6" rx="2" ry="1.1" fill="#16285e" opacity="0.85" />
-            <path d="M12.5 9.6c1.3-.5 2.8-.4 4 .2" fill="none" stroke="#e8f0ff" strokeWidth="0.9" strokeLinecap="round" opacity="0.85" />
-            <rect x="4" y="7" width="16" height="0.9" fill="#5f84e6" opacity="0.45" />
-          </g>
-        </svg>
+      return svg(
+        <>
+          {disc(PLANET_STYLE.venus.base)}
+          {clipped(
+            <>
+              <path d="M3 8.5c3-1.4 6.5-.4 9.5-.9s5.5-1.2 8.5-.2v2.2c-3-.8-5.6.1-8.6.5s-6.4-.5-9.4.6z" fill="#e0c88e" />
+              <path d="M3 11c3-.6 6 .3 9 0s5.8-.8 9 0v1c-3-.5-6 .2-9 .5s-6-.5-9 0z" fill="#f8edd0" />
+              <path d="M3 13.2c3.2-1 6.4.2 9.6-.3s5.6-1 8.4 0v2c-2.8-.7-5.4.2-8.4.5s-6.6-.6-9.6.4z" fill="#e0c88e" />
+            </>,
+          )}
+          {shade(0.2)}
+        </>,
       );
     case "earth":
-      return (
-        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
-          {defs(8.6)}
-          {body(8.6)}
-          <g clipPath={`url(#${clip})`}>
-            {/* Africa and Europe, the Americas' edge, Australia; ice caps and a few clouds */}
-            <path d="M9.6 5.2c1.5-.7 3.6-.5 4.8.6.8.7.5 1.7-.3 2.2-.8.5-.6 1.4.2 2 1.1.8 1.4 2.3.8 3.6-.6 1.4-1.6 2.7-2.5 3.6-.5.5-1.3.2-1.5-.5-.3-1.2-1-2.1-1.9-2.8-.9-.7-1.1-1.9-.5-2.8.4-.6.1-1.3-.5-1.7-.7-.5-.8-1.6.4-2.2z" fill="#5c9a4b" />
-            <path d="M3.2 10.5c1-.6 2.4-.4 3 .5.5.8 0 1.8-.8 2.2-.7.4-1 1.2-.8 2-.9-.6-1.6-1.8-1.7-3.1 0-.6.1-1.1.3-1.6z" fill="#6aa555" />
-            <path d="M16.8 15.8c.9-.6 2.1-.5 2.8.2-.4 1.2-1.1 2.2-2 3-.6-.3-1-.9-1.1-1.6 0-.6.1-1.2.3-1.6z" fill="#b99a5e" />
-            <ellipse cx="12" cy="3.6" rx="4" ry="1.5" fill="#f4f8ff" />
-            <ellipse cx="12" cy="20.6" rx="4.2" ry="1.4" fill="#f4f8ff" />
-            <path d="M4.5 7.6c2-.9 3.8-.5 5.2.3M13.4 12.2c1.6-.7 3.4-.6 5 .2M5.4 16.6c1.5.6 2.8.5 4-.2" fill="none" stroke="#fff" strokeWidth="0.4" strokeLinecap="round" opacity="0.45" />
-          </g>
-          <circle cx="12" cy="12" r="8.6" fill="none" stroke="#9cc8ff" strokeWidth="0.7" opacity="0.6" />
-        </svg>
+      return svg(
+        <>
+          {disc("#3a7bd5")}
+          {clipped(
+            <>
+              {/* Africa (the Sahara sand-coloured), Europe's edge, Arabia and Madagascar; Antarctica below */}
+              <g transform="translate(1.9 1.6) scale(0.84)">
+                <path d="M5.6 5.2c1.7-.7 3.6-.9 5.4-.7 1.2.1 2.3.4 3.2.9l-.4.9c-1.3-.3-2.7-.4-4-.3-1.4.1-2.8.4-4 .9z" fill="#5ba84c" />
+                <path d="M8.2 6.3C9.8 5.9 12.4 5.8 13.9 6.4l.5 1c.7 1.4 1.2 2.4 2 3-.2 1-1 1.9-1.4 3-.4 1.5-1.4 3.4-2.7 4.7-.6.2-1-.5-1.2-1.3-.4-1.6-.5-3.2-1.1-4.4-.5-.8-1.4-1-2.4-1.3-1.1-.4-1.8-1.5-1.7-2.5.3-1.2 1.2-2 2.3-2.3z" fill="#5ba84c" />
+                <path d="M8.2 6.3C9.8 5.9 12.4 5.8 13.9 6.4l.5 1c.4.8.8 1.5 1.2 2.1-1.7.5-3.7.5-5.5.2-1.3-.2-2.5-.2-3.5.2-.5-.6-.8-1.4-.7-2.1.3-1.1 1.3-1.8 2.3-2.1z" fill="#dcb873" />
+                <path d="M14.9 6.6c1.3.1 2.7.8 3.5 1.8-.6 1-1.5 1.5-2.2 1.6-.6-1-1-2.2-1.3-3.4z" fill="#dcb873" />
+                <ellipse cx="16.3" cy="15.1" rx="0.45" ry="1.15" transform="rotate(20 16.3 15.1)" fill="#5ba84c" />
+              </g>
+              <ellipse cx="12" cy="20.9" rx="5.4" ry="1.8" fill="#f4f8ff" />
+            </>,
+          )}
+          {shade()}
+        </>,
       );
     case "moon":
-      return (
-        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
-          {defs(8)}
-          {body(8)}
-          <g clipPath={`url(#${clip})`} fill="#857f75" opacity="0.6">
-            {/* the dark "seas" of the near side */}
-            <ellipse cx="9.3" cy="9.4" rx="2.7" ry="2.1" />
-            <ellipse cx="13.6" cy="10.2" rx="1.9" ry="1.5" />
-            <ellipse cx="12.2" cy="14.4" rx="2.4" ry="1.6" />
-            <circle cx="7.6" cy="13.4" r="1.1" />
-          </g>
-          <circle cx="13.4" cy="17.6" r="0.6" fill="#f4efe4" opacity="0.55" />
-        </svg>
+      return svg(
+        <>
+          {disc("#d6d1c6")}
+          {clipped(
+            <>
+              {/* the dark "seas" of the near side, and a few bright craters */}
+              <g fill="#b1ab9f">
+                <ellipse cx="9.3" cy="9.4" rx="2.7" ry="2.1" />
+                <ellipse cx="13.6" cy="10.2" rx="1.9" ry="1.5" />
+                <ellipse cx="12.2" cy="14.4" rx="2.4" ry="1.6" />
+                <circle cx="7.6" cy="13.4" r="1.1" />
+              </g>
+              <g fill="#e6e2d9">
+                <circle cx="13.6" cy="17.4" r="0.8" />
+                <circle cx="8.9" cy="16.9" r="0.55" />
+              </g>
+            </>,
+          )}
+          {shade(0.22)}
+        </>,
+      );
+    case "mars":
+      return svg(
+        <>
+          {disc(PLANET_STYLE.mars.base)}
+          {clipped(
+            <>
+              {/* Syrtis Major, the southern dark belt and Acidalia; the white north polar cap */}
+              <g fill="#a9472a">
+                <path d="M3.6 12.9c2.2-.9 4.4-.6 6.4.2 1.8.7 3.8 1 5.8.6 1.6-.3 3-.2 4.4.3l-.2 1.7c-1.6-.2-3.2 0-4.8.3-2.2.4-4.3.2-6.3-.6-1.8-.7-3.6-.8-5.4-.3z" />
+                <path d="M11 7.6c.9.6 1.4 1.7 1.6 2.9.2 1.3.9 2.3 1.9 2.9-.6.6-1.7.6-2.6.2-1.2-.6-1.6-1.9-1.8-3.1-.2-1.1-.1-2.1.9-2.9z" />
+                <path d="M5.4 8c1.2-.5 2.6-.4 3.6.3-.6.8-1.8 1.1-2.9.9-.5-.1-.9-.6-.7-1.2z" />
+              </g>
+              <ellipse cx="12" cy="4.1" rx="4.2" ry="1.8" fill="#fff6ef" />
+              <ellipse cx="12" cy="20.4" rx="2.4" ry="0.8" fill="#fff6ef" opacity="0.7" />
+            </>,
+          )}
+          {shade()}
+        </>,
+      );
+    case "jupiter":
+      return svg(
+        <>
+          {disc(PLANET_STYLE.jupiter.base)}
+          {clipped(
+            <>
+              {/* polar regions, the belts (brown) and zones (cream), the Great Red Spot and a white oval */}
+              <rect x="2" y="2" width="20" height="3.6" fill="#cdb48f" />
+              <rect x="2" y="18.4" width="20" height="4" fill="#cdb48f" />
+              <rect x="2" y="6.2" width="20" height="0.8" fill="#c39a6d" />
+              <rect x="2" y="8.3" width="20" height="2.1" fill="#c0814f" />
+              <rect x="2" y="10.4" width="20" height="2.4" fill="#f6ead2" />
+              <rect x="2" y="12.9" width="20" height="2" fill="#c58a58" />
+              <rect x="2" y="16.6" width="20" height="0.8" fill="#c9a079" />
+              <ellipse cx="15.1" cy="15.7" rx="2.7" ry="1.55" fill="#f3e2c4" />
+              <ellipse cx="15.1" cy="15.7" rx="2.05" ry="1.1" fill="#d2603d" />
+              <ellipse cx="8.3" cy="17.6" rx="0.75" ry="0.38" fill="#fffaf0" />
+            </>,
+          )}
+          {shade(0.22)}
+        </>,
+      );
+    case "saturn":
+      return svg(
+        <>
+          {/* the rings behind the globe, the globe, then the rings' near side in front */}
+          <ellipse cx="12" cy="12" rx="11" ry="3.4" transform="rotate(-16 12 12)" fill="none" stroke="#d9bf86" strokeWidth="1.3" />
+          <ellipse cx="12" cy="12" rx="9.2" ry="2.85" transform="rotate(-16 12 12)" fill="none" stroke="#c4a76f" strokeWidth="1.1" />
+          {disc(PLANET_STYLE.saturn.base)}
+          {clipped(
+            <>
+              <rect x="4" y="9.6" width="16" height="1.1" fill="#d7b778" />
+              <rect x="4" y="12.6" width="16" height="0.9" fill="#d9bd85" />
+              <rect x="4" y="14.4" width="16" height="0.7" fill="#cfb07a" />
+            </>,
+          )}
+          {shade(0.22)}
+          <path d="M1.427 15.032 A11 3.4 -16 0 0 22.573 8.968" fill="none" stroke="#ecd6a2" strokeWidth="1.3" />
+          <path d="M3.156 14.536 A9.2 2.85 -16 0 0 20.844 9.464" fill="none" stroke="#d2b67d" strokeWidth="1.1" />
+        </>,
+      );
+    case "uranus":
+      return svg(
+        <>
+          {/* Uranus is tipped on its side: its faint rings stand almost upright */}
+          <ellipse cx="12" cy="12" rx="2.6" ry="10.6" transform="rotate(8 12 12)" fill="none" stroke="#cfeff1" strokeWidth="0.8" opacity="0.8" />
+          {disc(PLANET_STYLE.uranus.base)}
+          {clipped(<circle cx="10.4" cy="10.6" r="3.2" fill="#bdeef1" />)}
+          {shade(0.22)}
+          <path d="M13.475 1.503 A2.6 10.6 8 0 1 10.525 22.497" fill="none" stroke="#e6f8f9" strokeWidth="0.8" />
+        </>,
+      );
+    case "neptune":
+      return svg(
+        <>
+          {disc(PLANET_STYLE.neptune.base)}
+          {clipped(
+            <>
+              <rect x="3" y="8.8" width="18" height="1.2" fill="#5b84ea" />
+              <rect x="3" y="15.8" width="18" height="1.4" fill="#3e64cf" />
+              {/* the Great Dark Spot, its bright companion cloud and high white streaks */}
+              <ellipse cx="10.3" cy="13.2" rx="1.8" ry="1" fill="#26408f" />
+              <g fill="none" stroke="#fff" strokeLinecap="round">
+                <path d="M12.6 9.3c1.4-.45 3-.4 4.3.15" strokeWidth="0.75" />
+                <path d="M8.7 14.75c1.2.35 2.6.3 3.6-.2" strokeWidth="0.6" />
+              </g>
+              <ellipse cx="14.4" cy="16.4" rx="0.6" ry="0.3" fill="#fff" />
+            </>,
+          )}
+          {shade()}
+        </>,
       );
     case "sun":
-      return (
-        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
-          {defs(9.2)}
-          <radialGradient id={`${shade}-glow`}>
-            <stop offset="0.7" stopColor="#ffd25e" stopOpacity="0.45" />
-            <stop offset="1" stopColor="#ffd25e" stopOpacity="0" />
-          </radialGradient>
-          <circle cx="12" cy="12" r="11.6" fill={`url(#${shade}-glow)`} />
-          {body(9.2)}
-        </svg>
+      return svg(
+        <>
+          {/* short flat rays (a see-through glow turns muddy on a dark background) */}
+          <g stroke="#ffcf4d" strokeWidth="1" strokeLinecap="round">
+            {Array.from({ length: 12 }, (_, i) => {
+              const a = (i * Math.PI) / 6;
+              return <line key={i} x1={12 + Math.cos(a) * 10.3} y1={12 + Math.sin(a) * 10.3} x2={12 + Math.cos(a) * 11.6} y2={12 + Math.sin(a) * 11.6} />;
+            })}
+          </g>
+          {disc("#ffc23a")}
+          <circle cx="11.2" cy="11.2" r={R * 0.72} fill="#ffd866" />
+        </>,
       );
     default:
-      return (
-        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
-          {defs(8)}
-          {body(8)}
-        </svg>
+      return svg(
+        <>
+          {disc("#a9a39b")}
+          {shade()}
+        </>,
       );
   }
 }

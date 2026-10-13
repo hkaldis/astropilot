@@ -38,6 +38,7 @@ export function TonightSection({ subject, tonight, ctx, scope }: { subject: Subj
     dec: subject.kind === "deep" ? subject.obj.dec : undefined,
     isBody: bodyLike,
     elongation: bodyLike && !isMoon ? tonight.body?.state.elongation : undefined,
+    bodyId: subject.kind === "body" ? subject.id : subject.kind === "satellite" ? subject.parent.id : undefined,
   });
   const tr = tonight.track;
 

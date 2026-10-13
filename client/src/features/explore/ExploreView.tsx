@@ -222,7 +222,9 @@ export function ExploreView() {
     if (!ctx) return [];
     if (q) return bodies.filter((b) => norm(b.meta.name).startsWith(q) || (q.length >= 4 && "planets".startsWith(q) && b.id !== "moon"));
     if (narrowed) return [];
-    return bodies.filter((b) => (filters.visible ? b.visible : b.track.maxAlt > 0));
+    // Every planet, even one lost in the Sun's glare (its card says so and when it is back); "Visible tonight"
+    // keeps only those you can see.
+    return filters.visible ? bodies.filter((b) => b.visible) : bodies;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bodies, q, filters, narrowed, !!ctx]);
 
@@ -234,7 +236,12 @@ export function ExploreView() {
     if (narrowed) return [];
     const order = (m: MoonMeta) => SOLAR_SYSTEM.findIndex((p) => p.id === m.parent);
     return MOONS.map(rated)
-      .filter((x): x is { meta: MoonMeta; tonight: MoonTonight } => !!x.tonight && (filters.visible ? x.tonight.visible : x.tonight.planet.track.maxAlt > 0))
+      // Without "Visible tonight": every moon whose planet is up, except those no telescope like yours can show
+      // (a search still finds them).
+      .filter(
+        (x): x is { meta: MoonMeta; tonight: MoonTonight } =>
+          !!x.tonight && (filters.visible ? x.tonight.visible : x.tonight.planet.track.maxAlt > 0 && x.tonight.detect.difficulty !== "out of reach"),
+      )
       .sort((a, b) => order(a.meta) - order(b.meta) || b.tonight.detect.index - a.tonight.detect.index);
   }, [moonsTonight, q, filters.visible, narrowed]);
 

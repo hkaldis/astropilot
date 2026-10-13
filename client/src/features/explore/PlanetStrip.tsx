@@ -1,5 +1,6 @@
+import { useMemo } from "react";
 import { Link } from "wouter";
-import { PLANET_BY_ID, formatMag, formatTime, type MoonMeta } from "@shared/astro";
+import { PLANET_BY_ID, backAfterDark, formatMag, formatTime, type MoonMeta } from "@shared/astro";
 import { MoonGlyph, TypeGlyph } from "@/components/common/Glyphs";
 import { Badge } from "@/components/ui/badge";
 import { DIFFICULTY_TONE } from "@/lib/objects";
@@ -13,25 +14,63 @@ function bodyLine(b: BodyTonight) {
       : [`mag ${formatMag(b.state.mag)}`, `${b.state.diameter.toFixed(b.state.diameter < 10 ? 1 : 0)}″`];
   if (b.id === "mercury" || b.id === "venus") parts.push(`${Math.round(b.state.illumination * 100)}% lit`);
   if (b.track.window) parts.push(`peaks ${Math.round(b.track.maxAlt)}°`);
+  else if (b.track.maxAlt <= 0 && b.id !== "moon") parts.push(`${Math.round(b.state.elongation)}° from the Sun`);
   return parts.join(" · ");
+}
+
+/** Within the first or last half hour of the observing time: still bright twilight for anything but a bright planet. */
+function isTwilight(t: number, ctx: NightContext) {
+  const { nauticalDusk, nauticalDawn } = ctx.night;
+  return (nauticalDusk !== null && t < nauticalDusk) || (nauticalDawn !== null && t > nauticalDawn);
+}
+
+/** A planet not up after dark: lost in the Sun's glare (and the night it is back), or just below the horizon. */
+function OffLine({ b, ctx }: { b: BodyTonight; ctx: NightContext }) {
+  const glare = b.state.elongation < 30;
+  const back = useMemo(() => (glare ? backAfterDark(b.id, ctx.night.noon, ctx.site) : null), [glare, b.id, ctx.night.noon, ctx.site]);
+  if (!glare) return <span className="text-muted-foreground">{b.events.rise === null && b.events.set === null ? "Doesn’t rise tonight" : "Not up after dark"}</span>;
+  const day = back ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: ctx.tz ?? undefined }).format(back.t) : null;
+  return (
+    <span className="text-muted-foreground" title={`${Math.round(b.state.elongation)}° from the Sun tonight`}>
+      In the Sun’s glare{day && <> · back {back!.side === "morning" ? "at dawn" : "at dusk"} from {day}</>}
+    </span>
+  );
 }
 
 function WhenLine({ b, ctx }: { b: BodyTonight; ctx: NightContext }) {
   const tf = { tz: ctx.tz, hour12: ctx.hour12 };
   const t = b.track;
   if (!t.window) {
-    return <span className="text-muted-foreground">{t.maxAlt > 0 ? <>Low: peaks at <span className="num">{Math.round(t.maxAlt)}°</span></> : "Not up after dark"}</span>;
+    // Up after dark, but never as high as the minimum altitude: how high, and when (usually at dusk or dawn).
+    return t.maxAlt > 0 ? (
+      <span className="text-muted-foreground">
+        Low: <span className="num">{Math.round(t.maxAlt)}°</span>
+        {t.maxAltTime !== null && (
+          <>
+            {" "}
+            at <span className="num">{formatTime(t.maxAltTime, tf)}</span>
+          </>
+        )}
+        {t.maxAltTime !== null && isTwilight(t.maxAltTime, ctx) && " in twilight"}
+      </span>
+    ) : (
+      <OffLine b={b} ctx={ctx} />
+    );
   }
   // Rising late or setting early is the most useful single fact.
   const startsLate = t.window[0] > (ctx.night.civilDusk ?? 0) + 45 * 60_000;
   const endsEarly = ctx.night.civilDawn !== null && t.window[1] < ctx.night.civilDawn - 45 * 60_000;
   return (
     <span>
-      {startsLate && !endsEarly ? (
+      {startsLate && endsEarly ? (
+        <>
+          <span className="num">{formatTime(t.window[0], tf)}</span>–<span className="num">{formatTime(t.window[1], tf)}</span> ·{" "}
+        </>
+      ) : startsLate ? (
         <>
           from <span className="num">{formatTime(t.window[0], tf)}</span> ·{" "}
         </>
-      ) : endsEarly && !startsLate ? (
+      ) : endsEarly ? (
         <>
           until <span className="num">{formatTime(t.window[1], tf)}</span> ·{" "}
         </>
@@ -56,7 +95,11 @@ export function PlanetStrip({ bodies, ctx, className }: { bodies: BodyTonight[];
           <li key={b.id} className="snap-start">
             <Link
               href={`/object/${b.id}`}
-              className="flex w-[17.5rem] items-center gap-3 rounded-xl border bg-card/60 px-3 py-2.5 transition-colors hover:bg-accent/60 sm:w-auto"
+              className={cn(
+                "flex w-[17.5rem] items-center gap-3 rounded-xl border bg-card/60 px-3 py-2.5 transition-colors hover:bg-accent/60 sm:w-auto",
+                // Not up after dark tonight: still listed, but quieter.
+                b.track.maxAlt <= 0 && "border-dashed bg-transparent",
+              )}
             >
               <span className="grid h-10 w-10 shrink-0 place-items-center">
                 {b.id === "moon" ? (

@@ -46,7 +46,7 @@ import { Term } from "@/features/glossary/Term";
 import { TYPE_TERM } from "@shared/glossaryTerms";
 import { ObserveSection, OpticsFootnote } from "./ObserveSection";
 import { TonightSection } from "./TonightSection";
-import { YearStrip, yearAltitudes } from "./YearStrip";
+import { NeverViewable, YearStrip, moonYear, yearAltitudes } from "./YearStrip";
 import { horizonClass, resolveSubject, systemPlanetOf, tonightFor, type Subject, type Tonight } from "./model";
 import { opticsTarget } from "./observing";
 import { CountsToward } from "@/features/achievements/CountsToward";
@@ -337,7 +337,7 @@ function SubjectPage({ subject }: { subject: Subject }) {
   const year = useMemo(() => {
     if (!ctx) return null;
     if (subject.kind === "deep") return yearAltitudes(ctx.site, now, { ra: subject.obj.ra, dec: subject.obj.dec });
-    if (subject.kind === "body" && subject.id === "moon") return null;
+    if (subject.kind === "body" && subject.id === "moon") return moonYear(ctx.site, now);
     return yearAltitudes(ctx.site, now, { body: subject.kind === "satellite" ? subject.parent.body : subject.meta.body });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subject, (ctx ? siteKey(ctx.site) : null), Math.floor(now / 86_400_000)]);
@@ -512,12 +512,24 @@ function SubjectPage({ subject }: { subject: Subject }) {
             </div>
 
             <aside className="flex min-w-0 flex-col gap-10">
-              {year && year.some((m) => m.alt > 0) && (
-                <Section title="Through the year" description="Highest altitude 22:00–02:00 local solar time, mid-month">
+              {/* Always there: the year at a glance, or — for an object that never rises here — a plain "never viewable". */}
+              <Section
+                title="Through the year"
+                description={
+                  subject.kind === "body" && subject.id === "moon"
+                    ? "How high each full Moon climbs around midnight"
+                    : "Highest altitude 22:00–02:00 local solar time, mid-month"
+                }
+              >
+                {!year ? (
+                  <Skel className="h-24" />
+                ) : year.some((m) => m.alt > 0) ? (
                   <YearStrip months={year} minAlt={ctx.minAlt} />
-                  {circumpolar && <p className="text-xs text-muted-foreground">Circumpolar from {ctx.site.name}: it never sets.</p>}
-                </Section>
-              )}
+                ) : (
+                  <NeverViewable name={subject.name} siteName={ctx.site.name} lat={ctx.site.lat} />
+                )}
+                {circumpolar && <p className="text-xs text-muted-foreground">Circumpolar from {ctx.site.name}: it never sets.</p>}
+              </Section>
               {subject.kind === "deep" && (
                 <Section title="Finding it">
                   <FinderText o={subject.obj} />
