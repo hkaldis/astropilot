@@ -86,3 +86,10 @@ test("bright stars have their own pages, with spectral type, colour and distance
   assert.match(pageFor("/object/mira").body, /<dt>Brightness<\/dt><dd>varies from magnitude 2 to 10.1<\/dd>/);
   assert.match(pageFor("/explore").title, /\d+ bright stars/);
 });
+
+test("object pages say how big things are", () => {
+  assert.match(pageFor("/object/jupiter").body, /<h2>How big is it\?<\/h2><p>1,320 Earths could fit inside Jupiter\./);
+  assert.match(pageFor("/object/betelgeuse").body, /would swallow the orbits of Mercury, Venus, Earth and Mars/);
+  assert.match(pageFor("/object/M13").body, /Suns’ worth of stars/);
+  assert.match(pageFor("/object/ganymede").body, /Bigger than the planet Mercury/);
+});

@@ -13,6 +13,7 @@ import { storyFor } from "../routes/story";
 import { lookback } from "@shared/lookback";
 import { formatLightYears } from "@shared/stories";
 import { colourWord } from "@shared/starColor";
+import { catalogScale, earthMoonScale, planetScale, satelliteScale, type ScaleStory } from "@shared/scale";
 import { allSubjects, catalog, conName, designations, displayName, planetNow, raDec, sizeText, skyFacts, subjectFor, typeLabel } from "./facts";
 
 export const SITE = (process.env.SITE_URL ?? "https://astropilot.space").replace(/\/$/, "");
@@ -298,6 +299,17 @@ function storyParts(id: string, name: string) {
   };
 }
 
+/** "How big is it?" as a short section: the headline comparison, then the supporting ones. */
+function scaleParts(sc: ScaleStory | null) {
+  if (!sc) return { html: "", md: "" };
+  const text = `${sc.headline}. ${sc.lines.join(" ")}`;
+  return { html: `<h2>How big is it?</h2><p>${esc(text)}</p>`, md: `## How big is it?\n\n${text}\n\n` };
+}
+
+function dsoScale(o: CatalogEntry, name: string): ScaleStory | null {
+  return catalogScale(o, name, storyFor(o.id)?.facts);
+}
+
 function dsoContent(o: CatalogEntry): ObjectContent {
   const name = displayName(o);
   const type = typeLabel(o.type);
@@ -310,6 +322,8 @@ function dsoContent(o: CatalogEntry): ObjectContent {
   const heights = `At its highest it stands ${f.altitudes.map((x) => (x.alt === null ? `below the horizon from ${x.label}` : `${x.alt}° up from ${x.label}`)).join(", ")}.`;
   const desc = typeof o.desc === "string" ? o.desc : "";
   const story = storyParts(o.id, name);
+  // Comparisons read better with the plain name ("Rigel is 74 times…", not "Rigel (β Ori) is…").
+  const scale = scaleParts(dsoScale(o, String(o.name)));
   const facts: [string, string][] = [
     ["Type", type],
     ["Constellation", con],
@@ -332,12 +346,12 @@ function dsoContent(o: CatalogEntry): ObjectContent {
     description: story.tagline
       ? `${story.tagline} ${name} is best in the evening around ${f.eveningMonth}: see when it's highest tonight from your location and how easy it is with your telescope.`
       : `${lead} Best in the evening around ${f.eveningMonth}. See when it's highest tonight from your location and how easy it is with your telescope.`,
-    html: `<h1>${esc(name)}</h1><p>${esc(lead)}</p>${figure(image)}${story.html}${desc ? `<p>${esc(desc)}</p>` : ""}${
+    html: `<h1>${esc(name)}</h1><p>${esc(lead)}</p>${figure(image)}${story.html}${scale.html}${desc ? `<p>${esc(desc)}</p>` : ""}${
       TYPE_TERM[o.type] ? `<p>${a(`/glossary/${TYPE_TERM[o.type]}`, `What is ${/^[aeiou]/i.test(type) ? "an" : "a"} ${type.toLowerCase()}?`)}</p>` : ""
     }<h2>When and where to see it</h2><p>${esc(when)}</p><p>${esc(heights)}</p><h2>Facts</h2><dl>${facts
       .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`)
       .join("")}</dl><p>${esc(cta)}</p>`,
-    md: `# ${name}\n\n${lead}\n\n${mdFigure(image)}${story.md}${desc ? `${desc}\n\n` : ""}## When and where to see it\n\n${when}\n\n${heights}\n\n## Facts\n\n${facts.map(([k, v]) => `- ${k}: ${v}`).join("\n")}\n\n${cta} ${SITE}/object/${encodeURIComponent(o.id)}\n`,
+    md: `# ${name}\n\n${lead}\n\n${mdFigure(image)}${story.md}${scale.md}${desc ? `${desc}\n\n` : ""}## When and where to see it\n\n${when}\n\n${heights}\n\n## Facts\n\n${facts.map(([k, v]) => `- ${k}: ${v}`).join("\n")}\n\n${cta} ${SITE}/object/${encodeURIComponent(o.id)}\n`,
     about: { "@type": "Thing", name: o.name, alternateName: designations(o), description: story.tagline ?? (desc || lead) },
   };
 }
@@ -348,13 +362,14 @@ function planetContent(p: PlanetMeta): ObjectContent {
   const cta = `Its place changes from night to night: open AstroPilot for tonight's rise, set and best time from your location${p.id === "jupiter" ? ", and where its four Galilean moons are" : ""}.`;
   const image = pageImage(photoOf(p.id), p.name, p.id === "moon" ? "Binoculars show its dark plains; a small telescope shows craters along the shadow line." : `Through a telescope ${p.name} is a small disk.`);
   const story = storyParts(p.id, p.name);
+  const scale = scaleParts(p.id === "moon" ? earthMoonScale() : planetScale(p.id));
   return {
     name: p.name,
     image,
     title: p.id === "moon" ? "The Moon tonight — phase, rise and set, what to observe | AstroPilot" : `${p.name} tonight — where to see it and when | AstroPilot`,
     description: story.tagline ? `${story.tagline} ${p.blurb}${now ? ` ${now}` : ""}` : `${lead} ${p.blurb}${now ? ` ${now}` : ""}`,
-    html: `<h1>${esc(p.name)}</h1><p>${esc(lead)} ${esc(p.blurb)}</p>${figure(image)}${story.html}${now ? `<p>${esc(now)}</p>` : ""}<p>${esc(cta)}</p>`,
-    md: `# ${p.name}\n\n${lead} ${p.blurb}\n\n${mdFigure(image)}${story.md}${now ? `${now}\n\n` : ""}${cta} ${SITE}/object/${p.id}\n`,
+    html: `<h1>${esc(p.name)}</h1><p>${esc(lead)} ${esc(p.blurb)}</p>${figure(image)}${story.html}${scale.html}${now ? `<p>${esc(now)}</p>` : ""}<p>${esc(cta)}</p>`,
+    md: `# ${p.name}\n\n${lead} ${p.blurb}\n\n${mdFigure(image)}${story.md}${scale.md}${now ? `${now}\n\n` : ""}${cta} ${SITE}/object/${p.id}\n`,
     about: { "@type": "Thing", name: p.name, description: p.blurb },
   };
 }
@@ -366,15 +381,16 @@ function moonContent(m: MoonMeta): ObjectContent {
   const cta = `Open AstroPilot to see where ${m.name} is next to ${planet} tonight and how easy it is with your telescope.`;
   const image = pageImage(photoOf(m.id), m.name, `Through a telescope ${m.name} is a star-like point next to ${planet}.`);
   const story = storyParts(m.id, m.name);
+  const scale = scaleParts(satelliteScale(m.id, m.name, planet));
   return {
     name: m.name,
     image,
     title: `${m.name}, moon of ${planet} — how to see it | AstroPilot`,
     description: story.tagline ? `${story.tagline} ${lead}` : `${lead} ${m.blurb}`,
-    html: `<h1>${esc(m.name)}</h1><p>${esc(lead)}</p>${figure(image)}${story.html}<p>${esc(m.blurb)}</p><p>Other moons of ${esc(planet)}: ${MOONS.filter((x) => x.parent === m.parent && x.id !== m.id)
+    html: `<h1>${esc(m.name)}</h1><p>${esc(lead)}</p>${figure(image)}${story.html}${scale.html}<p>${esc(m.blurb)}</p><p>Other moons of ${esc(planet)}: ${MOONS.filter((x) => x.parent === m.parent && x.id !== m.id)
       .map((x) => a(`/object/${x.id}`, x.name))
       .join(", ") || "none"}.</p><p>${esc(cta)}</p>`,
-    md: `# ${m.name}\n\n${lead}\n\n${mdFigure(image)}${story.md}${m.blurb}\n\n${cta} ${SITE}/object/${m.id}\n`,
+    md: `# ${m.name}\n\n${lead}\n\n${mdFigure(image)}${story.md}${scale.md}${m.blurb}\n\n${cta} ${SITE}/object/${m.id}\n`,
     about: { "@type": "Thing", name: m.name, alternateName: [m.designation], description: m.blurb },
   };
 }

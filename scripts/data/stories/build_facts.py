@@ -56,6 +56,58 @@ def cg_age(o):
         if r and r["AgeNN"]: return 10 ** float(r["AgeNN"])
     return None
 
+# --- Baumgardt et al. (2018–2023) globular cluster parameters (people.smp.uq.edu.au/HolgerBaumgardt/globular):
+# distance (Baumgardt & Vasiliev 2021), mass, core density, central escape velocity, remaining lifetime.
+def _baumgardt():
+    import html as _h
+    out = {}
+    if not os.path.exists(C("baumgardt.txt")): return out
+    t = open(C("baumgardt.txt"), encoding="utf-8", errors="ignore").read()
+    num = lambda x: float(re.sub(r"[^\d.eE+-]", "", x.split("±")[0]) or "nan")
+    for r in re.findall(r"<tr[^>]*>(.*?)</tr>", t, re.S):
+        c = [_h.unescape(re.sub(r"<[^>]+>", "", x)).strip() for x in re.findall(r"<t[hd][^>]*>(.*?)</t[hd]>", r, re.S)]
+        if len(c) < 23 or not re.match(r"^[A-Z]", c[0]) or c[0].startswith("Cluster"): continue
+        names = [n.strip() for n in re.split(r"\s{2,}|\xa0", c[0]) if n.strip()]
+        m = re.match(r"([\d.]+)\s*±\s*[\d.]+\s*·\s*10(\d+)", c[7])
+        try:
+            rec = {"rsun_kpc": num(c[3]), "mass": float(m.group(1)) * 10 ** int(m.group(2)) if m else None, "log_rho_c": num(c[14]), "tdiss_gyr": num(c[18]), "vesc": num(c[22])}
+        except Exception:
+            continue
+        for n in names: out[n.lower()] = rec
+    return out
+BAUMGARDT = _baumgardt()
+
+def baumgardt_for(o):
+    for d in o["designations"]:
+        r = BAUMGARDT.get(d.lower()) or BAUMGARDT.get(d.lower().replace("palomar", "pal"))
+        if r: return r
+    return None
+
+# --- Wikipedia infoboxes: mass, number of stars (galaxies), for objects that have them
+RAW_BOX = json.load(open(C("infobox-raw.json"))) if os.path.exists(C("infobox-raw.json")) else {}
+WORDS = {"thousand": 1e3, "million": 1e6, "billion": 1e9, "trillion": 1e12}
+
+def box_number(v):
+    """First quantity in an infobox value: {{val|1.5|0.2|e=12}}, {{Val|5e10}}, "~1 trillion", "6×10<sup>5</sup>", "800"."""
+    if not v: return None
+    v = re.sub(r"<ref[^>]*/>|<ref.*?</ref>|<ref[^>]*>.*|<!--.*?-->|&nbsp;", " ", v, flags=re.S)
+    m = re.search(r"\{\{\s*val\s*\|\s*(\d[\d,]*(?:\.\d+)?(?:e\d+)?)([^}]*)\}\}", v, re.I)
+    if m:
+        n = float(m.group(1).replace(",", "")); e = re.search(r"e\s*=\s*(\d+)", m.group(2))
+        return n * 10 ** int(e.group(1)) if e else n
+    m = re.search(r"([\d][\d,]*(?:\.\d+)?)\s*(?:×|x|&times;)\s*10\s*(?:<sup>|\^)\s*(\d+)", v)
+    if m: return float(m.group(1).replace(",", "")) * 10 ** int(m.group(2))
+    m = re.search(r"([\d][\d,]*(?:\.\d+)?)\s*(thousand|million|billion|trillion)?", v)
+    if not m: return None
+    return float(m.group(1).replace(",", "")) * WORDS.get(m.group(2) or "", 1)
+
+def box_field(o, *names):
+    t = RAW_BOX.get(o["id"]) or ""
+    for n in names:
+        m = re.search(r"\n\s*\|\s*" + n + r"\s*=([^\n]*)", t)
+        if m and m.group(1).strip(): return m.group(1)
+    return None
+
 # --- Harris 2010
 harris = {}
 part1 = open(C("harris-mwgc.dat")).read().split("Part II")[0]
@@ -188,8 +240,10 @@ for o in CAT:
     d, src = None, None
     h = hunt_for(o) if o["type"] in ("open_cluster", "cluster_nebula", "asterism") else None
     if o["type"] == "globular_cluster":
+        b = baumgardt_for(o)
         r = harris_for(o)
-        if r: d, src = r * 1e3 * LY_PER_PC, "Harris 2010"
+        if b and b.get("rsun_kpc") == b.get("rsun_kpc"): d, src = b["rsun_kpc"] * 1e3 * LY_PER_PC, "Baumgardt"
+        elif r: d, src = r * 1e3 * LY_PER_PC, "Harris 2010"
     if d is None and o["type"] in STELLAR and o["type"] != "planetary_nebula":
         if sep(o["ra"], o["dec"], 5.39, -69.76) < 9 and not harris_for(o): d, src = LMC_LY, "LMC"
         elif sep(o["ra"], o["dec"], 0.88, -72.8) < 4.5 and not harris_for(o): d, src = SMC_LY, "SMC"
@@ -221,6 +275,25 @@ for o in CAT:
         f["d"], f["src"] = rnd(wd_d), "Wikidata"
     else:
         review.append(f"{o['id']:<14} {o['type']:<18} NO DISTANCE")
+    # Mass and contents: Baumgardt for globular clusters, the Wikipedia infobox otherwise (within sanity limits).
+    if o["type"] == "globular_cluster" and baumgardt_for(o):
+        b = baumgardt_for(o)
+        if b.get("mass"): f["mass"] = float(f"{b['mass']:.2g}")
+        if b.get("log_rho_c") == b.get("log_rho_c"): f["rhoc"] = round(b["log_rho_c"], 2)
+        if b.get("vesc") == b.get("vesc"): f["vesc"] = round(b["vesc"], 1)
+        if b.get("tdiss_gyr") == b.get("tdiss_gyr") and b["tdiss_gyr"] > 0: f["tdiss"] = round(b["tdiss_gyr"], 1)
+    else:
+        lim = (1e6, 1e14) if o["type"] in ("galaxy", "galaxy_group") else (0.01, 1e6)
+        mass = box_number(box_field(o, "mass_msol", "mass"))
+        if mass and lim[0] <= mass <= lim[1]: f["mass"] = float(f"{mass:.2g}")
+        if o["type"] in ("galaxy", "galaxy_group"):
+            n = box_number(box_field(o, "stars"))
+            if n and 1e6 <= n <= 1e14: f["stars"] = float(f"{n:.2g}")
+        # A double's brighter star: the starbox lists it first.
+        if o["type"] == "double_star":
+            for keys, lo, hi, name in ((("radius",), 0.05, 3000, "r"), (("luminosity", "luminosity_bolometric"), 1e-5, 1e7, "lum"), (("temperature",), 2000, 60000, "teff")):
+                v = box_number(box_field(o, *keys))
+                if v is not None and lo <= v <= hi: f[name] = float(f"{v:.3g}")
     if by: f["_by"] = by; labels_needed.update(by)
     if yr: f["year"] = yr
     facts[o["id"]] = f

@@ -39,6 +39,9 @@ import { ObjectPhoto } from "./ObjectPhoto";
 import { StarPortrait } from "./StarPortrait";
 import { ShareObject } from "./ShareObject";
 import { bvTemperature, colourWord } from "@shared/starColor";
+import { BODY_PHYSICS, EARTH } from "@shared/bodies";
+import { physicalSizeLy } from "@shared/stories";
+import { useStory } from "./about/useStory";
 import { Term } from "@/features/glossary/Term";
 import { TYPE_TERM } from "@shared/glossaryTerms";
 import { ObserveSection, OpticsFootnote } from "./ObserveSection";
@@ -144,12 +147,17 @@ function brightnessRank(o: CatalogObject, objects: CatalogObject[]): number | nu
   return rank <= 50 ? rank : null;
 }
 
+/** 2.7, 640, 1,400, 480,000, 1.5 trillion — a multiple of the Sun's value. */
+const solarMultiple = (x: number) =>
+  x >= 1e12 ? `${+(x / 1e12).toPrecision(2)} trillion` : x >= 1e9 ? `${+(x / 1e9).toPrecision(2)} billion` : x >= 1e6 ? `${+(x / 1e6).toPrecision(2)} million` : x >= 100 ? Number(x.toPrecision(2)).toLocaleString() : `${+x.toFixed(x < 10 ? 1 : 0)}`;
+
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
 
 function DeepStats({ o }: { o: CatalogObject }) {
   const sbArcmin = o.sb ?? (surfaceBrightnessArcsec(o) !== null ? surfaceBrightnessArcsec(o)! - 8.89 : null);
   const items: { label: string; value: React.ReactNode; sub?: React.ReactNode; term?: string }[] = [];
   const { objects } = useCatalog();
+  const facts = useStory(o.id).data?.facts ?? null;
   if (o.type === "star") {
     const rank = brightnessRank(o, objects);
     items.push(
@@ -160,6 +168,8 @@ function DeepStats({ o }: { o: CatalogObject }) {
     if (o.sp) items.push({ label: "Spectral type", value: o.sp.length > 12 ? o.sp.split(/[+/]/)[0] : o.sp, sub: "its class", term: "spectral-type" });
     const word = colourWord(o.bv);
     if (word) items.push({ label: "Colour", value: word, sub: `B−V ${o.bv!.toFixed(2)} · ~${(Math.round(bvTemperature(o.bv!) / 100) * 100).toLocaleString()} K`, term: "star-colour" });
+    if (facts?.r) items.push({ label: "Width", value: facts.r >= 1.05 ? `${solarMultiple(facts.r)}× Sun` : `${Math.round(facts.r * 100)}% of Sun`, sub: `${Math.round(2 * facts.r * 695_700).toLocaleString()} km` });
+    if (facts?.mass) items.push({ label: "Mass", value: facts.mass >= 1.05 ? `${solarMultiple(facts.mass)}× Sun` : `${Math.round(facts.mass * 100)}% of Sun` });
   } else if (o.type === "double_star") {
     items.push({ label: "Magnitudes", value: `${formatMag(o.mag)} / ${formatMag(o.mag2)}`, sub: "primary / companion", term: "magnitude" });
     if (o.sep !== undefined) items.push({ label: "Separation", value: `${o.sep}″`, term: "separation" });
@@ -170,6 +180,16 @@ function DeepStats({ o }: { o: CatalogObject }) {
     if (sbArcmin !== null && sbArcmin !== undefined && o.type !== "open_cluster" && o.type !== "asterism" && o.type !== "star_cloud")
       items.push({ label: "Surface brightness", value: `${sbArcmin.toFixed(1)}`, sub: o.sb !== undefined ? "mag/arcmin²" : "mag/arcmin², estimated", term: "surface-brightness" });
   }
+  // How big it really is, from its angular size and distance.
+  if (o.type !== "star" && o.type !== "double_star" && o.type !== "asterism" && facts?.d && o.size?.[0]) {
+    const w = physicalSizeLy(o.size[0], facts.d);
+    items.push({ label: "True size", value: `${w < 10 ? w.toFixed(1) : Math.round(w).toLocaleString()} ly`, sub: "light-years across" });
+  }
+  if (o.type === "double_star" && facts?.d && o.sep) {
+    const au = o.sep * (facts.d / 3.26156);
+    items.push({ label: "Real gap", value: `${au >= 1000 ? Number(au.toPrecision(2)).toLocaleString() : Math.round(au)} AU`, sub: "at least, between the stars" });
+  }
+  if (o.type !== "star" && facts?.mass) items.push({ label: "Mass", value: `${solarMultiple(facts.mass)} Suns` });
   items.push({ label: "Right ascension", value: formatRA(o.ra), sub: "J2000", term: "right-ascension" });
   items.push({ label: "Declination", value: formatDec(o.dec), sub: "J2000", term: "declination" });
   return (
@@ -192,9 +212,18 @@ function moonDistance(distanceAu: number, imperial: boolean) {
 function BodyStats({ id, st }: { id: string; st: BodyState }) {
   const { prefs } = usePrefs();
   const isMoon = id === "moon";
+  const phys = BODY_PHYSICS[id];
+  const rr = phys ? phys.radiusKm / EARTH.radiusKm : null;
+  const mr = phys ? phys.massKg / EARTH.massKg : null;
   const items: { label: string; value: React.ReactNode; sub?: React.ReactNode; term?: string }[] = [
     { label: "Magnitude", value: formatMag(st.mag), term: "magnitude" },
     { label: "Apparent size", value: isMoon ? `${(st.diameter / 60).toFixed(1)}′` : `${st.diameter.toFixed(st.diameter < 10 ? 1 : 0)}″`, term: "angular-size" },
+    ...(phys && rr && mr
+      ? [
+          { label: "Diameter", value: `${Math.round(2 * phys.radiusKm).toLocaleString()} km`, sub: rr >= 1.05 ? `${+rr.toFixed(1)}× Earth` : `${Math.round(rr * 100)}% of Earth` },
+          { label: "Mass", value: mr >= 1.05 ? `${Math.round(mr).toLocaleString()}× Earth` : `${+(mr * 100).toFixed(mr < 0.1 ? 1 : 0)}% of Earth` },
+        ]
+      : []),
     { label: "Illuminated", value: `${Math.round(st.illumination * 100)}%`, term: "phase" },
     {
       label: "Distance",
@@ -230,6 +259,17 @@ function MoonStats({ subject, tonight }: { subject: Extract<Subject, { kind: "sa
     },
     { label: "Diameter", value: `${Math.round(m.radiusKm * 2).toLocaleString()} km`, sub: apparent !== null ? `${apparent.toFixed(apparent < 0.1 ? 3 : 2)}″ across` : undefined },
     { label: "Orbit", value: period, sub: `${Math.round(m.aKm).toLocaleString()} km out${m.retrograde ? ", backwards" : ""}` },
+    ...(BODY_PHYSICS[subject.id]
+      ? [
+          {
+            label: "Mass",
+            value: (() => {
+              const x = BODY_PHYSICS[subject.id].massKg / BODY_PHYSICS.moon.massKg;
+              return x >= 1.05 ? `${+x.toFixed(1)}× our Moon` : x >= 0.01 ? `${Math.round(x * 100)}% of our Moon` : `1/${Number((1 / x).toPrecision(2)).toLocaleString()} of our Moon`;
+            })(),
+          },
+        ]
+      : []),
     { label: "Discovered", value: String(m.discovered.year), sub: m.discovered.by },
   ];
   return (

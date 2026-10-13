@@ -12,7 +12,7 @@ CURATED = json.load(open(os.path.join(ROOT, "curated_facts.json")))
 SRC = {
     "Gaia DR3 (Hunt & Reffert 2023)": "gaia", "Harris 2010": "harris", "LMC": "lmc", "SMC": "smc", "parallax": "plx",
     "Cepheids/TRGB": "cep", "SBF": "sbf", "redshift-independent": "lit", "Hubble flow": "z", "Wikipedia": "wiki",
-    "SIMBAD": "lit", "Wikidata": "wiki",
+    "SIMBAD": "lit", "Wikidata": "wiki", "Baumgardt": "baumgardt",
 }
 facts = {}
 for k, f in raw.items():
@@ -23,7 +23,7 @@ for k, f in raw.items():
     if CURATED.get(k, {}).get("age"): out["age"] = CURATED[k]["age"]
     elif f.get("age"): out["age"] = f["age"]
     if f.get("members"): out["members"] = f["members"]
-    for key in ("r", "lum", "teff", "mass"):
+    for key in ("r", "lum", "teff", "mass", "stars", "rhoc", "vesc", "tdiss"):
         if f.get(key) is not None: out[key] = f[key]
     if out: facts[k] = out
 json.dump(facts, open(os.path.join(REPO, "shared/data/objectFacts.json"), "w"), separators=(",", ":"), ensure_ascii=False, sort_keys=True)

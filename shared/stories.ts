@@ -33,7 +33,14 @@ export interface ObjectFacts {
   r?: number;
   lum?: number;
   teff?: number;
+  /** Mass in Suns: stars, globular clusters (Baumgardt), and clusters, nebulae and galaxies with a published value. */
   mass?: number;
+  /** Galaxies: number of stars. */
+  stars?: number;
+  /** Globular clusters (Baumgardt): log core density (Suns per cubic parsec), central escape speed (km/s), years left (Gyr). */
+  rhoc?: number;
+  vesc?: number;
+  tdiss?: number;
 }
 
 export interface StoryResponse {
@@ -45,6 +52,7 @@ export interface StoryResponse {
 export const DISTANCE_SOURCE: Record<string, string> = {
   gaia: "Gaia DR3 cluster census (Hunt & Reffert 2023)",
   harris: "Harris catalogue of globular clusters (2010)",
+  baumgardt: "Baumgardt & Vasiliev (2021) globular cluster distances",
   lmc: "distance of the Large Magellanic Cloud (Pietrzyński et al. 2019)",
   smc: "distance of the Small Magellanic Cloud (Graczyk et al. 2020)",
   plx: "parallax (Gaia / Hipparcos, via SIMBAD)",

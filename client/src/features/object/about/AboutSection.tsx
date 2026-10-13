@@ -1,6 +1,6 @@
-import { CalendarClock, Eye, Flame, Ruler, Sparkles, Sun, Telescope, Thermometer, Users, Waypoints, Weight } from "lucide-react";
+import { CalendarClock, Eye, Flame, Sparkles, Telescope, Thermometer, Waypoints, type LucideIcon } from "lucide-react";
 import { niceYears } from "@shared/lookback";
-import { DISTANCE_SOURCE, physicalSizeLy, type ObjectFacts, type ObjectStory } from "@shared/stories";
+import { DISTANCE_SOURCE, type ObjectFacts, type ObjectStory } from "@shared/stories";
 import type { CatalogObject } from "@shared/data/types";
 import { Skel } from "@/components/common/Page";
 import { cn } from "@/lib/utils";
@@ -8,12 +8,13 @@ import type { Subject } from "../model";
 import { StoryText } from "./StoryText";
 import { LightNow, TimeMachine } from "./TimeMachine";
 import { GalaxyMap } from "./GalaxyMap";
+import { HowBig } from "./HowBig";
+import { catalogScale, earthMoonScale, planetScale, satelliteScale, type ScaleStory } from "@shared/scale";
 import { GENERATED_DESC, useStory } from "./useStory";
 import { bvTemperature } from "@shared/starColor";
 
-const MILKY_WAY_LY = 100_000;
 
-function Tile({ icon: Icon, value, label, className }: { icon: typeof Ruler; value: React.ReactNode; label: React.ReactNode; className?: string }) {
+function Tile({ icon: Icon, value, label, className }: { icon: LucideIcon; value: React.ReactNode; label: React.ReactNode; className?: string }) {
   return (
     <div className={cn("flex min-w-0 items-start gap-3 rounded-xl border bg-card px-3.5 py-3", className)}>
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary/80" />
@@ -25,19 +26,6 @@ function Tile({ icon: Icon, value, label, className }: { icon: typeof Ruler; val
   );
 }
 
-/** "2.4", "40", "1,200", "0.15" — a multiple of the Sun's value. */
-function times(x: number) {
-  if (x < 1) return x.toFixed(x < 0.1 ? 3 : 2).replace(/0+$/, "");
-  if (x < 10) return x.toFixed(1).replace(/\.0$/, "");
-  if (x < 100) return String(Math.round(x));
-  if (x < 1000) return String(Math.round(x / 10) * 10);
-  return niceYears(x);
-}
-
-function sizeWords(ly: number) {
-  return ly < 10 ? ly.toFixed(1) : niceYears(ly);
-}
-
 function Tiles({ obj, facts, story }: { obj: CatalogObject | null; facts: ObjectFacts | null; story: ObjectStory | null }) {
   const tiles: React.ReactNode[] = [];
   const d = facts?.d;
@@ -45,27 +33,13 @@ function Tiles({ obj, facts, story }: { obj: CatalogObject | null; facts: Object
     const big = d >= 1e6;
     tiles.push(<Tile key="d" icon={Waypoints} value={big ? `${niceYears(d)}` : niceYears(d)} label={big ? "light-years away" : d < 1.5 ? "light-year away" : "light-years away"} />);
   }
-  const major = obj?.size?.[0];
-  if (d && major && obj && obj.type !== "double_star" && obj.type !== "asterism") {
-    const w = physicalSizeLy(major, d);
-    const mw = obj.type === "galaxy" ? w / MILKY_WAY_LY : null;
-    const vsMw = mw === null ? null : mw > 0.8 && mw < 1.25 ? "about as wide as the Milky Way" : mw >= 1.25 ? `${mw.toFixed(1)}× the Milky Way’s width` : mw >= 0.1 ? `${Math.round(mw * 100)}% of the Milky Way’s width` : "a dwarf next to the Milky Way";
-    tiles.push(<Tile key="w" icon={Ruler} value={sizeWords(w)} label={<>light-years across{vsMw ? <span className="block">{vsMw}</span> : null}</>} />);
-  }
+  // Size, mass and contents are in "How big is it?"; these are the other quick facts.
   if (obj?.type === "star") {
-    // A star's own size, power, heat and weight, against the Sun's.
-    const r = facts?.r;
-    if (r) {
-      const reach = r > 1118 ? "past Jupiter’s orbit" : r > 327 ? "past Mars’s orbit" : r > 215 ? "past Earth’s orbit" : r > 160 ? "almost to Earth’s orbit" : null;
-      tiles.push(<Tile key="r" icon={Ruler} value={`${times(r)}×`} label={<>the Sun’s width{reach ? <span className="block">in the Sun’s place, it would reach {reach}</span> : null}</>} />);
-    }
-    if (facts?.lum) tiles.push(<Tile key="l" icon={Sun} value={`${times(facts.lum)}×`} label={facts.lum < 1 ? "the Sun’s light (fainter than the Sun)" : "the Sun’s light"} />);
     const teff = facts?.teff ?? (obj.bv !== undefined ? Math.round(bvTemperature(obj.bv) / 100) * 100 : null);
-    if (teff) tiles.push(<Tile key="t" icon={Thermometer} value={`${Math.round(teff).toLocaleString("en-US")} K`} label={`at the surface (the Sun: 5,800 K)`} />);
-    if (facts?.mass) tiles.push(<Tile key="m" icon={Weight} value={`${times(facts.mass)}×`} label="the Sun’s mass" />);
+    if (teff) tiles.push(<Tile key="t" icon={Thermometer} value={`${Math.round(teff).toLocaleString("en-US")} K`} label="at the surface (the Sun: 5,800 K)" />);
   }
-  if (facts?.age) tiles.push(<Tile key="age" icon={obj?.type === "star" ? Flame : CalendarClock} value={niceYears(facts.age)} label="years old" />);
-  if (facts?.members) tiles.push(<Tile key="n" icon={Users} value={facts.members.toLocaleString("en-US")} label="member stars found by Gaia" />);
+  if (facts?.age && obj?.type !== "open_cluster" && obj?.type !== "cluster_nebula")
+    tiles.push(<Tile key="age" icon={obj?.type === "star" ? Flame : CalendarClock} value={niceYears(facts.age)} label="years old" />);
   const disc = story?.discovered;
   if (disc && (disc.by || disc.note)) {
     tiles.push(
@@ -109,6 +83,13 @@ function Facts({ facts }: { facts: ObjectStory["facts"] }) {
   );
 }
 
+/** The "How big is it?" comparisons for any subject, from the catalog and the measured facts. */
+function scaleFor(subject: Subject, facts: ObjectFacts | null): ScaleStory | null {
+  if (subject.kind === "body") return subject.id === "moon" ? earthMoonScale() : planetScale(subject.id);
+  if (subject.kind === "satellite") return satelliteScale(subject.id, subject.name, subject.parent.name);
+  return catalogScale(subject.obj, subject.name, facts);
+}
+
 /** The story's one-line hook, under the object's name, with a jump to the full story. */
 export function StoryHook({ id }: { id: string }) {
   const { data } = useStory(id);
@@ -147,6 +128,7 @@ export function AboutSection({
   const fallback = subject.kind === "deep" ? subject.obj.desc : subject.meta.blurb;
   // What it looks like through a telescope, shown under the story: the catalog's curated note, or a planet's tips.
   const seen = obj ? (obj.desc && !GENERATED_DESC.test(obj.desc) ? obj.desc : null) : subject.kind === "body" ? subject.meta.blurb : null;
+  const scale = isLoading ? null : scaleFor(subject, facts);
 
   if (isLoading)
     return (
@@ -173,6 +155,8 @@ export function AboutSection({
       )}
 
       <Tiles obj={obj} facts={facts} story={story} />
+
+      {scale && <HowBig s={scale} name={subject.name} />}
 
       {obj && facts?.d ? (
         <div className="grid gap-4">
