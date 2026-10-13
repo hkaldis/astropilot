@@ -70,3 +70,8 @@ test("object pages tell the object's story: tagline, facts, distance and when it
   assert.match(m13, /<dt>Discovered<\/dt><dd>Edmond Halley, 1714<\/dd>/);
   assert.match(objectContent("M13")?.md ?? "", /## Did you know\?/);
 });
+
+test("titles don't repeat a name the object's name already contains", () => {
+  assert.match(pageFor("/object/epsilon-lyrae").title, /^Epsilon Lyrae \(Double Double\) — /);
+  assert.match(pageFor("/object/M13").title, /^Hercules Globular Cluster \(M 13\) — /);
+});

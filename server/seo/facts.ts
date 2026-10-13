@@ -92,7 +92,9 @@ export function designations(o: CatalogEntry): string[] {
 /** "Andromeda Galaxy (M 31)" or just "M 13" style display name. */
 export function displayName(o: CatalogEntry): string {
   const primary = designations(o)[0];
-  return primary && primary.replace(/\s/g, "").toLowerCase() !== o.name.replace(/\s/g, "").toLowerCase() ? `${o.name} (${primary})` : o.name;
+  const flat = (x: string) => x.replace(/\s/g, "").toLowerCase();
+  // "Epsilon Lyrae (Double Double)" already carries its other name; don't add it twice.
+  return primary && !flat(o.name).includes(flat(primary)) ? `${o.name} (${primary})` : o.name;
 }
 
 export function sizeText(size?: number[]): string | null {
