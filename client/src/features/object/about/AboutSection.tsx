@@ -156,7 +156,7 @@ export function AboutSection({
 
       <Tiles obj={obj} facts={facts} story={story} />
 
-      {scale && <HowBig s={scale} name={subject.name} />}
+      {scale && <HowBig s={scale} />}
 
       {obj && facts?.d ? (
         <div className="grid gap-4">

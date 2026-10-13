@@ -1,8 +1,8 @@
 /**
  * "How big is it?" — an object's size and mass turned into comparisons people can feel: planets against Earth,
  * moons against our Moon, stars against the Sun and the planets' orbits, double stars by the real gap between them,
- * nebulae and galaxies against the Solar System and the Milky Way. Shared by the object page and its server-rendered
- * version.
+ * nebulae and clusters against the distance from the Sun to a star you can see, galaxies against the Milky Way.
+ * Shared by the object page and its server-rendered version.
  */
 import { AU_PER_LY, BODY_PHYSICS, EARTH, NEPTUNE_AU, SUN, escapeOf, gravityOf, type BodyPhysics } from "./bodies";
 import { lookback, niceYears } from "./lookback";
@@ -20,7 +20,17 @@ export type ScaleVisual =
   | { kind: "discs"; items: { label: string; r: number; color: string; main?: boolean }[]; caption: string }
   | { kind: "orbits"; star: { label: string; rAu: number; color: string }; orbits: { label: string; au: number }[]; caption: string }
   | { kind: "galaxies"; mw: number; obj: { label: string; major: number; minor: number }; caption: string }
-  | { kind: "ruler"; km: number; label: string };
+  | {
+      kind: "bars";
+      /** The object across its width (`look` picks how it is drawn)… */
+      obj: { label: string; size: number; look: BarLook };
+      /** …and under it, to the same scale, a distance people know: from the Sun to `to` (or, without `from`, a span). */
+      stick: { from?: string; to: string; size: number; color: string };
+      unit: string;
+      caption: string;
+    };
+
+export type BarLook = "cloud" | "reflection" | "dark" | "starcloud" | "ring" | "shell" | "cluster" | "globular" | "pair";
 
 export interface ScaleStory {
   headline: string;
@@ -318,17 +328,32 @@ export function starScale(s: { name: string; r?: number; mass?: number; lum?: nu
 
 // ------------------------------------------------------------------------------------------- double stars
 
+/** Voyager 1's distance from the Sun, AU: 163 at the start of 2024, moving out 3.57 AU a year. */
+export function voyagerAu(when = new Date()): number {
+  return 163 + (when.getFullYear() + when.getMonth() / 12 - 2024) * VOYAGER_AU_PER_YEAR;
+}
+const VOYAGER_AU_PER_YEAR = 3.57;
+
 export function doubleScale(name: string, sepArcsec: number, distLy: number): ScaleStory {
   const au = sepArcsec * (distLy / 3.26156);
   const light = au * TWO_AU_S;
+  const lines = [`That’s ${au / NEPTUNE_AU >= 1.5 ? `${times(au / NEPTUNE_AU)}` : "about"} the distance from the Sun to Neptune${au / NEPTUNE_AU < 0.7 ? " or less" : ""}: light takes ${lightTime(light)} to cross the gap.`];
+  // Small gaps against Neptune's orbit; wider ones against the farthest any spacecraft has gone.
+  const v = voyagerAu();
+  const near = au <= 3 * NEPTUNE_AU;
+  if (!near) lines.push(`Voyager 1, our farthest spacecraft, has flown ${nice(v)} AU from the Sun since 1977. At its speed, crossing this gap would take about ${nice(au / VOYAGER_AU_PER_YEAR)} years.`);
+  lines.push(`We may see the pair at a slant, so this is the least they can be apart.`);
   return {
     headline: `The two stars are at least ${times(au)} Earth’s distance from the Sun apart`,
-    lines: [
-      `That’s ${au / NEPTUNE_AU >= 1.5 ? `${times(au / NEPTUNE_AU)}` : "about"} the distance from the Sun to Neptune${au / NEPTUNE_AU < 0.7 ? " or less" : ""}: light takes ${lightTime(light)} to cross the gap.`,
-      `We may see the pair at a slant, so this is the least they can be apart.`,
-    ],
+    lines,
     stats: [{ label: "Real gap", value: `${nice(au)} AU`, sub: `light takes ${lightTime(light)}` }],
-    visual: { kind: "ruler", km: au * 149_597_870.7, label: `${name}: the gap between the stars` },
+    visual: {
+      kind: "bars",
+      obj: { label: "The gap between the two stars", size: au, look: "pair" },
+      stick: near ? { from: "the Sun", to: "Neptune", size: NEPTUNE_AU, color: PLANET_COLOR.neptune } : { from: "the Sun", to: "Voyager 1 today", size: v, color: "#cfd8e8" },
+      unit: "AU",
+      caption: `${name}: the gap between its stars, and ${near ? "Neptune’s distance from the Sun" : "how far Voyager 1 has travelled"}, to the same scale`,
+    },
   };
 }
 
@@ -336,6 +361,80 @@ export function doubleScale(name: string, sepArcsec: number, distLy: number): Sc
 
 const MILKY_WAY_LY = 100_000;
 const SOLAR_SYSTEM_LY = (2 * NEPTUNE_AU) / AU_PER_LY;
+
+/**
+ * Distances from the Sun to stars people can see, light-years (the app's own figures for them), to lay a nebula's
+ * or a cluster's width against: from 4 to 1,400 light-years there is always one within a factor of about three.
+ */
+export const STAR_STICKS: { id: string; to: string; ly: number; teff: number }[] = [
+  { id: "proxima-centauri", to: "Proxima Centauri", ly: 4.24, teff: 2990 },
+  { id: "sirius", to: "Sirius", ly: 8.6, teff: 9840 },
+  { id: "procyon", to: "Procyon", ly: 11.5, teff: 6580 },
+  { id: "altair", to: "Altair", ly: 16.7, teff: 6780 },
+  { id: "vega", to: "Vega", ly: 25, teff: 10100 },
+  { id: "arcturus", to: "Arcturus", ly: 37, teff: 4290 },
+  { id: "aldebaran", to: "Aldebaran", ly: 67, teff: 3900 },
+  { id: "regulus", to: "Regulus", ly: 79, teff: 11000 },
+  { id: "spica", to: "Spica", ly: 250, teff: 25300 },
+  { id: "polaris", to: "Polaris", ly: 430, teff: 6020 },
+  { id: "betelgeuse", to: "Betelgeuse", ly: 500, teff: 3780 },
+  { id: "rigel", to: "Rigel", ly: 860, teff: 12100 },
+  { id: "deneb", to: "Deneb", ly: 1400, teff: 8520 },
+];
+
+const LOOK: Record<string, BarLook> = {
+  planetary_nebula: "ring",
+  supernova_remnant: "shell",
+  open_cluster: "cluster",
+  globular_cluster: "globular",
+  reflection_nebula: "reflection",
+  dark_nebula: "dark",
+  star_cloud: "starcloud",
+};
+
+/** "about a quarter", "about half"… for a share of something; small ones as a percentage. */
+function share(r: number): string {
+  if (r < 0.15) return `${Math.max(1, Math.round(r * 100))}%`;
+  const words: [number, string][] = [[0.2, "a fifth"], [0.25, "a quarter"], [0.33, "a third"], [0.5, "half"], [0.67, "two-thirds"], [0.75, "three-quarters"]];
+  return `about ${words.reduce((a, b) => (Math.abs(b[0] - r) < Math.abs(a[0] - r) ? b : a))[1]}`;
+}
+
+const rgb = (c: [number, number, number]) => `rgb(${c.join(",")})`;
+
+/**
+ * A width `w` (light-years) laid against the distance from the Sun to the star whose distance is nearest below it:
+ * the headline ("Twice as wide as the gap between the Sun and Vega"), the same as a sentence, and the picture.
+ */
+function againstStars(w: number, name: string, type: string): { headline: string; sentence: string; visual: ScaleVisual } {
+  const near = STAR_STICKS[0];
+  const last = STAR_STICKS[STAR_STICKS.length - 1];
+  let headline: string;
+  let stick: { from?: string; to: string; size: number; color: string };
+  if (w > 1.6 * last.ly) {
+    headline = `${share(w / MILKY_WAY_LY).replace(/^about /, "About ")} of the Milky Way’s width`;
+    stick = { to: "The Milky Way’s width", size: MILKY_WAY_LY, color: "#c9d6ff" };
+  } else if (w < 0.8 * near.ly) {
+    headline = `Wide enough to stretch ${share(w / near.ly)} of the way from the Sun to its nearest star`;
+    stick = { from: "the Sun", to: near.to, size: near.ly, color: rgb(temperatureRgb(near.teff)) };
+  } else {
+    const s = [...STAR_STICKS].reverse().find((x) => x.ly <= 1.25 * w)!;
+    const r = w / s.ly;
+    const place = s === near ? "its nearest star" : s.to;
+    headline = r < 1.2 ? `About as wide as the gap between the Sun and ${place}` : `${times(r).replace(/^t/, "T")} as wide as the gap between the Sun and ${place}`;
+    stick = { from: "the Sun", to: s.to, size: s.ly, color: rgb(temperatureRgb(s.teff)) };
+  }
+  return {
+    headline,
+    sentence: `It is ${headline[0].toLowerCase()}${headline.slice(1)}.`,
+    visual: {
+      kind: "bars",
+      obj: { label: name, size: w, look: LOOK[type] ?? "cloud" },
+      stick,
+      unit: "light-years",
+      caption: stick.from ? `${name} and the distance from the Sun to ${stick.to}, to the same scale` : `${name} and the Milky Way, to the same scale`,
+    },
+  };
+}
 
 export interface DeepScaleInput {
   name: string;
@@ -357,13 +456,15 @@ export function deepScale(o: DeepScaleInput): ScaleStory | null {
   const lines: string[] = [];
   const stats: ScaleStat[] = [];
   let headline = "";
-  let visual: ScaleVisual | null = w ? { kind: "ruler", km: w * 9.4607e12, label: o.name } : null;
+  const galaxy = o.type === "galaxy" || o.type === "galaxy_group";
+  const ys = w && !galaxy ? againstStars(w, o.name, o.type) : null;
+  let visual: ScaleVisual | null = ys?.visual ?? null;
   if (w) {
     stats.push({ label: "Width", value: `${w < 10 ? +w.toFixed(1) : nice(w)} light-years` });
     const t = w < 0.1 ? `${Math.round(w * 365.25)} days` : w < 0.9 ? `${Math.round(w * 12)} months` : w < 1.5 ? "about a year" : `${nice(w)} years`;
     lines.push(`Light itself takes ${t} to cross it.`);
   }
-  if (o.type === "galaxy" || o.type === "galaxy_group") {
+  if (galaxy) {
     if (w) {
       const r = w / MILKY_WAY_LY;
       headline = r > 1.15 ? `${+r.toFixed(1)} times as wide as our Milky Way` : r > 0.85 ? "About as wide as our Milky Way" : r >= 0.1 ? `${Math.round(r * 100)}% of the Milky Way’s width` : "A dwarf beside the Milky Way";
@@ -384,6 +485,10 @@ export function deepScale(o: DeepScaleInput): ScaleStory | null {
     if (o.mass) {
       headline = `About ${nice(o.mass)} Suns’ worth of stars${w ? ` in a ball ${nice(w)} light-years wide` : ""}`;
       stats.push({ label: "Mass", value: `${nice(o.mass)} Suns` });
+    }
+    if (ys) {
+      if (headline) lines.push(ys.sentence);
+      else headline = ys.headline;
     }
     if (o.rhoc) {
       // Stars of half a solar mass on average: their spacing in the core, against our 4.2 light-years.
@@ -415,28 +520,22 @@ export function deepScale(o: DeepScaleInput): ScaleStory | null {
       lines.push(`It holds about ${nice(o.mass)} Suns’ worth of ${o.type === "planetary_nebula" || o.type === "supernova_remnant" ? "material" : "gas and dust"}.`);
       stats.push({ label: "Mass", value: `${nice(o.mass)} Suns` });
     }
-    if (w) {
-      // The headline takes one yardstick and the line below it the next one along, so they never repeat.
+    if (w && ys) {
+      if (headline) lines.push(ys.sentence);
+      else headline = ys.headline;
       const ss = w / SOLAR_SYSTEM_LY;
-      const own = !headline;
-      if (own) headline = w >= 8.5 ? `${times(w / 4.24)} the gap between the Sun and its nearest star` : ss >= 2 ? `${nice(ss)} Solar Systems side by side` : `About as wide as the Solar System`;
-      if (w >= 8.5) lines.push(`Our whole Solar System, out to Neptune, would be a speck inside it — ${nice(ss)} of them would fit across.`);
-      else if (!own) lines.push(`That’s about ${times(ss)} the width of our Solar System out to Neptune.`);
-      else if (4.24 / w >= 1.5) lines.push(`About ${4.24 / w < 10 ? Math.round(4.24 / w) : nice(4.24 / w)} of them would fit end to end between the Sun and its nearest star.`);
+      lines.push(
+        w >= 8.5
+          ? `Our whole Solar System, out to Neptune, would be a speck inside it — ${nice(ss)} of them would fit across.`
+          : ss >= 2
+            ? `That’s ${nice(ss)} Solar Systems, out to Neptune, side by side.`
+            : "That’s about as wide as our Solar System, out to Neptune.",
+      );
     }
   }
   if (!headline) headline = w ? `${nice(w)} light-years across` : `About ${nice(o.mass!)} Suns`;
   return { headline, lines, stats, visual };
 }
-
-/** Milestones for the size ruler: a log scale from a planet to the galaxies, km. */
-export const SIZE_MILESTONES: { km: number; label: string }[] = [
-  { km: 2 * EARTH.radiusKm, label: "Earth" },
-  { km: 2 * SUN.radiusKm, label: "the Sun" },
-  { km: 2 * NEPTUNE_AU * 149_597_870.7, label: "Solar System" },
-  { km: 4.24 * 9.4607e12, label: "Sun → nearest star" },
-  { km: MILKY_WAY_LY * 9.4607e12, label: "Milky Way" },
-];
 
 export type { BodyPhysics };
 
