@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { catalogScale, deepScale, doubleScale, earthMoonScale, nice, planetScale, satelliteScale, starScale } from "./scale";
+import { catalogScale, deepScale, doubleScale, earthMoonScale, nice, planetScale, satelliteScale, starScale, theName } from "./scale";
 
 test("planets against Earth", () => {
   const j = planetScale("jupiter", 2026)!;
@@ -42,9 +42,7 @@ test("double stars and the deep sky", () => {
   assert.match(m13.lines.join(" "), /longer than the universe has existed/);
   assert.match(deepScale({ name: "Pleiades", type: "open_cluster", sizeLy: 14, age: 115e6, members: 1721 })!.headline, /when dinosaurs still walked the Earth/);
   assert.match(deepScale({ name: "Andromeda", type: "galaxy", sizeLy: 129000, stars: 1e12 })!.headline, /1.3 times as wide as our Milky Way/);
-  const ring = deepScale({ name: "Ring Nebula", type: "planetary_nebula", sizeLy: 1.06 })!;
-  assert.equal(ring.headline, "Wide enough to stretch about a quarter of the way from the Sun to its nearest star");
-  assert.match(ring.lines.join(" "), /1,110 Solar Systems, out to Neptune, side by side/);
+  assert.match(deepScale({ name: "Ring Nebula", type: "planetary_nebula", sizeLy: 1.06 })!.headline, /1,110 Solar Systems side by side/);
   assert.equal(nice(1321.4), "1,320");
   assert.equal(nice(2.6e8), "260 million");
 });
@@ -65,34 +63,37 @@ test("each figure is said once, and doubles are told through their main star", (
   assert.match(deepScale({ name: "Cat’s Eye", type: "planetary_nebula", sizeLy: 0.2 })!.lines[0], /2 months/);
 });
 
-test("deep-sky widths are laid against the distance to a star you can see", () => {
-  const bars = (sizeLy: number, type = "emission_nebula") => {
-    const s = deepScale({ name: "X", type, sizeLy })!;
-    assert.equal(s.visual?.kind, "bars");
-    return { s, v: s.visual as Extract<NonNullable<typeof s.visual>, { kind: "bars" }> };
+test("nebulae and clusters: the Solar System, the nearest star and a coin-sized model", () => {
+  const model = (sizeLy: number, type = "emission_nebula", name = "Orion Nebula") => {
+    const s = deepScale({ name, type, sizeLy })!;
+    assert.equal(s.visual?.kind, "model");
+    return { s, v: s.visual as Extract<NonNullable<typeof s.visual>, { kind: "model" }> };
   };
-  assert.equal(bars(34.6).s.headline, "About as wide as the gap between the Sun and Arcturus");
-  assert.equal(bars(52.8).s.headline, "1.4 times as wide as the gap between the Sun and Arcturus");
-  assert.equal(bars(50).v.stick.to, "Arcturus");
-  assert.equal(bars(17).s.headline, "About as wide as the gap between the Sun and Altair");
-  assert.equal(bars(1860).v.stick.to, "Deneb");
-  assert.match(bars(5000).s.headline, /of the Milky Way’s width/);
-  assert.equal(bars(0.3, "planetary_nebula").v.obj.look, "ring");
+  const orion = model(34.6);
+  assert.equal(orion.s.headline, "8.2 times the distance from the Sun to the nearest star");
+  assert.deepEqual(orion.v.rows.map((r) => r.label), ["Our Solar System", "The nearest star", "Orion Nebula", "Our Milky Way"]);
+  assert.deepEqual(orion.v.rows.map((r) => r.size), ["2.4 cm", "110 m", "870 m", "2,520 km"]);
+  assert.equal(orion.v.rows[2].like, "8 football pitches end to end");
+  assert.equal(orion.v.rows[3].like, "a 3-hour flight across");
+  assert.match(orion.v.text, /the Orion Nebula would be 870 m across/);
+  // Smaller than the gap to the nearest star: it comes before it, and the headline counts Solar Systems.
+  const ring = model(1.06, "planetary_nebula", "Ring Nebula");
+  assert.equal(ring.s.headline, "1,110 Solar Systems side by side");
+  assert.equal(ring.v.rows[1].label, "Ring Nebula");
+  assert.equal(ring.v.rows[1].like, "about the length of a tennis court");
+  assert.equal(model(116, "globular_cluster").v.rows[2].like, "a 35-minute walk");
+  assert.equal(model(1860).v.rows[2].like, "a 35-minute drive");
   // A cluster keeps its own headline and gets the comparison as a line.
   const m13 = deepScale({ name: "M 13", type: "globular_cluster", sizeLy: 116, mass: 480000 })!;
-  assert.match(m13.lines.join(" "), /It is 1.5 times as wide as the gap between the Sun and Regulus/);
-  // Wide doubles against Voyager 1's journey, close ones against Neptune's orbit.
-  assert.equal((doubleScale("Wide", 30, 1400).visual as { stick: { to: string } }).stick.to, "Voyager 1 today");
-  assert.equal((doubleScale("Close", 1, 100).visual as { stick: { to: string } }).stick.to, "Neptune");
+  assert.match(m13.lines.join(" "), /That’s 27 times the distance from the Sun to the nearest star/);
+  // Doubles: the gap in the same model, beside how far Voyager 1 has gone.
+  const pair = doubleScale("Struve 747", 36, 1200).visual as Extract<NonNullable<ReturnType<typeof doubleScale>["visual"]>, { kind: "model" }>;
+  assert.deepEqual(pair.rows.map((r) => r.label), ["Our Solar System", "Voyager 1", "Between its two stars", "The nearest star", "Our Milky Way"]);
 });
 
-test("the yardstick stars' distances match the app's own figures", async () => {
-  const { STAR_STICKS } = await import("./scale");
-  const data = (await import("./data/objectFacts.json")).default as unknown as { facts?: Record<string, { d?: number }> } & Record<string, { d?: number }>;
-  const facts = (data.facts ?? data) as Record<string, { d?: number }>;
-  for (const s of STAR_STICKS) {
-    const d = facts[s.id]?.d;
-    assert.ok(d, `${s.id} has a distance`);
-    assert.ok(Math.abs(d! - s.ly) / s.ly < 0.1, `${s.id}: ${s.ly} ly here, ${d} ly in the facts`);
-  }
+test("names take “the” where they need it", () => {
+  assert.equal(theName("Orion Nebula"), "the Orion Nebula");
+  assert.equal(theName("Pleiades"), "the Pleiades");
+  assert.equal(theName("Omega Centauri"), "Omega Centauri");
+  assert.equal(theName("Kemble’s Cascade"), "Kemble’s Cascade");
 });

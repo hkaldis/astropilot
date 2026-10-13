@@ -1,6 +1,8 @@
 import { useId } from "react";
 import { Ruler } from "lucide-react";
-import { nice, type BarLook, type ScaleStory, type ScaleVisual } from "@shared/scale";
+import { cn } from "@/lib/utils";
+import { type ScaleStory, type ScaleVisual } from "@shared/scale";
+import { GLYPH_BODY_R, GLYPH_EXTENT, PlanetGlyph, TypeGlyph } from "@/components/common/Glyphs";
 
 const W = 360;
 
@@ -12,16 +14,20 @@ function Text({ x, y, children, anchor = "middle", className = "fill-foreground/
   );
 }
 
-/** Spheres side by side, to scale, standing on one line; anything too small to see is marked with a ring. */
+/**
+ * Worlds side by side, to scale, standing on one line: the planets, Earth, the Moon and the Sun as their icons, other
+ * moons and stars as shaded spheres; anything too small to see is marked with a ring.
+ */
 function Discs({ v }: { v: Extract<ScaleVisual, { kind: "discs" }> }) {
   const uid = useId().replace(/:/g, "");
   const H = 150;
-  const maxR = Math.max(...v.items.map((i) => i.r));
+  const ext = (i: (typeof v.items)[number]) => (i.glyph && GLYPH_EXTENT[i.glyph]) || [1, 1];
+  const maxR = Math.max(...v.items.map((i) => i.r * ext(i)[1]));
   const gap = 18;
-  // Each slot is as wide as its sphere or its name, whichever is wider, so small neighbours' labels don't collide;
-  // three big spheres in a row are shrunk to fit the width.
+  // Each slot is as wide as its world (with Saturn's rings) or its name, whichever is wider, so small neighbours'
+  // labels don't collide; three big worlds in a row are shrunk to fit the width.
   const layout = (k: number) => {
-    const widths = v.items.map((i) => Math.max(2 * i.r * k, i.label.length * 5.8 + 4, 8));
+    const widths = v.items.map((i) => Math.max(2 * i.r * k * ext(i)[0], i.label.length * 5.8 + 4, 8));
     return { k, widths, total: widths.reduce((a, b) => a + b, 0) + gap * (v.items.length - 1) };
   };
   let { k, widths, total } = layout((H / 2 - 14) / maxR);
@@ -47,11 +53,18 @@ function Discs({ v }: { v: Extract<ScaleVisual, { kind: "discs" }> }) {
         const cx = x + widths[i] / 2;
         x += widths[i] + gap;
         const tiny = r < 2.5;
+        const size = it.glyph ? (24 * r) / (GLYPH_BODY_R[it.glyph] ?? 8) : 0;
         return (
           <g key={it.label}>
-            <circle cx={cx} cy={base - r} r={r} fill={it.color} />
-            <circle cx={cx} cy={base - r} r={r} fill={`url(#${uid}limb)`} />
-            <circle cx={cx} cy={base - r} r={r} fill={`url(#${uid}hi)`} />
+            {it.glyph ? (
+              <PlanetGlyph id={it.glyph} x={cx - size / 2} y={base - r - size / 2} size={size} />
+            ) : (
+              <>
+                <circle cx={cx} cy={base - r} r={r} fill={it.color} />
+                <circle cx={cx} cy={base - r} r={r} fill={`url(#${uid}limb)`} />
+                <circle cx={cx} cy={base - r} r={r} fill={`url(#${uid}hi)`} />
+              </>
+            )}
             {tiny && <circle cx={cx} cy={base - r} r={6} fill="none" className="stroke-foreground/50" strokeWidth={0.8} />}
             <Text x={cx} y={base + 15} className={it.main ? "fill-foreground font-medium" : "fill-muted-foreground"} size={10.5}>
               {it.label}
@@ -144,129 +157,67 @@ function Galaxies({ v }: { v: Extract<ScaleVisual, { kind: "galaxies" }> }) {
   );
 }
 
-/** A tiny seeded random generator, so a cluster's stars land in the same places on every render. */
-function seeded(text: string) {
-  let a = [...text].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7);
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+/** Our Solar System on a coin: the Sun and its orbits stamped on a gold disc. */
+function CoinIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
+      <circle cx="12" cy="12" r="10.5" fill="#d9b25a" />
+      <circle cx="12" cy="12" r="9.2" fill="none" stroke="#f3dc9a" strokeWidth="0.8" opacity="0.8" />
+      {[2.8, 4.6, 6.6].map((r) => (
+        <circle key={r} cx="12" cy="12" r={r} fill="none" stroke="#7a5a1c" strokeWidth="0.55" opacity="0.65" />
+      ))}
+      <circle cx="12" cy="12" r="1.3" fill="#7a5a1c" />
+      <circle cx="14.8" cy="12" r="0.6" fill="#7a5a1c" />
+      <circle cx="8.2" cy="9.3" r="0.8" fill="#7a5a1c" />
+    </svg>
+  );
 }
 
-const LOOK_COLOR: Record<BarLook, string> = {
-  cloud: "#ff7aa6",
-  reflection: "#8fb4ff",
-  dark: "#a08468",
-  starcloud: "#f2e2b8",
-  ring: "#7fe8d8",
-  shell: "#ff9466",
-  cluster: "#cfdcff",
-  globular: "#ffe2a6",
-  pair: "#ffffff",
-};
+/** Voyager 1: its big dish, the body under it and the long booms. */
+function VoyagerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6 text-white/85" aria-hidden="true">
+      <ellipse cx="12" cy="7.5" rx="6.2" ry="2.3" fill="currentColor" />
+      <path d="M12 9.8v2.4M14 13.6h8M10 13.6 3.5 18.5M12 15.2v5.5" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" />
+      <rect x="10" y="12.2" width="4" height="3" rx="0.5" fill="currentColor" />
+    </svg>
+  );
+}
 
-/** The object, drawn across [x, x + w] around the line y = cy: a glow, a ring, a shell, a spray of stars… */
-function ObjectShape({ look, x, w, cy, ry, seed, uid }: { look: BarLook; x: number; w: number; cy: number; ry: number; seed: string; uid: string }) {
-  const c = LOOK_COLOR[look];
-  const cx = x + w / 2;
-  const rx = w / 2;
-  const glow = <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill={`url(#${uid}glow)`} />;
-  if (look === "pair") {
-    return (
-      <g>
-        <line x1={x} x2={x + w} y1={cy} y2={cy} stroke="#fff" strokeOpacity={0.35} strokeDasharray="3 3" />
-        <circle cx={x} cy={cy} r={4} fill="#ffd9a0" />
-        <circle cx={x + w} cy={cy} r={3.2} fill="#a9c4ff" />
-      </g>
-    );
-  }
-  if (look === "ring" || look === "shell") {
-    return (
-      <g>
-        {glow}
-        <ellipse cx={cx} cy={cy} rx={Math.max(rx - 1, 1)} ry={Math.max(ry - 1, 1)} fill="none" stroke={c} strokeOpacity={0.85} strokeWidth={look === "ring" ? 2 : 1.4} strokeDasharray={look === "shell" ? "4 2 1 2" : undefined} />
-      </g>
-    );
-  }
-  if (look === "cluster" || look === "globular" || look === "starcloud") {
-    const rand = seeded(seed);
-    const n = look === "globular" ? Math.round(Math.min(140, Math.max(14, w / 2))) : Math.round(Math.min(60, Math.max(6, w / 4)));
-    const dots = Array.from({ length: n }, () => {
-      const a = rand() * 2 * Math.PI;
-      // A globular's stars crowd towards its centre; an open cluster's are spread loosely.
-      const d = look === "globular" ? rand() ** 1.8 : Math.sqrt(rand());
-      return { x: cx + Math.cos(a) * d * rx, y: cy + Math.sin(a) * d * ry, r: 0.6 + rand() * (look === "globular" ? 0.9 : 1.3) };
-    });
-    return (
-      <g>
-        {glow}
-        {dots.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r={p.r} fill={c} fillOpacity={0.9} />
-        ))}
-      </g>
-    );
-  }
-  return glow;
+function ModelIcon({ icon }: { icon: string }) {
+  if (icon === "coin") return <CoinIcon />;
+  if (icon === "voyager") return <VoyagerIcon />;
+  return <TypeGlyph type={icon} className={cn("h-6 w-6", icon === "star" || icon === "double_star" ? "" : "text-white/85")} />;
 }
 
 /**
- * The object across its width, and under it, to the same scale, a distance people know — from the Sun to a star they
- * can see. Dashed guides carry the object's edges down to that line, and faint copies of it show how many times it
- * fits.
+ * The scale model: our Solar System shrunk to a coin and everything else with it — the nearest star, the object and
+ * the Milky Way — each with its size in the model and something everyday that big. A thread joins them, smallest
+ * to largest; the object's row is lit.
  */
-function Bars({ v }: { v: Extract<ScaleVisual, { kind: "bars" }> }) {
-  const uid = useId().replace(/:/g, "");
-  const H = 132;
-  const x0 = 16;
-  const k = (W - 2 * x0) / Math.max(v.obj.size, v.stick.size);
-  const ow = Math.max(v.obj.size * k, 3);
-  const sw = Math.max(v.stick.size * k, 2);
-  const oy = 50;
-  const sy = 102;
-  const ry = Math.min(20, Math.max(3, ow * 0.3));
-  const fmt = (x: number) => `${x < 10 ? +x.toFixed(1) : nice(x)} ${v.unit}`;
-  const fits = v.obj.size / v.stick.size;
-  const copies = fits > 1.15 && sw >= 8 ? Math.floor(fits) : 0;
-  const c = LOOK_COLOR[v.obj.look];
+function Model({ v }: { v: Extract<ScaleVisual, { kind: "model" }> }) {
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-label={v.caption}>
-      <defs>
-        <radialGradient id={`${uid}glow`}>
-          <stop offset="0" stopColor="#fff" stopOpacity={v.obj.look === "dark" ? 0.25 : 0.7} />
-          <stop offset="0.35" stopColor={c} stopOpacity={0.55} />
-          <stop offset="1" stopColor={c} stopOpacity={0} />
-        </radialGradient>
-      </defs>
-      <rect width={W} height={H} rx={12} className="fill-[#05070c]" />
-      <Text x={x0} y={20} anchor="start" size={11} className="fill-white">
-        {v.obj.label} · {fmt(v.obj.size)}
-      </Text>
-      {/* The object's two edges, carried down to the yardstick. */}
-      {[x0, x0 + ow].map((gx) => (
-        <line key={gx} x1={gx} x2={gx} y1={oy - ry - 3} y2={sy + 6} stroke="#fff" strokeOpacity={0.22} strokeDasharray="2 3" />
-      ))}
-      <ObjectShape look={v.obj.look} x={x0} w={ow} cy={oy} ry={ry} seed={v.obj.label} uid={uid} />
-      {fits > 1.15 && (
-        <g>
-          <line x1={x0 + sw} x2={x0 + ow} y1={sy} y2={sy} stroke="#fff" strokeOpacity={0.3} strokeDasharray="3 3" />
-          {Array.from({ length: Math.max(0, copies - 1) }, (_, i) => (
-            <line key={i} x1={x0 + (i + 2) * sw} x2={x0 + (i + 2) * sw} y1={sy - 3} y2={sy + 3} stroke="#fff" strokeOpacity={0.35} />
-          ))}
-          <Text x={x0 + ow} y={sy - 8} anchor="end" size={10} className="fill-white/60">
-            {`×${fits < 10 ? +fits.toFixed(1) : nice(fits)}`}
-          </Text>
-        </g>
-      )}
-      <line x1={x0} x2={x0 + sw} y1={sy} y2={sy} stroke="#fff" strokeOpacity={0.8} strokeWidth={1.3} />
-      {/* Smaller end dots when the yardstick is only a sliver, so they don't merge into one. */}
-      {v.stick.from ? <circle cx={x0} cy={sy} r={sw < 12 ? 2 : 3.4} fill="#ffd27a" /> : <line x1={x0} x2={x0} y1={sy - 4} y2={sy + 4} stroke="#fff" strokeOpacity={0.8} />}
-      <circle cx={x0 + sw} cy={sy} r={sw < 12 ? 2 : 3.4} fill={v.stick.color} />
-      <Text x={x0} y={sy + 20} anchor="start" size={11} className="fill-white/75">
-        {v.stick.from ? `${v.stick.from[0].toUpperCase()}${v.stick.from.slice(1)} → ${v.stick.to}` : v.stick.to} · {fmt(v.stick.size)}
-      </Text>
-    </svg>
+    <div className="rounded-xl bg-[#05070c] px-4 pb-2 pt-3.5 text-white">
+      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/55">{v.title}</div>
+      <ol className="relative mt-1.5">
+        <span className="absolute bottom-6 left-[15px] top-6 w-px bg-white/15" aria-hidden="true" />
+        {v.rows.map((r) => (
+          <li key={r.label} className={cn("relative flex items-center gap-3 py-2.5", r.main && "-mx-2 rounded-lg bg-white/[0.07] px-2 ring-1 ring-primary/50")}>
+            <span className="relative flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[#05070c]">
+              <ModelIcon icon={r.icon} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className={cn("text-[0.92rem] leading-tight", r.main ? "font-semibold" : "text-white/90")}>{r.label}</div>
+              <div className="mt-0.5 text-[11px] leading-snug text-white/50">{r.note}</div>
+            </div>
+            <div className="max-w-[46%] shrink-0 text-right">
+              <div className="num text-[0.95rem] font-medium leading-tight">{r.size}</div>
+              <div className={cn("mt-0.5 text-[11px] leading-snug", r.main ? "text-primary" : "text-white/60")}>{r.like}</div>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -281,7 +232,7 @@ export function HowBig({ s }: { s: ScaleStory }) {
       <p className="mt-2 font-display text-[1.5rem] leading-tight tracking-tight sm:text-[1.8rem]">{s.headline}</p>
       {v && (
         <div className="mt-4">
-          {v.kind === "discs" ? <Discs v={v} /> : v.kind === "orbits" ? <Orbits v={v} /> : v.kind === "galaxies" ? <Galaxies v={v} /> : <Bars v={v} />}
+          {v.kind === "discs" ? <Discs v={v} /> : v.kind === "orbits" ? <Orbits v={v} /> : v.kind === "galaxies" ? <Galaxies v={v} /> : <Model v={v} />}
           <p className="mt-1 text-center text-[11px] text-muted-foreground">{v.caption}</p>
         </div>
       )}

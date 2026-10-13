@@ -302,7 +302,8 @@ function storyParts(id: string, name: string) {
 /** "How big is it?" as a short section: the headline comparison, then the supporting ones. */
 function scaleParts(sc: ScaleStory | null) {
   if (!sc) return { html: "", md: "" };
-  const text = `${sc.headline}. ${sc.lines.join(" ")}`;
+  // The scale model is a picture on the page; here it is told in a sentence.
+  const text = [`${sc.headline}.`, ...sc.lines, ...(sc.visual?.kind === "model" ? [sc.visual.text] : [])].join(" ");
   return { html: `<h2>How big is it?</h2><p>${esc(text)}</p>`, md: `## How big is it?\n\n${text}\n\n` };
 }
 

@@ -204,13 +204,30 @@ const PLANET_STYLE: Record<string, { base: string; light: string; dark: string }
   neptune: { base: "#3f66d1", light: "#7f9ff0", dark: "#22398a" },
 };
 
-/** A small, recognisable portrait of each planet. */
-export function PlanetGlyph({ id, className, title }: { id: string; className?: string; title?: string }) {
+/** Earth, our Moon and the Sun, drawn the same way, for pictures that set things side by side. */
+const BODY_STYLE: Record<string, { base: string; light: string; dark: string }> = {
+  ...PLANET_STYLE,
+  earth: { base: "#2f6fd1", light: "#7fb2f2", dark: "#173f86" },
+  moon: { base: "#b8b2a6", light: "#ece6da", dark: "#77716a" },
+  sun: { base: "#ffc23d", light: "#fff4c2", dark: "#f0821a" },
+};
+
+/** The radius of each glyph's globe in its 24-unit box, so a picture can draw it to scale… */
+export const GLYPH_BODY_R: Record<string, number> = { mercury: 6.8, venus: 8.6, earth: 8.6, moon: 8, mars: 8.5, jupiter: 9.5, saturn: 6.2, uranus: 7.4, neptune: 7.6, sun: 9.2 };
+/** …and how far its rings or glow reach beyond the globe, across and up. */
+export const GLYPH_EXTENT: Record<string, [number, number]> = { saturn: [1.78, 1], uranus: [1.05, 1.47], sun: [1.24, 1.24] };
+
+/**
+ * A small, recognisable portrait of each planet (and of Earth, the Moon and the Sun). Inside another SVG, pass
+ * `x`, `y` and `size` to place it there instead of sizing it with CSS.
+ */
+export function PlanetGlyph({ id, className, title, x, y, size }: { id: string; className?: string; title?: string; x?: number; y?: number; size?: number }) {
   const uid = useId().replace(/:/g, "");
-  const st = PLANET_STYLE[id] ?? PLANET_STYLE.mercury;
+  const st = BODY_STYLE[id] ?? PLANET_STYLE.mercury;
   const shade = `pl-sh-${uid}`;
   const clip = `pl-cl-${uid}`;
   const c = cn("h-5 w-5 shrink-0", className);
+  const box = size === undefined ? { className: c } : { x, y, width: size, height: size, overflow: "visible" as const };
   const body = (r: number, cx = 12, cy = 12) => (
     <>
       <circle cx={cx} cy={cy} r={r} fill={`url(#${shade})`} />
@@ -232,7 +249,7 @@ export function PlanetGlyph({ id, className, title }: { id: string; className?: 
   switch (id) {
     case "saturn":
       return (
-        <svg viewBox="0 0 24 24" className={c} role="img" aria-label={label}>
+        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
           {defs(6.2)}
           {/* ring behind the globe */}
           <ellipse cx="12" cy="12" rx="11" ry="3.4" transform="rotate(-16 12 12)" fill="none" stroke="#cbb27a" strokeWidth="1.6" opacity="0.55" />
@@ -247,7 +264,7 @@ export function PlanetGlyph({ id, className, title }: { id: string; className?: 
       );
     case "jupiter":
       return (
-        <svg viewBox="0 0 24 24" className={c} role="img" aria-label={label}>
+        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
           {defs(9.5)}
           {body(9.5)}
           <g clipPath={`url(#${clip})`}>
@@ -261,7 +278,7 @@ export function PlanetGlyph({ id, className, title }: { id: string; className?: 
       );
     case "mars":
       return (
-        <svg viewBox="0 0 24 24" className={c} role="img" aria-label={label}>
+        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
           {defs(8.5)}
           {body(8.5)}
           <g clipPath={`url(#${clip})`}>
@@ -272,7 +289,7 @@ export function PlanetGlyph({ id, className, title }: { id: string; className?: 
       );
     case "venus":
       return (
-        <svg viewBox="0 0 24 24" className={c} role="img" aria-label={label}>
+        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
           {defs(8.6)}
           {body(8.6)}
           <g clipPath={`url(#${clip})`} fill="none" stroke="#c9b37a" strokeWidth="1" opacity="0.55">
@@ -284,7 +301,7 @@ export function PlanetGlyph({ id, className, title }: { id: string; className?: 
       );
     case "mercury":
       return (
-        <svg viewBox="0 0 24 24" className={c} role="img" aria-label={label}>
+        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
           {defs(6.8)}
           {body(6.8)}
           <g clipPath={`url(#${clip})`} fill={st.dark} opacity="0.55">
@@ -297,7 +314,7 @@ export function PlanetGlyph({ id, className, title }: { id: string; className?: 
       );
     case "uranus":
       return (
-        <svg viewBox="0 0 24 24" className={c} role="img" aria-label={label}>
+        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
           {defs(7.4)}
           {/* Uranus is tipped on its side: the ring system stands almost upright */}
           <ellipse cx="12" cy="12" rx="2.6" ry="10.6" transform="rotate(8 12 12)" fill="none" stroke="#bfe9ec" strokeWidth="0.9" opacity="0.7" />
@@ -307,7 +324,7 @@ export function PlanetGlyph({ id, className, title }: { id: string; className?: 
       );
     case "neptune":
       return (
-        <svg viewBox="0 0 24 24" className={c} role="img" aria-label={label}>
+        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
           {defs(7.6)}
           {body(7.6)}
           <g clipPath={`url(#${clip})`}>
@@ -317,9 +334,53 @@ export function PlanetGlyph({ id, className, title }: { id: string; className?: 
           </g>
         </svg>
       );
+    case "earth":
+      return (
+        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
+          {defs(8.6)}
+          {body(8.6)}
+          <g clipPath={`url(#${clip})`}>
+            {/* Africa and Europe, the Americas' edge, Australia; ice caps and a few clouds */}
+            <path d="M9.6 5.2c1.5-.7 3.6-.5 4.8.6.8.7.5 1.7-.3 2.2-.8.5-.6 1.4.2 2 1.1.8 1.4 2.3.8 3.6-.6 1.4-1.6 2.7-2.5 3.6-.5.5-1.3.2-1.5-.5-.3-1.2-1-2.1-1.9-2.8-.9-.7-1.1-1.9-.5-2.8.4-.6.1-1.3-.5-1.7-.7-.5-.8-1.6.4-2.2z" fill="#5c9a4b" />
+            <path d="M3.2 10.5c1-.6 2.4-.4 3 .5.5.8 0 1.8-.8 2.2-.7.4-1 1.2-.8 2-.9-.6-1.6-1.8-1.7-3.1 0-.6.1-1.1.3-1.6z" fill="#6aa555" />
+            <path d="M16.8 15.8c.9-.6 2.1-.5 2.8.2-.4 1.2-1.1 2.2-2 3-.6-.3-1-.9-1.1-1.6 0-.6.1-1.2.3-1.6z" fill="#b99a5e" />
+            <ellipse cx="12" cy="3.6" rx="4" ry="1.5" fill="#f4f8ff" />
+            <ellipse cx="12" cy="20.6" rx="4.2" ry="1.4" fill="#f4f8ff" />
+            <path d="M4.5 7.6c2-.9 3.8-.5 5.2.3M13.4 12.2c1.6-.7 3.4-.6 5 .2M5.4 16.6c1.5.6 2.8.5 4-.2" fill="none" stroke="#fff" strokeWidth="0.4" strokeLinecap="round" opacity="0.45" />
+          </g>
+          <circle cx="12" cy="12" r="8.6" fill="none" stroke="#9cc8ff" strokeWidth="0.7" opacity="0.6" />
+        </svg>
+      );
+    case "moon":
+      return (
+        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
+          {defs(8)}
+          {body(8)}
+          <g clipPath={`url(#${clip})`} fill="#857f75" opacity="0.6">
+            {/* the dark "seas" of the near side */}
+            <ellipse cx="9.3" cy="9.4" rx="2.7" ry="2.1" />
+            <ellipse cx="13.6" cy="10.2" rx="1.9" ry="1.5" />
+            <ellipse cx="12.2" cy="14.4" rx="2.4" ry="1.6" />
+            <circle cx="7.6" cy="13.4" r="1.1" />
+          </g>
+          <circle cx="13.4" cy="17.6" r="0.6" fill="#f4efe4" opacity="0.55" />
+        </svg>
+      );
+    case "sun":
+      return (
+        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
+          {defs(9.2)}
+          <radialGradient id={`${shade}-glow`}>
+            <stop offset="0.7" stopColor="#ffd25e" stopOpacity="0.45" />
+            <stop offset="1" stopColor="#ffd25e" stopOpacity="0" />
+          </radialGradient>
+          <circle cx="12" cy="12" r="11.6" fill={`url(#${shade}-glow)`} />
+          {body(9.2)}
+        </svg>
+      );
     default:
       return (
-        <svg viewBox="0 0 24 24" className={c} role="img" aria-label={label}>
+        <svg viewBox="0 0 24 24" {...box} role="img" aria-label={label}>
           {defs(8)}
           {body(8)}
         </svg>
