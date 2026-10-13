@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import { Aperture, Camera, Check, Eye, Plus, Telescope, ZoomIn } from "lucide-react";
 import type { ApiGear, GearKind } from "@shared/api";
+import { opticalTrain, statesFactor } from "@shared/astro/optics";
 import { normalizeTelescopeType, usesEyepieces } from "@shared/data/gear-presets";
 import { EmptyState, ErrorState, PageHeader, Section, Skel, usePageTitle } from "@/components/common/Page";
 import { Button } from "@/components/ui/button";
@@ -144,7 +145,16 @@ function MyGear() {
   const eps = useMemo(() => (g?.eyepieces ?? []).map((e) => ({ id: e.id, name: e.name, focalLength: e.focalLength, afov: e.apparentFov })), [g]);
   const bars = useMemo(() => (g?.barlows ?? []).map((b) => ({ id: b.id, name: b.name, factor: b.factor })), [g]);
   const visualScope = scope && usesEyepieces(scope.type) ? scope : null;
-  const analysis = useMemo(() => (visualScope ? analyseKit(visualScope, eps, bars) : null), [visualScope?.aperture, visualScope?.focalLength, visualScope?.type, eps, bars]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A coma corrector on a fast Newtonian stays in for every eyepiece: the numbers include it, Barlows go on top.
+  const train = useMemo(
+    () => (visualScope ? opticalTrain({ ...visualScope, type: normalizeTelescopeType(visualScope.type, visualScope.name) }, bars) : null),
+    [visualScope?.aperture, visualScope?.focalLength, visualScope?.type, visualScope?.name, bars], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const eyeScope = visualScope && train ? { ...visualScope, focalLength: train.scope.focalLength } : null;
+  const analysis = useMemo(() => (eyeScope && train ? analyseKit(eyeScope, eps, train.barlows) : null), [eyeScope?.aperture, eyeScope?.focalLength, eyeScope?.type, eps, train]); // eslint-disable-line react-hooks/exhaustive-deps
+  const correctorNote = train?.corrector
+    ? `Includes your ${train.corrector.name}${Math.abs(train.corrector.factor - 1) > 0.02 && !statesFactor(train.corrector) ? ` (${train.corrector.factor}×)` : ""}: on a fast Newtonian it stays in the focuser with every eyepiece.`
+    : undefined;
 
   const openAdd = (kind: GearKind) => {
     setDlg({ kind, item: null });
@@ -252,13 +262,14 @@ function MyGear() {
           )
         }
       >
-        {analysis && <KitPanel analysis={analysis} />}
+        {analysis && <KitPanel analysis={analysis} footnote={correctorNote} />}
         {g.eyepieces.length > 0 ? (
-          visualScope ? (
+          eyeScope && train ? (
             <EyepieceTable
-              scope={visualScope}
+              scope={eyeScope}
               eyepieces={eps}
-              barlows={bars}
+              barlows={train.barlows}
+              corrector={train.corrector}
               onEdit={(id) => {
                 const e = g.eyepieces.find((x) => x.id === id);
                 if (e) openEdit("eyepieces", e);
@@ -308,7 +319,7 @@ function MyGear() {
         }
       >
         {g.barlows.length > 0 ? (
-          <BarlowList items={g.barlows} scope={scope} onEdit={(b) => openEdit("barlows", b)} onDelete={(b) => setDel({ kind: "barlows", item: b })} />
+          <BarlowList items={g.barlows} scope={scope} corrector={train?.corrector ?? null} onEdit={(b) => openEdit("barlows", b)} onDelete={(b) => setDel({ kind: "barlows", item: b })} />
         ) : (
           <SmallEmpty
             action={
@@ -317,7 +328,7 @@ function MyGear() {
               </Button>
             }
           >
-            A 2× Barlow doubles every eyepiece's power; a focal reducer widens the view; a coma corrector (a Paracorr, say) sharpens the edge of the field. AstroPilot includes them when it picks an eyepiece.
+            A 2× Barlow doubles every eyepiece's power; a focal reducer widens the view; a coma corrector (a Paracorr, say) sharpens the edge of the field. On a fast Newtonian AstroPilot keeps the corrector in with every eyepiece, and suggests a Barlow only when none of your eyepieces gives the power on its own.
           </SmallEmpty>
         )}
       </Section>

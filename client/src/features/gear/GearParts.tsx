@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { MoreHorizontal, Pencil, Star, Trash2 } from "lucide-react";
 import type { ApiBarlow, ApiCamera, ApiEyepiece, ApiFilter, ApiTelescope } from "@shared/api";
-import { cameraField, scopeLimits, setup, zoomApparentField, type BarlowSpec, type EyepieceSpec } from "@shared/astro/optics";
+import { cameraField, scopeLimits, setup, statesFactor, zoomApparentField, type BarlowSpec, type EyepieceSpec } from "@shared/astro/optics";
 import {
   barlowKind,
   binocularMagnification,
@@ -243,12 +243,15 @@ export function EyepieceTable({
   scope,
   eyepieces,
   barlows,
+  corrector,
   onEdit,
   onDelete,
 }: {
   scope: PreviewScope;
   eyepieces: (EyepieceSpec & { id?: number; name?: string })[];
   barlows: BarlowSpec[];
+  /** Always in the focuser; `scope` already includes its focal length. */
+  corrector?: BarlowSpec | null;
   onEdit?: (id: number) => void;
   onDelete?: (id: number) => void;
 }) {
@@ -297,7 +300,7 @@ export function EyepieceTable({
           </span>
           <ToggleGroup type="single" value={withId} onValueChange={(v) => v && setWithId(v)} aria-labelledby="with-barlow" className="flex-wrap justify-start">
             <ToggleGroupItem value="none" size="sm" className="h-9 rounded-full border px-3 text-xs data-[state=on]:border-primary/50 data-[state=on]:bg-primary/10 data-[state=on]:text-foreground">
-              Eyepiece alone
+              {corrector ? `With ${shortName(corrector)}` : "Eyepiece alone"}
             </ToggleGroupItem>
             {barlows.map((b) => (
               <ToggleGroupItem
@@ -375,6 +378,13 @@ export function EyepieceTable({
           </tbody>
         </table>
       </div>
+      {corrector && (
+        <p className="text-2xs text-muted-foreground">
+          Powers include your {corrector.name}
+          {Math.abs(corrector.factor - 1) > 0.02 && !statesFactor(corrector) ? ` (${fmtFactor(corrector.factor)})` : ""}, which stays in the focuser with every eyepiece on a fast Newtonian
+          {barlows.length ? "; a Barlow goes on top of it" : ""}.
+        </p>
+      )}
       {rows.some((r) => !r.e.afov) && <p className="text-2xs text-muted-foreground">Fields assume a 52° apparent field where the eyepiece's isn't set.</p>}
     </div>
   );
@@ -397,12 +407,36 @@ function Row({ title, detail, extra, menu }: { title: ReactNode; detail?: ReactN
   );
 }
 
-export function BarlowList({ items, scope, onEdit, onDelete }: { items: ApiBarlow[]; scope: PreviewScope | null; onEdit: (b: ApiBarlow) => void; onDelete: (b: ApiBarlow) => void }) {
+/** "Paracorr" from "Tele Vue Paracorr Type 2 (1.15×)". */
+function shortName(b: BarlowSpec): string {
+  const n = b.name ?? "";
+  if (/paracorr/i.test(n)) return "Paracorr";
+  if (/mpcc/i.test(n)) return "MPCC";
+  return n.length > 22 ? "coma corrector" : n || "coma corrector";
+}
+
+export function BarlowList({
+  items,
+  scope,
+  corrector = null,
+  onEdit,
+  onDelete,
+}: {
+  items: ApiBarlow[];
+  scope: PreviewScope | null;
+  /** The corrector that's always in on this telescope: Barlows go on top of it. */
+  corrector?: BarlowSpec | null;
+  onEdit: (b: ApiBarlow) => void;
+  onDelete: (b: ApiBarlow) => void;
+}) {
   const sc = scope && usesEyepieces(scope.type) ? scope : null;
   return (
     <ul className="panel divide-y">
       {items.map((b) => {
         const kind = barlowKind(b.factor);
+        const always = !!corrector && b.id === corrector.id;
+        // With the corrector always in, a Barlow multiplies the corrected focal length.
+        const base = sc ? sc.focalLength * (corrector && !always ? corrector.factor : 1) : 0;
         return (
           <Row
             key={b.id}
@@ -415,9 +449,13 @@ export function BarlowList({ items, scope, onEdit, onDelete }: { items: ApiBarlo
             extra={
               sc && Math.abs(b.factor - 1) > 0.02 ? (
                 <span className="num">
-                  On {sc.name}: {Math.round(sc.focalLength)} → {Math.round(sc.focalLength * b.factor)} mm, {fmtFRatio(sc.focalLength / sc.aperture)} →{" "}
-                  {fmtFRatio((sc.focalLength * b.factor) / sc.aperture)}
+                  On {sc.name}
+                  {corrector && !always ? ` with the ${shortName(corrector)}` : ""}: {Math.round(base)} → {Math.round(base * b.factor)} mm, {fmtFRatio(base / sc.aperture)} →{" "}
+                  {fmtFRatio((base * b.factor) / sc.aperture)}
+                  {always ? " · always in: every eyepiece's power includes it" : ""}
                 </span>
+              ) : always ? (
+                "Always in: AstroPilot assumes it with every eyepiece on this telescope"
               ) : null
             }
             menu={<ItemMenu name={b.name} onEdit={() => onEdit(b)} onDelete={() => onDelete(b)} />}

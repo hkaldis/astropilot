@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ApiGear } from "@shared/api";
-import type { ScopeSpec, EyepieceSpec, BarlowSpec } from "@shared/astro/optics";
-import { binocularMagnification } from "@shared/data/gear-presets";
+import { opticalTrain, type ScopeSpec, type EyepieceSpec, type BarlowSpec } from "@shared/astro/optics";
+import { binocularMagnification, normalizeTelescopeType } from "@shared/data/gear-presets";
 import { store } from "@/lib/storage";
 import { useAuth } from "./useAuth";
 import { usePrefs } from "./usePrefs";
@@ -36,9 +36,13 @@ const PRESET_EYEPIECES: EyepieceSpec[] = [
 ];
 
 export interface ActiveScope {
+  /** As the eyepieces see it: a coma corrector that stays in the focuser is already in the focal length. */
   scope: ScopeSpec & { name: string };
   eyepieces: EyepieceSpec[];
+  /** Barlows and reducers that can be added (never the corrector). */
   barlows: BarlowSpec[];
+  /** The coma corrector in the focuser with every eyepiece (fast Newtonians), if you have one. */
+  corrector: BarlowSpec | null;
   source: "gear" | "preset";
   telescopeId: number | null;
   presetId: string | null;
@@ -105,10 +109,15 @@ export function useActiveScope() {
       : undefined;
     if (t && g) {
       const isBino = /bino/i.test(t.type ?? "") || /bino/i.test(t.name);
+      const train = opticalTrain(
+        { name: t.name, aperture: t.aperture, focalLength: t.focalLength, obstruction: t.obstructionRatio, type: normalizeTelescopeType(t.type, t.name) },
+        g.barlows.map((b) => ({ id: b.id, name: b.name, factor: b.factor })),
+      );
       return {
-        scope: { name: t.name, aperture: t.aperture, focalLength: t.focalLength, obstruction: t.obstructionRatio },
+        scope: { name: t.name, aperture: t.aperture, focalLength: train.scope.focalLength, obstruction: t.obstructionRatio },
         eyepieces: g.eyepieces.map((e) => ({ id: e.id, name: e.name, focalLength: e.focalLength, afov: e.apparentFov })),
-        barlows: g.barlows.map((b) => ({ id: b.id, name: b.name, factor: b.factor })),
+        barlows: train.barlows,
+        corrector: train.corrector,
         source: "gear",
         telescopeId: t.id,
         presetId: null,
@@ -121,6 +130,7 @@ export function useActiveScope() {
       scope: { name: p.name, aperture: p.aperture, focalLength: p.focalLength },
       eyepieces: p.kind === "telescope" ? PRESET_EYEPIECES : [],
       barlows: [],
+      corrector: null,
       source: "preset",
       telescopeId: null,
       presetId: p.id,

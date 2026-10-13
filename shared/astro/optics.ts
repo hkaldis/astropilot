@@ -35,6 +35,51 @@ export interface OpticalSetup {
 
 export const DEFAULT_AFOV = 52;
 
+// ------------------------------------------------------------------------------------
+// What's in the focuser
+// ------------------------------------------------------------------------------------
+
+/** Whether a Barlow's or corrector's name already states its factor ("Paracorr Type 2 (1.15×)"). */
+export const statesFactor = (b: BarlowSpec) => /\d\s*[×x](?![a-z])/i.test(b.name ?? "");
+
+/** A coma corrector (a Paracorr, an MPCC…): named so, or an optical modifier of about 1–1.2×. */
+export function isComaCorrector(b: BarlowSpec): boolean {
+  return /paracorr|coma|mpcc|corrector/i.test(b.name ?? "") || (b.factor >= 0.97 && b.factor <= 1.2);
+}
+
+/**
+ * Newtonians and Dobsonians faster than about f/5.5, where coma shows well inside the field, are the
+ * telescopes a corrector lives in (Tele Vue: "those faster than f/5.0 will see the greatest results"). On a
+ * slower one it's optional, so it isn't assumed.
+ */
+export function takesComaCorrector(t: ScopeSpec & { type?: string | null; name?: string | null }): boolean {
+  const type = (t.type ?? "").toLowerCase();
+  const newtonian = type ? /reflector|dobsonian|newton|\bdob/.test(type) : /\bdob|newton|reflector/i.test(t.name ?? "");
+  return newtonian && t.focalLength / t.aperture < 5.5;
+}
+
+export interface OpticalTrain {
+  /** The telescope as its eyepieces see it: with the corrector's extra focal length. */
+  scope: ScopeSpec;
+  corrector: BarlowSpec | null;
+  /** Barlows and reducers you can add (never the corrector). */
+  barlows: BarlowSpec[];
+}
+
+/**
+ * On a fast Newtonian a coma corrector stays in the focuser for every eyepiece — it is part of the telescope,
+ * not an alternative to a Barlow — and it lengthens the focal length (a Paracorr by 15%), so every
+ * magnification includes it. On other telescopes it isn't assumed, and it's never offered as a Barlow.
+ */
+export function opticalTrain<T extends ScopeSpec>(t: T & { type?: string | null; name?: string | null }, barlows: BarlowSpec[]): OpticalTrain & { scope: T } {
+  const corrector = takesComaCorrector(t) ? (barlows.find(isComaCorrector) ?? null) : null;
+  return {
+    scope: corrector ? { ...t, focalLength: t.focalLength * corrector.factor } : t,
+    corrector,
+    barlows: barlows.filter((b) => !isComaCorrector(b)),
+  };
+}
+
 export function fRatio(s: ScopeSpec): number {
   return s.focalLength / s.aperture;
 }
@@ -155,6 +200,8 @@ const PUPIL: Record<ViewKind, { min: number; ideal: number; max: number; why: st
 export interface EyepieceChoice {
   eyepiece: EyepieceSpec;
   barlow: BarlowSpec | null;
+  /** The coma corrector that's in the focuser with every eyepiece (already in the numbers). */
+  corrector: BarlowSpec | null;
   setup: OpticalSetup;
   score: number; // 0..100
   verdict: "ideal" | "good" | "usable" | "poor";
@@ -166,7 +213,19 @@ export interface RecommendOptions {
   seeingLimit?: number;
   /** Apparent size in arcminutes for objects without catalog size (planets: diameter/60). */
   sizeArcmin?: number;
+  /** The coma corrector in the focuser (see opticalTrain): the scope passed in already includes it. */
+  corrector?: BarlowSpec | null;
 }
+
+/**
+ * Your own eyepieces come first. A Barlow adds glass, length and weight to the focuser; stacked on a coma
+ * corrector it also moves the eyepiece away from where the corrector expects it (Tele Vue only documents
+ * its Powermates for that). So a Barlow combination has to be clearly better to be suggested, and one that
+ * repeats a power an eyepiece already gives on its own (within 15%) is all but ruled out.
+ */
+const BARLOW_COST = 0.88;
+const BARLOW_ON_CORRECTOR_COST = 0.8;
+const BARLOW_REPEATS_COST = 0.55;
 
 function gaussLog(x: number, ideal: number, width: number) {
   const d = Math.log(x / ideal) / Math.log(width);
@@ -238,6 +297,7 @@ export function rankEyepieces(
 
   const setups = combos.map(({ e, b }) => ({ e, b, s: setup(scope, e, b) }));
   const widestField = Math.max(...setups.map((x) => x.s.trueField)) * 60; // arcmin
+  const ownPowers = setups.filter((x) => !x.b).map((x) => x.s.magnification);
   // Doubles: wide pairs look best at low-medium power (colour, context); close pairs need high power.
   const doubleIdealMag = kind === "double" && target.sep ? clamp(800 / Math.pow(target.sep, 0.9), lim.minUsefulMag, seeingCap) : null;
 
@@ -290,8 +350,14 @@ export function rankEyepieces(
       score *= 0.6;
       reasons.push("exit pupil wider than a dark-adapted eye — wastes light");
     }
-    if (b) score *= 0.97; // slight preference for fewer glass surfaces
-    return { eyepiece: e, barlow: b, setup: s, score, reasons };
+    if (b) {
+      score *= opts.corrector ? BARLOW_ON_CORRECTOR_COST : BARLOW_COST;
+      const twin = ownPowers.find((m) => Math.abs(Math.log(m / s.magnification)) < Math.log(1.15));
+      if (twin !== undefined) score *= BARLOW_REPEATS_COST;
+      else reasons.push(`no eyepiece of yours gives ${Math.round(s.magnification)}× on its own`);
+      if (opts.corrector) reasons.push(`stacked on your ${opts.corrector.name ?? "coma corrector"}: if the view softens, a Powermate (or a shorter eyepiece) works better`);
+    }
+    return { eyepiece: e, barlow: b, corrector: opts.corrector ?? null, setup: s, score, reasons };
   });
 
   results.sort((a, b) => b.score - a.score);

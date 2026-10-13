@@ -11,6 +11,7 @@ import {
   detectability,
   sqmForBortle,
   rankEyepieces,
+  opticalTrain,
   bodyState,
   moonQuarters,
   formatDec,
@@ -132,6 +133,43 @@ test("eyepiece choice: high power for Jupiter, lowest power for a wide double li
   assert.ok(jup[0].setup.magnification >= 190);
   const alb = rankEyepieces(scope, eps, [], { type: "double_star", sep: 34.4 });
   assert.ok(alb[0].setup.magnification < 60);
+});
+
+test("a coma corrector stays in on a fast Newtonian, and Barlows only fill real gaps", () => {
+  const paracorr = { id: 1, name: "Tele Vue Paracorr Type 2", factor: 1.15 };
+  const barlow2 = { id: 2, name: "2× Barlow", factor: 2 };
+  // 16″ f/4.5 Dobsonian: the Paracorr is part of the telescope (2102 mm), never an alternative to the Barlow.
+  const dob = opticalTrain({ aperture: 406, focalLength: 1828, type: "dobsonian", name: "ES 16″" }, [paracorr, barlow2]);
+  assert.equal(dob.corrector?.id, 1);
+  assert.ok(Math.abs(dob.scope.focalLength - 2102.2) < 0.1);
+  assert.deepEqual(dob.barlows.map((b) => b.id), [2]);
+  // On a refractor a corrector does nothing: not applied, and not offered as a "Barlow" either.
+  const frac = opticalTrain({ aperture: 80, focalLength: 600, type: "refractor" }, [paracorr, barlow2]);
+  assert.equal(frac.corrector, null);
+  assert.equal(frac.scope.focalLength, 600);
+  assert.deepEqual(frac.barlows.map((b) => b.id), [2]);
+
+  // A good kit: your own eyepieces every time — a Barlow would only repeat a power you already have.
+  const kit = [30, 24, 14, 8.8, 6.7].map((f) => ({ focalLength: f, afov: 82 }));
+  const opts = { corrector: dob.corrector };
+  const targets = [
+    { type: "planet" as const, sizeArcmin: 0.75 },
+    { type: "globular_cluster", size: [12] },
+    { type: "galaxy", size: [10, 4] },
+    { type: "planetary_nebula", size: [1.2] },
+    { type: "double_star", sep: 2.5 },
+    { type: "open_cluster", size: [20] },
+  ];
+  for (const t of targets) {
+    const best = rankEyepieces(dob.scope, kit, dob.barlows, t, { ...opts, sizeArcmin: (t as { sizeArcmin?: number }).sizeArcmin });
+    assert.equal(best[0].barlow, null, `${t.type}: ${best[0].eyepiece.focalLength} mm + Barlow`);
+    assert.equal(best[0].corrector?.id, 1);
+  }
+  // A sparse kit with a big hole between 84× and 210×: the Barlow fills it — and says why.
+  const sparse = [32, 25, 10, 6].map((f) => ({ focalLength: f, afov: 52 }));
+  const m13 = rankEyepieces(dob.scope, sparse, dob.barlows, { type: "globular_cluster", size: [20] }, opts);
+  assert.equal(m13[0].barlow?.id, 2);
+  assert.ok(m13[0].reasons.some((r) => /no eyepiece of yours gives/.test(r)));
 });
 
 test("coordinate formatting handles negative declinations and rounding", () => {

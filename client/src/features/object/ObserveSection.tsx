@@ -84,12 +84,14 @@ export function ObserveSection({
   const gear = useGear();
   const { target, sizeArcmin } = useMemo(() => opticsTarget(subject, tonight), [subject, tonight]);
   const choices = useMemo(
-    () => rankEyepieces(scope.scope, scope.eyepieces, scope.barlows, target, { sizeArcmin }),
-    [scope.scope, scope.eyepieces, scope.barlows, target, sizeArcmin],
+    () => rankEyepieces(scope.scope, scope.eyepieces, scope.barlows, target, { sizeArcmin, corrector: scope.corrector }),
+    [scope.scope, scope.eyepieces, scope.barlows, scope.corrector, target, sizeArcmin],
   );
   const ideal = useMemo(() => idealMagnification(scope.scope, target, { sizeArcmin }), [scope.scope, target, sizeArcmin]);
   const limits = scopeLimits(scope.scope);
-  const options = choices.filter((c, i) => i === 0 || c.verdict !== "poor").slice(0, 3);
+  // Alternatives are your own eyepieces; a Barlow combination is shown only when it's the best you have.
+  const natives = choices.filter((c) => !c.barlow && c.verdict !== "poor");
+  const options = (choices[0]?.barlow ? [choices[0], ...natives] : natives.length ? natives : choices.slice(0, 1)).slice(0, 3);
   const [sel, setSel] = useState(0);
   const chosen = options[Math.min(sel, options.length - 1)];
   const at = tonight.bestTime ?? ctx.now;
@@ -237,6 +239,13 @@ export function ObserveSection({
                   ))}
                 </div>
               </div>
+            )}
+            {scope.corrector && (
+              <p className="mt-3 text-2xs text-muted-foreground">
+                With your {scope.corrector.name ?? "coma corrector"} in the focuser, as it should be for every eyepiece on a fast Newtonian
+                {Math.abs(scope.corrector.factor - 1) > 0.02 ? ` — the powers include its ${scope.corrector.factor}×` : ""}. Barlows only come up when none
+                of your eyepieces gives the power on its own.
+              </p>
             )}
             {scope.source === "preset" && (
               <p className="mt-3 text-2xs text-muted-foreground">

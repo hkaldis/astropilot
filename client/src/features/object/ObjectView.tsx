@@ -293,14 +293,15 @@ function SubjectPage({ subject }: { subject: Subject }) {
   const suggestion = useMemo(() => {
     if (!tonight || scope.source !== "gear") return { telescopeId: scope.telescopeId };
     const { target, sizeArcmin } = opticsTarget(subject, tonight);
-    const best = rankEyepieces(scope.scope, scope.eyepieces, scope.barlows, target, { sizeArcmin })[0];
+    const best = rankEyepieces(scope.scope, scope.eyepieces, scope.barlows, target, { sizeArcmin, corrector: scope.corrector })[0];
     return {
       telescopeId: scope.telescopeId,
       eyepieceId: best?.eyepiece.id ?? null,
-      barlowId: best?.barlow?.id ?? null,
+      // The log has one slot for a Barlow or corrector: the Barlow if one's used, else the corrector that's always in.
+      barlowId: best?.barlow?.id ?? scope.corrector?.id ?? null,
       magnification: best ? Math.round(best.setup.magnification) : null,
     };
-  }, [subject, tonight, scope.source, scope.scope, scope.eyepieces, scope.barlows, scope.telescopeId]);
+  }, [subject, tonight, scope.source, scope.scope, scope.eyepieces, scope.barlows, scope.corrector, scope.telescopeId]);
 
   const typeLabel = subject.kind === "satellite" ? `Moon of ${subject.parent.name}` : (TYPE_LABEL[subject.type] ?? subject.type);
   const conAbbr = subject.kind === "deep" ? subject.obj.con : tonight?.body?.state.constellation;

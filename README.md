@@ -16,7 +16,7 @@ Live at [astropilot.space](https://astropilot.space).
 | **Object pages** | A photograph of the object — a Digitized Sky Survey frame for deep-sky objects (north up, to scale, also drawn inside the eyepiece view), NASA and other freely licensed images for the Moon, planets and their moons (made by `scripts/object-images.ts` into `client/public/img/objects/`). Tonight's altitude curve, honest difficulty for your sky, the eyepiece and filter to use (with a true-field framing preview), best months, finder notes. |
 | **Plan** | Your target list scheduled into a run order that makes the most of the dark hours. |
 | **Journal** | 15-second observation logging, sessions, Messier/Caldwell progress, achievements (computed from the log, retroactive), stats and CSV export. |
-| **Gear & locations** | Telescopes, eyepieces, Barlows, filters, cameras with computed optics; saved sites — found by town, lake, peak, park or observatory name, coordinates, or a tap on the map — with time zone, elevation and Bortle/SQM (estimated automatically from the 2025 light-pollution atlas). |
+| **Gear & locations** | Telescopes, eyepieces, Barlows, filters, cameras with computed optics (on a fast Newtonian a coma corrector such as a Paracorr is assumed in the focuser with every eyepiece; a Barlow is suggested only for a power none of your eyepieces gives); saved sites — found by town, lake, peak, park or observatory name, coordinates, or a tap on the map — with time zone, elevation and Bortle/SQM (estimated automatically from the 2025 light-pollution atlas). |
 
 Works without an account (guest location and a typical instrument); an account saves locations, gear and the log.
 
