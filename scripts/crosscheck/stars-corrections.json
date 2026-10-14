@@ -1,0 +1,60 @@
+{
+ "M40": {
+  "d": 1010,
+  "d_src": "Gaia DR3 parallax of the primary HD 238107, 3.219±0.012 mas (RUWE 0.95); companion HD 238108 is at 470 ly (6.93 mas): an optical pair"
+ },
+ "achernar": {
+  "teff": 15000,
+  "teff_src": "PASTEL: Levenhagen & Leister 2006 (15,000 K); the other PASTEL value is 20,230 K"
+ },
+ "alpheratz": {
+  "r": 2.7,
+  "r_src": "R from L ≈ 230 L☉ (primary's share of V 2.06 at the Hipparcos 2007 distance, BC at PASTEL 13,810 K) — combined light gives 2.9 R☉"
+ },
+ "aludra": {
+  "mass": 19.2,
+  "mass_src": "Tetzlaff, Neuhäuser & Hohle 2011 (J/MNRAS/410/190)"
+ },
+ "gamma-delphini": {
+  "lum": 30,
+  "lum_src": "γ² Del: R²T⁴ 30.3 L☉; photometric 30.9 L☉ (V 4.36, Hipparcos 2007 126 ly)",
+  "mass": 1.3,
+  "mass_src": "γ² Del: Gaia DR3 FLAME",
+  "r": 8.0,
+  "r_src": "γ² Del: Gaia DR3 FLAME 7.96 R☉; photometric L 31 L☉ with 4,800 K gives 8.0 R☉",
+  "teff": 4800,
+  "teff_src": "γ² Del: PASTEL median of 5 (2000+)"
+ },
+ "garnet-star": {
+  "d": 3060,
+  "d_src": "Cep OB2 median member parallax, 939 pc (Melnik & Dambis 2020, Gaia DR2; 44 members)",
+  "lum": 400000,
+  "lum_src": "V 4.08, A_V 2.0 from E(B−V) 0.65 (intrinsic B−V ≈ 1.70 for M2 I), BC_V −1.48 at 3,800 K (Torres 2010), d 939 pc",
+  "r": 1470,
+  "r_src": "from that luminosity and 3,800 K; equals an angular diameter of 14.6 mas (JMDC's visible-light 17.7–20.6 mas are swollen by TiO)"
+ },
+ "iota-orionis": {
+  "d": 1230,
+  "d_src": "NGC 1980, the cluster ι Ori belongs to: 378 pc (Hunt & Reffert 2023, Gaia DR3); ι Ori B Gaia DR3 parallax 2.787±0.048 mas agrees (1,170 ly)"
+ },
+ "kaus-australis": {
+  "teff": 9220,
+  "teff_src": "PASTEL median of 2 (B/pastel); SIMBAD mesFe_h 8,930–9,520 K"
+ },
+ "phact": {
+  "lum": 1080,
+  "lum_src": "V 2.65, Hipparcos 2007 12.48±0.36 mas (261 ly), BC at PASTEL 13,490 K (Torres 2010); R²T⁴ of our r and teff gives 980"
+ },
+ "phecda": {
+  "teff": 9350,
+  "teff_src": "PASTEL median of 2 (B/pastel)"
+ },
+ "sheratan": {
+  "r": 2.0,
+  "r_src": "R = √L·(5772/T)² from our lum 20.9 L☉ and teff 8,760 K; independent photometric estimate 2.25 R☉ (V 2.65, Hipparcos 2007 58.7 ly, PASTEL 8,320 K)"
+ },
+ "tianguan": {
+  "teff": 21300,
+  "teff_src": "PASTEL median of 2 (2000+); SIMBAD mesFe_h 21,132–21,478 K (4 values)"
+ }
+}

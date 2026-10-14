@@ -1,0 +1,279 @@
+{
+ "IC1442": {
+  "age": 46000000,
+  "age_src": "geometric median of HR23 46.3 Myr, D21 46.2 Myr"
+ },
+ "IC2157": {
+  "age": 52000000,
+  "age_src": "geometric median of HR23 74.6 Myr, D21 35.6 Myr"
+ },
+ "IC2395": {
+  "catalog": {
+   "size": [
+    18.6
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 18.6′; others: HR23 2r50 27.5′, CG20 2r50 25.1′, D21 2r50 23.6′, MWSC 2r1 12′"
+  },
+  "mass": 870.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) IC_2395 MassTot 866±66 M☉"
+ },
+ "IC2714": {
+  "mass": 3900.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) IC_2714 MassTot 3885±286 M☉"
+ },
+ "M29": {
+  "age": 6900000,
+  "age_src": "geometric median of HR23 6.37 Myr, D21 7.55 Myr"
+ },
+ "M37": {
+  "mass": 8700.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_2099 MassTot 8726±245 M☉"
+ },
+ "M46": {
+  "mass": 7900.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_2437 MassTot 7942±392 M☉"
+ },
+ "M50": {
+  "mass": 1800.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_2323 MassTot 1789±201 M☉"
+ },
+ "Mel72": {
+  "catalog": {
+   "ra": 7.6412,
+   "dec": -10.698,
+   "pos_src": "SIMBAD Cl Melotte 72; HR23 145′, CG20 145′, D21 145′, MWSC 145′, DAML 144′ by name"
+  }
+ },
+ "NGC129": {
+  "catalog": {
+   "size": [
+    19
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 19′; others: HR23 2r50 13.3′, CG20 2r50 20.3′, D21 2r50 17′, MWSC 2r1 10.8′"
+  }
+ },
+ "NGC1342": {
+  "catalog": {
+   "size": [
+    15
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 15′; others: HR23 2r50 35.1′, CG20 2r50 34.7′, D21 2r50 32.6′, MWSC 2r1 12.6′"
+  }
+ },
+ "NGC1545": {
+  "catalog": {
+   "size": [
+    18
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 18′; others: HR23 2r50 38.9′, CG20 2r50 34.8′, D21 2r50 31.2′, MWSC 2r1 8.4′"
+  }
+ },
+ "NGC1582": {
+  "catalog": {
+   "size": [
+    24
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 24′; others: HR23 2r50 31.3′, CG20 2r50 31.7′, D21 2r50 30.6′, MWSC 2r1 15.6′"
+  }
+ },
+ "NGC189": {
+  "catalog": {
+   "size": [
+    5
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 5′; others: HR23 2r50 16.7′, CG20 2r50 9.48′, D21 2r50 8.16′, MWSC 2r1 5.4′"
+  }
+ },
+ "NGC1977": {
+  "age": 5300000,
+  "age_src": "D21 5.26 Myr"
+ },
+ "NGC2232": {
+  "catalog": {
+   "size": [
+    53
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 53′; others: HR23 2r50 63′, CG20 2r50 61.9′, D21 2r50 61.3′, MWSC 2r1 19.8′"
+  }
+ },
+ "NGC225": {
+  "catalog": {
+   "size": [
+    12
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 12′; others: HR23 2r50 66.4′, CG20 2r50 25.9′, D21 2r50 21.1′, MWSC 2r1 8.4′"
+  }
+ },
+ "NGC2264": {
+  "age": 5900000,
+  "age_src": "geometric median of HR23 4.95 Myr, D21 7.03 Myr"
+ },
+ "NGC2281": {
+  "catalog": {
+   "size": [
+    25
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 25′; others: HR23 2r50 41′, CG20 2r50 50′, D21 2r50 46.7′, MWSC 2r1 21.6′"
+  }
+ },
+ "NGC2335": {
+  "age": 150000000,
+  "age_src": "HR23 148 Myr"
+ },
+ "NGC2345": {
+  "age": 76000000,
+  "age_src": "geometric median of HR23 80.6 Myr, D21 72.4 Myr"
+ },
+ "NGC2354": {
+  "catalog": {
+   "size": [
+    18
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 18′; others: HR23 2r50 13.9′, CG20 2r50 18.2′, D21 2r50 17.8′, MWSC 2r1 9.6′"
+  }
+ },
+ "NGC2396": {
+  "age": 170000000,
+  "age_src": "geometric median of HR23 173 Myr, D21 170 Myr",
+  "catalog": {
+   "size": [
+    10
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 10′; others: HR23 2r50 22.6′, CG20 2r50 22.1′, D21 2r50 22.1′, MWSC 2r1 13.2′"
+  }
+ },
+ "NGC2451": {
+  "d": 620,
+  "d_src": "Hunt & Reffert 2023 (J/A+A/673/A114) NGC_2451A dist50 190 pc (CG20 195, D21 193)",
+  "age": 35000000,
+  "age_src": "Cantat-Gaudin et al. 2020 (J/A+A/640/A1) NGC_2451A AgeNN 7.55 (HR23 26 Myr, D21 55 Myr); the app has no age now",
+  "members": 407,
+  "members_src": "Hunt & Reffert 2023 (J/A+A/673/A114) NGC_2451A N"
+ },
+ "NGC2516": {
+  "mass": 3600.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_2516 MassTot 3639±195 M☉"
+ },
+ "NGC2547": {
+  "catalog": {
+   "size": [
+    25
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 25′; others: HR23 2r50 38.3′, CG20 2r50 34′, D21 2r50 32.2′, MWSC 2r1 15.6′"
+  }
+ },
+ "NGC3572": {
+  "mass": 500.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_3572 MassTot 502±44 M☉"
+ },
+ "NGC381": {
+  "mass": 810.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_381 MassTot 808±74 M☉"
+ },
+ "NGC4815": {
+  "mass": 9500.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_4815 MassTot 9456±442 M☉"
+ },
+ "NGC5662": {
+  "catalog": {
+   "size": [
+    29
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 29′; others: HR23 2r50 38.7′, CG20 2r50 39.6′, D21 2r50 34′, MWSC 2r1 16.2′"
+  }
+ },
+ "NGC5749": {
+  "mass": 350.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_5749 MassTot 346±40 M☉"
+ },
+ "NGC5925": {
+  "catalog": {
+   "size": [
+    11
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 11′; others: HR23 2r50 16.4′, CG20 2r50 22.8′, D21 2r50 19.7′, MWSC 2r1 9.6′"
+  }
+ },
+ "NGC6067": {
+  "mass": 7300.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_6067 MassTot 7332±480 M☉"
+ },
+ "NGC6281": {
+  "mass": 1400.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_6281 MassTot 1445±163 M☉"
+ },
+ "NGC6520": {
+  "mass": 3100.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_6520 MassTot 3105±328 M☉"
+ },
+ "NGC659": {
+  "mass": 1900.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_659 MassTot 1890±246 M☉"
+ },
+ "NGC6633": {
+  "catalog": {
+   "size": [
+    20
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 20′; others: HR23 2r50 55.5′, CG20 2r50 43.2′, D21 2r50 43.7′, MWSC 2r1 24′"
+  }
+ },
+ "NGC6664": {
+  "age": 69000000,
+  "age_src": "HR23 69.2 Myr"
+ },
+ "NGC6871": {
+  "catalog": {
+   "size": [
+    29
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 29′; others: HR23 2r50 20′, CG20 2r50 44.5′, D21 2r50 42.1′, MWSC 2r1 18.6′"
+  }
+ },
+ "NGC6910": {
+  "mass": 2200.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_6910 MassTot 2224±278 M☉"
+ },
+ "NGC7031": {
+  "catalog": {
+   "size": [
+    14
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 14′; others: HR23 2r50 12.9′, CG20 2r50 14.2′, MWSC 2r1 7.8′"
+  }
+ },
+ "NGC7082": {
+  "age": 140000000,
+  "age_src": "geometric median of HR23 146 Myr, D21 136 Myr"
+ },
+ "NGC7209": {
+  "catalog": {
+   "size": [
+    14
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 14′; others: HR23 2r50 25.4′, CG20 2r50 36.5′, D21 2r50 32.9′, MWSC 2r1 12′"
+  },
+  "mass": 1500.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_7209 MassTot 1525±119 M☉"
+ },
+ "NGC7261": {
+  "age": 45000000,
+  "age_src": "geometric median of HR23 46.9 Myr, D21 42.9 Myr"
+ },
+ "NGC7295": {
+  "age": 370000000,
+  "age_src": "geometric median of HR23 531 Myr, D21 259 Myr"
+ },
+ "NGC7380": {
+  "age": 9600000,
+  "age_src": "geometric median of HR23 9.2 Myr, D21 10.1 Myr"
+ },
+ "NGC7686": {
+  "catalog": {
+   "size": [
+    16
+   ],
+   "src": "Dias et al. 2002 (B/ocl) apparent diameter 16′; others: MWSC 2r1 7.2′"
+  }
+ }
+}

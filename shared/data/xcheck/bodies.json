@@ -1,0 +1,3351 @@
+{
+ "about": "Reference values for the app's planets, Moon and planets' moons from NASA/JPL (scripts/crosscheck/bodies.ts). Each field: v = value, src = where, alt = other NASA/JPL values.",
+ "G": 6.6743e-11,
+ "sources": {
+  "nssdcIndex": {
+   "file": "nssdc-factsheet-index.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/",
+   "title": "NASA NSSDCA Planetary Fact Sheet — metric table",
+   "fetched": "2026-10-14"
+  },
+  "nssdcNotes": {
+   "file": "nssdc-planetfact_notes.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/planetfact_notes.html",
+   "title": "NASA NSSDCA notes on the fact sheets",
+   "fetched": "2026-10-14"
+  },
+  "jplPlanets": {
+   "file": "jpl-planets-phys_par.html",
+   "url": "https://ssd.jpl.nasa.gov/planets/phys_par.html",
+   "title": "JPL SSD Planetary Physical Parameters",
+   "fetched": "2026-10-14"
+  },
+  "jplSats": {
+   "file": "jpl-sats-phys_par.html",
+   "url": "https://ssd.jpl.nasa.gov/sats/phys_par/",
+   "title": "JPL SSD Planetary Satellite Physical Parameters",
+   "fetched": "2026-10-14"
+  },
+  "jplElem": {
+   "file": "jpl-sats-elem.html",
+   "url": "https://ssd.jpl.nasa.gov/sats/elem/",
+   "title": "JPL SSD Planetary Satellite Mean Elements",
+   "fetched": "2026-10-14"
+  },
+  "jplDisc": {
+   "file": "jpl-sats-discovery.html",
+   "url": "https://ssd.jpl.nasa.gov/sats/discovery.html",
+   "title": "JPL SSD Planetary Satellite Discovery Circumstances",
+   "fetched": "2026-10-14"
+  },
+  "nasaMercury": {
+   "file": "nasa-science-mercury-facts.html",
+   "url": "https://science.nasa.gov/mercury/facts/",
+   "title": "NASA Science — Mercury: Facts",
+   "fetched": "2026-10-14"
+  },
+  "nssdc_mercury": {
+   "file": "nssdc-mercuryfact.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/mercuryfact.html",
+   "title": "NASA NSSDCA Mercury fact sheet",
+   "fetched": "2026-10-14"
+  },
+  "nssdc_venus": {
+   "file": "nssdc-venusfact.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/venusfact.html",
+   "title": "NASA NSSDCA Venus fact sheet",
+   "fetched": "2026-10-14"
+  },
+  "nssdc_earth": {
+   "file": "nssdc-earthfact.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html",
+   "title": "NASA NSSDCA Earth fact sheet",
+   "fetched": "2026-10-14"
+  },
+  "nssdc_moon": {
+   "file": "nssdc-moonfact.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html",
+   "title": "NASA NSSDCA Moon fact sheet",
+   "fetched": "2026-10-14"
+  },
+  "nssdc_mars": {
+   "file": "nssdc-marsfact.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html",
+   "title": "NASA NSSDCA Mars fact sheet",
+   "fetched": "2026-10-14"
+  },
+  "nssdc_jupiter": {
+   "file": "nssdc-jupiterfact.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/jupiterfact.html",
+   "title": "NASA NSSDCA Jupiter fact sheet",
+   "fetched": "2026-10-14"
+  },
+  "nssdc_saturn": {
+   "file": "nssdc-saturnfact.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/saturnfact.html",
+   "title": "NASA NSSDCA Saturn fact sheet",
+   "fetched": "2026-10-14"
+  },
+  "nssdc_uranus": {
+   "file": "nssdc-uranusfact.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/uranusfact.html",
+   "title": "NASA NSSDCA Uranus fact sheet",
+   "fetched": "2026-10-14"
+  },
+  "nssdc_neptune": {
+   "file": "nssdc-neptunefact.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/neptunefact.html",
+   "title": "NASA NSSDCA Neptune fact sheet",
+   "fetched": "2026-10-14"
+  },
+  "nssdc_sun": {
+   "file": "nssdc-sunfact.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/sunfact.html",
+   "title": "NASA NSSDCA Sun fact sheet",
+   "fetched": "2026-10-14"
+  },
+  "nssdc_joviansat": {
+   "file": "nssdc-joviansatfact.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/joviansatfact.html",
+   "title": "NASA NSSDCA Jovian satellite fact sheet",
+   "fetched": "2026-10-14"
+  },
+  "nssdc_saturniansat": {
+   "file": "nssdc-saturniansatfact.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/saturniansatfact.html",
+   "title": "NASA NSSDCA Saturnian satellite fact sheet",
+   "fetched": "2026-10-14"
+  },
+  "nssdc_uraniansat": {
+   "file": "nssdc-uraniansatfact.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/uraniansatfact.html",
+   "title": "NASA NSSDCA Uranian satellite fact sheet",
+   "fetched": "2026-10-14"
+  },
+  "nssdc_neptuniansat": {
+   "file": "nssdc-neptuniansatfact.html",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/neptuniansatfact.html",
+   "title": "NASA NSSDCA Neptunian satellite fact sheet",
+   "fetched": "2026-10-14"
+  },
+  "horizons": {
+   "url": "https://ssd.jpl.nasa.gov/api/horizons.api",
+   "title": "JPL Horizons API (moon APmag at oppositions)",
+   "files": "hz-<naif>-<date>.txt"
+  }
+ },
+ "horizonsOppositions": {
+  "mars": [
+   "2025-01-16",
+   "2027-02-19"
+  ],
+  "jupiter": [
+   "2026-01-10",
+   "2027-02-11"
+  ],
+  "saturn": [
+   "2025-09-21",
+   "2026-10-04"
+  ],
+  "uranus": [
+   "2025-11-21",
+   "2026-11-25"
+  ],
+  "neptune": [
+   "2025-09-23",
+   "2026-09-26"
+  ]
+ },
+ "bodies": {
+  "earth": {
+   "radiusKm": {
+    "v": 6371.0084,
+    "src": "JPL SSD planets/phys_par: mean radius 6371.0084 km",
+    "alt": [
+     {
+      "v": 6371,
+      "src": "NSSDCA earthfact.html: volumetric mean radius"
+     }
+    ]
+   },
+   "massKg": {
+    "v": 5.97217e+24,
+    "src": "JPL SSD planets/phys_par: mass 5.97217e24 kg",
+    "alt": [
+     {
+      "v": 5.9722e+24,
+      "src": "NSSDCA earthfact.html: mass"
+     }
+    ]
+   },
+   "gravity": {
+    "v": 9.8,
+    "src": "JPL SSD planets/phys_par: equatorial gravity",
+    "alt": [
+     {
+      "v": 9.82,
+      "src": "NSSDCA earthfact.html: surface gravity (mean)"
+     },
+     {
+      "v": 9.78,
+      "src": "NSSDCA earthfact.html: surface acceleration (eq), incl. spin"
+     }
+    ]
+   },
+   "density": {
+    "v": 5.5134,
+    "src": "JPL SSD planets/phys_par: bulk density",
+    "alt": [
+     {
+      "v": 5.513,
+      "src": "NSSDCA earthfact.html: mean density"
+     }
+    ]
+   },
+   "rotationH": {
+    "v": 23.9345,
+    "src": "JPL SSD planets/phys_par: sidereal rotation 0.99726968 d × 24",
+    "alt": [
+     {
+      "v": 23.9345,
+      "src": "NSSDCA earthfact.html: sidereal rotation period"
+     }
+    ]
+   },
+   "solarDayH": {
+    "v": 24,
+    "src": "NSSDCA earthfact.html: length of day"
+   },
+   "orbitDays": {
+    "v": 365.256,
+    "src": "NSSDCA earthfact.html: sidereal orbit period",
+    "alt": [
+     {
+      "v": 365.2564,
+      "src": "JPL SSD planets/phys_par: sidereal orbital period 1.0000174 y × 365.25"
+     }
+    ]
+   },
+   "tempC": {
+    "v": 15,
+    "src": "NSSDCA planetary fact table: mean temperature"
+   },
+   "escapeKms": {
+    "v": 11.186,
+    "src": "NSSDCA earthfact.html: escape velocity",
+    "alt": [
+     {
+      "v": 11.19,
+      "src": "JPL SSD planets/phys_par: escape velocity"
+     }
+    ]
+   }
+  },
+  "sun": {
+   "radiusKm": {
+    "v": 695700,
+    "src": "NSSDCA sunfact.html: volumetric mean radius"
+   },
+   "massKg": {
+    "v": 1.9884e+30,
+    "src": "NSSDCA sunfact.html: mass (10^24 kg)"
+   }
+  },
+  "mercury": {
+   "radiusKm": {
+    "v": 2439.4,
+    "src": "JPL SSD planets/phys_par: mean radius 2439.4 ±0.1 km",
+    "alt": [
+     {
+      "v": 2439.7,
+      "src": "NSSDCA mercuryfact.html: volumetric mean radius"
+     }
+    ]
+   },
+   "equatorialRadiusKm": {
+    "v": 2440.53,
+    "src": "JPL SSD planets/phys_par: equatorial radius 2440.53 ±0.04 km",
+    "alt": [
+     {
+      "v": 2440.5,
+      "src": "NSSDCA mercuryfact.html: equatorial radius"
+     }
+    ]
+   },
+   "polarRadiusKm": {
+    "v": 2438.3,
+    "src": "NSSDCA mercuryfact.html: polar radius"
+   },
+   "massKg": {
+    "v": 3.30103e+23,
+    "src": "JPL SSD planets/phys_par: mass 0.330103 ±0.000021 ×10^24 kg",
+    "alt": [
+     {
+      "v": 3.301e+23,
+      "src": "NSSDCA mercuryfact.html: mass"
+     }
+    ]
+   },
+   "gravity": {
+    "v": 3.7,
+    "src": "JPL SSD planets/phys_par: equatorial gravity (GM/R_eq², no spin)",
+    "alt": [
+     {
+      "v": 3.7,
+      "src": "NSSDCA mercuryfact.html: gravity (mean)"
+     },
+     {
+      "v": 3.7,
+      "src": "NSSDCA mercuryfact.html: acceleration at the equator, incl. spin"
+     },
+     {
+      "v": 3.71,
+      "src": "NSSDCA mercuryfact.html: acceleration at the pole"
+     }
+    ]
+   },
+   "density": {
+    "v": 5.4289,
+    "src": "JPL SSD planets/phys_par: bulk density 5.4289 ±0.0007 g/cm³",
+    "alt": [
+     {
+      "v": 5.429,
+      "src": "NSSDCA mercuryfact.html: mean density"
+     }
+    ]
+   },
+   "rotationH": {
+    "v": 1407.51,
+    "src": "JPL SSD planets/phys_par: sidereal rotation 58.6462 d × 24",
+    "alt": [
+     {
+      "v": 1407.6,
+      "src": "NSSDCA mercuryfact.html: sidereal rotation period (hrs)"
+     }
+    ]
+   },
+   "solarDayH": {
+    "v": 4222.6,
+    "src": "NSSDCA mercuryfact.html: length of day (hrs)",
+    "alt": [
+     {
+      "v": 4222.6,
+      "src": "NSSDCA planetary fact table: length of day"
+     }
+    ]
+   },
+   "orbitDays": {
+    "v": 87.969,
+    "src": "NSSDCA mercuryfact.html: sidereal orbit period (days)",
+    "alt": [
+     {
+      "v": 87.96926,
+      "src": "JPL SSD planets/phys_par: sidereal orbital period 0.2408467 y × 365.25"
+     }
+    ]
+   },
+   "escapeKms": {
+    "v": 4.3,
+    "src": "NSSDCA mercuryfact.html: escape velocity (at R_eq / 1 bar)",
+    "alt": [
+     {
+      "v": 4.25,
+      "src": "JPL SSD planets/phys_par: escape velocity (at R_mean)"
+     }
+    ]
+   },
+   "obliquityDeg": {
+    "v": 0.034,
+    "src": "NSSDCA mercuryfact.html: obliquity to orbit"
+   },
+   "aAU": {
+    "v": 0.38709893,
+    "src": "NSSDCA mercuryfact.html: mean orbital elements (J2000): semimajor axis"
+   },
+   "tempC": {
+    "v": [
+     -180,
+     430
+    ],
+    "src": "NASA Science mercury/facts: daytime highs 800 °F (430 °C), night lows −290 °F (−180 °C)",
+    "alt": [
+     {
+      "v": 167,
+      "src": "NSSDCA planetary fact table: mean temperature (day/night average)"
+     },
+     {
+      "v": 167,
+      "src": "NSSDCA mercuryfact.html: average temperature 440 K"
+     }
+    ]
+   }
+  },
+  "venus": {
+   "radiusKm": {
+    "v": 6051.8,
+    "src": "JPL SSD planets/phys_par: mean radius 6051.8 ±1 km",
+    "alt": [
+     {
+      "v": 6051.8,
+      "src": "NSSDCA venusfact.html: volumetric mean radius"
+     }
+    ]
+   },
+   "equatorialRadiusKm": {
+    "v": 6051.8,
+    "src": "JPL SSD planets/phys_par: equatorial radius 6051.8 ±1 km",
+    "alt": [
+     {
+      "v": 6051.8,
+      "src": "NSSDCA venusfact.html: equatorial radius"
+     }
+    ]
+   },
+   "polarRadiusKm": {
+    "v": 6051.8,
+    "src": "NSSDCA venusfact.html: polar radius"
+   },
+   "massKg": {
+    "v": 4.86731e+24,
+    "src": "JPL SSD planets/phys_par: mass 4.86731 ±0.00023 ×10^24 kg",
+    "alt": [
+     {
+      "v": 4.8673e+24,
+      "src": "NSSDCA venusfact.html: mass"
+     }
+    ]
+   },
+   "gravity": {
+    "v": 8.87,
+    "src": "JPL SSD planets/phys_par: equatorial gravity (GM/R_eq², no spin)",
+    "alt": [
+     {
+      "v": 8.87,
+      "src": "NSSDCA venusfact.html: gravity (mean)"
+     },
+     {
+      "v": 8.87,
+      "src": "NSSDCA venusfact.html: acceleration at the equator, incl. spin"
+     },
+     {
+      "v": 8.87,
+      "src": "NSSDCA venusfact.html: acceleration at the pole"
+     }
+    ]
+   },
+   "density": {
+    "v": 5.243,
+    "src": "JPL SSD planets/phys_par: bulk density 5.243 ±0.003 g/cm³",
+    "alt": [
+     {
+      "v": 5.243,
+      "src": "NSSDCA venusfact.html: mean density"
+     }
+    ]
+   },
+   "rotationH": {
+    "v": -5832.43,
+    "src": "JPL SSD planets/phys_par: sidereal rotation -243.018 d × 24",
+    "alt": [
+     {
+      "v": -5832.6,
+      "src": "NSSDCA venusfact.html: sidereal rotation period (hrs)"
+     }
+    ]
+   },
+   "solarDayH": {
+    "v": 2802,
+    "src": "NSSDCA venusfact.html: length of day (hrs)",
+    "alt": [
+     {
+      "v": 2802,
+      "src": "NSSDCA planetary fact table: length of day"
+     }
+    ]
+   },
+   "orbitDays": {
+    "v": 224.701,
+    "src": "NSSDCA venusfact.html: sidereal orbit period (days)",
+    "alt": [
+     {
+      "v": 224.7008,
+      "src": "JPL SSD planets/phys_par: sidereal orbital period 0.61519726 y × 365.25"
+     }
+    ]
+   },
+   "escapeKms": {
+    "v": 10.36,
+    "src": "NSSDCA venusfact.html: escape velocity (at R_eq / 1 bar)",
+    "alt": [
+     {
+      "v": 10.36,
+      "src": "JPL SSD planets/phys_par: escape velocity (at R_mean)"
+     }
+    ]
+   },
+   "obliquityDeg": {
+    "v": 177.36,
+    "src": "NSSDCA venusfact.html: obliquity to orbit"
+   },
+   "aAU": {
+    "v": 0.72333199,
+    "src": "NSSDCA venusfact.html: mean orbital elements (J2000): semimajor axis"
+   },
+   "tempC": {
+    "v": 464,
+    "src": "NSSDCA planetary fact table: mean temperature (giants: 1-bar level)",
+    "alt": [
+     {
+      "v": 464,
+      "src": "NSSDCA venusfact.html: average temperature 737 K"
+     }
+    ]
+   }
+  },
+  "mars": {
+   "radiusKm": {
+    "v": 3389.5,
+    "src": "JPL SSD planets/phys_par: mean radius 3389.5 ±0.2 km",
+    "alt": [
+     {
+      "v": 3389.5,
+      "src": "NSSDCA marsfact.html: volumetric mean radius"
+     }
+    ]
+   },
+   "equatorialRadiusKm": {
+    "v": 3396.19,
+    "src": "JPL SSD planets/phys_par: equatorial radius 3396.19 ±0.1 km",
+    "alt": [
+     {
+      "v": 3396.2,
+      "src": "NSSDCA marsfact.html: equatorial radius"
+     }
+    ]
+   },
+   "polarRadiusKm": {
+    "v": 3376.2,
+    "src": "NSSDCA marsfact.html: polar radius"
+   },
+   "massKg": {
+    "v": 6.41691e+23,
+    "src": "JPL SSD planets/phys_par: mass 0.641691 ±0.00003 ×10^24 kg",
+    "alt": [
+     {
+      "v": 6.4169e+23,
+      "src": "NSSDCA marsfact.html: mass"
+     }
+    ]
+   },
+   "gravity": {
+    "v": 3.71,
+    "src": "JPL SSD planets/phys_par: equatorial gravity (GM/R_eq², no spin)",
+    "alt": [
+     {
+      "v": 3.73,
+      "src": "NSSDCA marsfact.html: gravity (mean)"
+     },
+     {
+      "v": 3.69,
+      "src": "NSSDCA marsfact.html: acceleration at the equator, incl. spin"
+     },
+     {
+      "v": 3.73,
+      "src": "NSSDCA marsfact.html: acceleration at the pole"
+     }
+    ]
+   },
+   "density": {
+    "v": 3.934,
+    "src": "JPL SSD planets/phys_par: bulk density 3.934 ±0.0007 g/cm³",
+    "alt": [
+     {
+      "v": 3.934,
+      "src": "NSSDCA marsfact.html: mean density"
+     }
+    ]
+   },
+   "rotationH": {
+    "v": 24.623,
+    "src": "JPL SSD planets/phys_par: sidereal rotation 1.02595676 d × 24",
+    "alt": [
+     {
+      "v": 24.6229,
+      "src": "NSSDCA marsfact.html: sidereal rotation period (hrs)"
+     }
+    ]
+   },
+   "solarDayH": {
+    "v": 24.6597,
+    "src": "NSSDCA marsfact.html: length of day (hrs)",
+    "alt": [
+     {
+      "v": 24.7,
+      "src": "NSSDCA planetary fact table: length of day"
+     }
+    ]
+   },
+   "orbitDays": {
+    "v": 686.98,
+    "src": "NSSDCA marsfact.html: sidereal orbit period (days)",
+    "alt": [
+     {
+      "v": 686.9796,
+      "src": "JPL SSD planets/phys_par: sidereal orbital period 1.8808476 y × 365.25"
+     }
+    ]
+   },
+   "escapeKms": {
+    "v": 5.03,
+    "src": "NSSDCA marsfact.html: escape velocity (at R_eq / 1 bar)",
+    "alt": [
+     {
+      "v": 5.03,
+      "src": "JPL SSD planets/phys_par: escape velocity (at R_mean)"
+     }
+    ]
+   },
+   "obliquityDeg": {
+    "v": 25.19,
+    "src": "NSSDCA marsfact.html: obliquity to orbit"
+   },
+   "aAU": {
+    "v": 1.52366231,
+    "src": "NSSDCA marsfact.html: mean orbital elements (J2000): semimajor axis"
+   },
+   "tempC": {
+    "v": -65,
+    "src": "NSSDCA planetary fact table: mean temperature (giants: 1-bar level)",
+    "alt": [
+     {
+      "v": -59,
+      "src": "NSSDCA marsfact.html: average temperature 214 K"
+     }
+    ]
+   }
+  },
+  "jupiter": {
+   "radiusKm": {
+    "v": 69911,
+    "src": "JPL SSD planets/phys_par: mean radius 69911 ±6 km",
+    "alt": [
+     {
+      "v": 69911,
+      "src": "NSSDCA jupiterfact.html: volumetric mean radius"
+     }
+    ]
+   },
+   "equatorialRadiusKm": {
+    "v": 71492,
+    "src": "JPL SSD planets/phys_par: equatorial radius 71492 ±4 km",
+    "alt": [
+     {
+      "v": 71492,
+      "src": "NSSDCA jupiterfact.html: equatorial radius"
+     }
+    ]
+   },
+   "polarRadiusKm": {
+    "v": 66854,
+    "src": "NSSDCA jupiterfact.html: polar radius"
+   },
+   "massKg": {
+    "v": 1.89813e+27,
+    "src": "JPL SSD planets/phys_par: mass 1898.125 ±0.088 ×10^24 kg",
+    "alt": [
+     {
+      "v": 1.89813e+27,
+      "src": "NSSDCA jupiterfact.html: mass"
+     }
+    ]
+   },
+   "gravity": {
+    "v": 24.79,
+    "src": "JPL SSD planets/phys_par: equatorial gravity (GM/R_eq², no spin)",
+    "alt": [
+     {
+      "v": 25.92,
+      "src": "NSSDCA jupiterfact.html: gravity (mean)"
+     },
+     {
+      "v": 23.12,
+      "src": "NSSDCA jupiterfact.html: acceleration at the equator, incl. spin"
+     },
+     {
+      "v": 27.01,
+      "src": "NSSDCA jupiterfact.html: acceleration at the pole"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.3262,
+    "src": "JPL SSD planets/phys_par: bulk density 1.3262 ±0.0003 g/cm³",
+    "alt": [
+     {
+      "v": 1.326,
+      "src": "NSSDCA jupiterfact.html: mean density"
+     }
+    ]
+   },
+   "rotationH": {
+    "v": 9.92496,
+    "src": "JPL SSD planets/phys_par: sidereal rotation 0.41354 d × 24",
+    "alt": [
+     {
+      "v": 9.925,
+      "src": "NSSDCA jupiterfact.html: sidereal rotation period (hrs)"
+     }
+    ]
+   },
+   "solarDayH": {
+    "v": 9.9259,
+    "src": "NSSDCA jupiterfact.html: length of day (hrs)",
+    "alt": [
+     {
+      "v": 9.9,
+      "src": "NSSDCA planetary fact table: length of day"
+     }
+    ]
+   },
+   "orbitDays": {
+    "v": 4332.589,
+    "src": "NSSDCA jupiterfact.html: sidereal orbit period (days)",
+    "alt": [
+     {
+      "v": 4332.82,
+      "src": "JPL SSD planets/phys_par: sidereal orbital period 11.862615 y × 365.25"
+     }
+    ]
+   },
+   "escapeKms": {
+    "v": 59.5,
+    "src": "NSSDCA jupiterfact.html: escape velocity (at R_eq / 1 bar)",
+    "alt": [
+     {
+      "v": 60.2,
+      "src": "JPL SSD planets/phys_par: escape velocity (at R_mean)"
+     }
+    ]
+   },
+   "obliquityDeg": {
+    "v": 3.13,
+    "src": "NSSDCA jupiterfact.html: obliquity to orbit"
+   },
+   "aAU": {
+    "v": 5.20336301,
+    "src": "NSSDCA jupiterfact.html: mean orbital elements (J2000): semimajor axis"
+   },
+   "tempC": {
+    "v": -110,
+    "src": "NSSDCA planetary fact table: mean temperature (giants: 1-bar level)",
+    "alt": [
+     {
+      "v": -108,
+      "src": "NSSDCA jupiterfact.html: temperature at 1 bar 165 K"
+     }
+    ]
+   }
+  },
+  "saturn": {
+   "radiusKm": {
+    "v": 58232,
+    "src": "JPL SSD planets/phys_par: mean radius 58232 ±6 km",
+    "alt": [
+     {
+      "v": 58232,
+      "src": "NSSDCA saturnfact.html: volumetric mean radius"
+     }
+    ]
+   },
+   "equatorialRadiusKm": {
+    "v": 60268,
+    "src": "JPL SSD planets/phys_par: equatorial radius 60268 ±4 km",
+    "alt": [
+     {
+      "v": 60268,
+      "src": "NSSDCA saturnfact.html: equatorial radius"
+     }
+    ]
+   },
+   "polarRadiusKm": {
+    "v": 54364,
+    "src": "NSSDCA saturnfact.html: polar radius"
+   },
+   "massKg": {
+    "v": 5.68317e+26,
+    "src": "JPL SSD planets/phys_par: mass 568.317 ±0.026 ×10^24 kg",
+    "alt": [
+     {
+      "v": 5.6832000000000005e+26,
+      "src": "NSSDCA saturnfact.html: mass"
+     }
+    ]
+   },
+   "gravity": {
+    "v": 10.44,
+    "src": "JPL SSD planets/phys_par: equatorial gravity (GM/R_eq², no spin)",
+    "alt": [
+     {
+      "v": 11.19,
+      "src": "NSSDCA saturnfact.html: gravity (mean)"
+     },
+     {
+      "v": 8.96,
+      "src": "NSSDCA saturnfact.html: acceleration at the equator, incl. spin"
+     },
+     {
+      "v": 12.14,
+      "src": "NSSDCA saturnfact.html: acceleration at the pole"
+     }
+    ]
+   },
+   "density": {
+    "v": 0.6871,
+    "src": "JPL SSD planets/phys_par: bulk density 0.6871 ±0.0002 g/cm³",
+    "alt": [
+     {
+      "v": 0.687,
+      "src": "NSSDCA saturnfact.html: mean density"
+     }
+    ]
+   },
+   "rotationH": {
+    "v": 10.6562,
+    "src": "JPL SSD planets/phys_par: sidereal rotation 0.44401 d × 24",
+    "alt": [
+     {
+      "v": 10.656,
+      "src": "NSSDCA saturnfact.html: sidereal rotation period (hrs)"
+     }
+    ]
+   },
+   "solarDayH": {
+    "v": 10.656,
+    "src": "NSSDCA saturnfact.html: length of day (hrs)",
+    "alt": [
+     {
+      "v": 10.7,
+      "src": "NSSDCA planetary fact table: length of day"
+     }
+    ]
+   },
+   "orbitDays": {
+    "v": 10755.699,
+    "src": "NSSDCA saturnfact.html: sidereal orbit period (days)",
+    "alt": [
+     {
+      "v": 10755.7,
+      "src": "JPL SSD planets/phys_par: sidereal orbital period 29.447498 y × 365.25"
+     }
+    ]
+   },
+   "escapeKms": {
+    "v": 35.5,
+    "src": "NSSDCA saturnfact.html: escape velocity (at R_eq / 1 bar)",
+    "alt": [
+     {
+      "v": 36.09,
+      "src": "JPL SSD planets/phys_par: escape velocity (at R_mean)"
+     }
+    ]
+   },
+   "obliquityDeg": {
+    "v": 26.73,
+    "src": "NSSDCA saturnfact.html: obliquity to orbit"
+   },
+   "aAU": {
+    "v": 9.53707032,
+    "src": "NSSDCA saturnfact.html: mean orbital elements (J2000): semimajor axis"
+   },
+   "tempC": {
+    "v": -140,
+    "src": "NSSDCA planetary fact table: mean temperature (giants: 1-bar level)",
+    "alt": [
+     {
+      "v": -139,
+      "src": "NSSDCA saturnfact.html: temperature at 1 bar 134 K"
+     }
+    ]
+   }
+  },
+  "uranus": {
+   "radiusKm": {
+    "v": 25362,
+    "src": "JPL SSD planets/phys_par: mean radius 25362 ±7 km",
+    "alt": [
+     {
+      "v": 25362,
+      "src": "NSSDCA uranusfact.html: volumetric mean radius"
+     }
+    ]
+   },
+   "equatorialRadiusKm": {
+    "v": 25559,
+    "src": "JPL SSD planets/phys_par: equatorial radius 25559 ±4 km",
+    "alt": [
+     {
+      "v": 25559,
+      "src": "NSSDCA uranusfact.html: equatorial radius"
+     }
+    ]
+   },
+   "polarRadiusKm": {
+    "v": 24973,
+    "src": "NSSDCA uranusfact.html: polar radius"
+   },
+   "massKg": {
+    "v": 8.68099e+25,
+    "src": "JPL SSD planets/phys_par: mass 86.8099 ±0.004 ×10^24 kg",
+    "alt": [
+     {
+      "v": 8.6811e+25,
+      "src": "NSSDCA uranusfact.html: mass"
+     }
+    ]
+   },
+   "gravity": {
+    "v": 8.87,
+    "src": "JPL SSD planets/phys_par: equatorial gravity (GM/R_eq², no spin)",
+    "alt": [
+     {
+      "v": 9.01,
+      "src": "NSSDCA uranusfact.html: gravity (mean)"
+     },
+     {
+      "v": 8.69,
+      "src": "NSSDCA uranusfact.html: acceleration at the equator, incl. spin"
+     },
+     {
+      "v": 9.19,
+      "src": "NSSDCA uranusfact.html: acceleration at the pole"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.27,
+    "src": "JPL SSD planets/phys_par: bulk density 1.27 ±0.001 g/cm³",
+    "alt": [
+     {
+      "v": 1.27,
+      "src": "NSSDCA uranusfact.html: mean density"
+     }
+    ]
+   },
+   "rotationH": {
+    "v": -17.2399,
+    "src": "JPL SSD planets/phys_par: sidereal rotation -0.71833 d × 24",
+    "alt": [
+     {
+      "v": -17.24,
+      "src": "NSSDCA uranusfact.html: sidereal rotation period (hrs)"
+     }
+    ]
+   },
+   "solarDayH": {
+    "v": 17.24,
+    "src": "NSSDCA uranusfact.html: length of day (hrs)",
+    "alt": [
+     {
+      "v": 17.2,
+      "src": "NSSDCA planetary fact table: length of day"
+     }
+    ]
+   },
+   "orbitDays": {
+    "v": 30685.4,
+    "src": "NSSDCA uranusfact.html: sidereal orbit period (days)",
+    "alt": [
+     {
+      "v": 30687.15,
+      "src": "JPL SSD planets/phys_par: sidereal orbital period 84.016846 y × 365.25"
+     }
+    ]
+   },
+   "escapeKms": {
+    "v": 21.3,
+    "src": "NSSDCA uranusfact.html: escape velocity (at R_eq / 1 bar)",
+    "alt": [
+     {
+      "v": 21.38,
+      "src": "JPL SSD planets/phys_par: escape velocity (at R_mean)"
+     }
+    ]
+   },
+   "obliquityDeg": {
+    "v": 97.77,
+    "src": "NSSDCA uranusfact.html: obliquity to orbit"
+   },
+   "aAU": {
+    "v": 19.19126393,
+    "src": "NSSDCA uranusfact.html: mean orbital elements (J2000): semimajor axis"
+   },
+   "tempC": {
+    "v": -195,
+    "src": "NSSDCA planetary fact table: mean temperature (giants: 1-bar level)",
+    "alt": [
+     {
+      "v": -197,
+      "src": "NSSDCA uranusfact.html: temperature at 1 bar 76 K"
+     }
+    ]
+   }
+  },
+  "neptune": {
+   "radiusKm": {
+    "v": 24622,
+    "src": "JPL SSD planets/phys_par: mean radius 24622 ±19 km",
+    "alt": [
+     {
+      "v": 24622,
+      "src": "NSSDCA neptunefact.html: volumetric mean radius"
+     }
+    ]
+   },
+   "equatorialRadiusKm": {
+    "v": 24764,
+    "src": "JPL SSD planets/phys_par: equatorial radius 24764 ±15 km",
+    "alt": [
+     {
+      "v": 24764,
+      "src": "NSSDCA neptunefact.html: equatorial radius"
+     }
+    ]
+   },
+   "polarRadiusKm": {
+    "v": 24341,
+    "src": "NSSDCA neptunefact.html: polar radius"
+   },
+   "massKg": {
+    "v": 1.02409e+26,
+    "src": "JPL SSD planets/phys_par: mass 102.4092 ±0.0048 ×10^24 kg",
+    "alt": [
+     {
+      "v": 1.02409e+26,
+      "src": "NSSDCA neptunefact.html: mass"
+     }
+    ]
+   },
+   "gravity": {
+    "v": 11.15,
+    "src": "JPL SSD planets/phys_par: equatorial gravity (GM/R_eq², no spin)",
+    "alt": [
+     {
+      "v": 11.27,
+      "src": "NSSDCA neptunefact.html: gravity (mean)"
+     },
+     {
+      "v": 11,
+      "src": "NSSDCA neptunefact.html: acceleration at the equator, incl. spin"
+     },
+     {
+      "v": 11.41,
+      "src": "NSSDCA neptunefact.html: acceleration at the pole"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.638,
+    "src": "JPL SSD planets/phys_par: bulk density 1.638 ±0.004 g/cm³",
+    "alt": [
+     {
+      "v": 1.638,
+      "src": "NSSDCA neptunefact.html: mean density"
+     }
+    ]
+   },
+   "rotationH": {
+    "v": 16.11,
+    "src": "JPL SSD planets/phys_par: sidereal rotation 0.67125 d × 24",
+    "alt": [
+     {
+      "v": 16.11,
+      "src": "NSSDCA neptunefact.html: sidereal rotation period (hrs)"
+     }
+    ]
+   },
+   "solarDayH": {
+    "v": 16.11,
+    "src": "NSSDCA neptunefact.html: length of day (hrs)",
+    "alt": [
+     {
+      "v": 16.1,
+      "src": "NSSDCA planetary fact table: length of day"
+     }
+    ]
+   },
+   "orbitDays": {
+    "v": 60189.018,
+    "src": "NSSDCA neptunefact.html: sidereal orbit period (days)",
+    "alt": [
+     {
+      "v": 60190.03,
+      "src": "JPL SSD planets/phys_par: sidereal orbital period 164.79132 y × 365.25"
+     }
+    ]
+   },
+   "escapeKms": {
+    "v": 23.5,
+    "src": "NSSDCA neptunefact.html: escape velocity (at R_eq / 1 bar)",
+    "alt": [
+     {
+      "v": 23.56,
+      "src": "JPL SSD planets/phys_par: escape velocity (at R_mean)"
+     }
+    ]
+   },
+   "obliquityDeg": {
+    "v": 28.32,
+    "src": "NSSDCA neptunefact.html: obliquity to orbit"
+   },
+   "aAU": {
+    "v": 30.06896348,
+    "src": "NSSDCA neptunefact.html: mean orbital elements (J2000): semimajor axis"
+   },
+   "tempC": {
+    "v": -200,
+    "src": "NSSDCA planetary fact table: mean temperature (giants: 1-bar level)",
+    "alt": [
+     {
+      "v": -201,
+      "src": "NSSDCA neptunefact.html: temperature at 1 bar 72 K"
+     }
+    ]
+   }
+  },
+  "moon": {
+   "radiusKm": {
+    "v": 1737.4,
+    "src": "JPL SSD sats/phys_par: Moon mean radius 1737.4 ±0.1 km",
+    "alt": [
+     {
+      "v": 1737.4,
+      "src": "NSSDCA moonfact.html: volumetric mean radius"
+     }
+    ]
+   },
+   "equatorialRadiusKm": {
+    "v": 1738.1,
+    "src": "NSSDCA moonfact.html: equatorial radius"
+   },
+   "massKg": {
+    "v": 7.3458e+22,
+    "src": "JPL SSD sats/phys_par: GM 4902.8 km³/s² (DE440) / G",
+    "alt": [
+     {
+      "v": 7.3459999999999995e+22,
+      "src": "NSSDCA moonfact.html: mass"
+     }
+    ]
+   },
+   "gravity": {
+    "v": 1.62,
+    "src": "NSSDCA moonfact.html: surface gravity",
+    "alt": [
+     {
+      "v": 1.624,
+      "src": "JPL GM / R²"
+     }
+    ]
+   },
+   "density": {
+    "v": 3.344,
+    "src": "JPL SSD sats/phys_par: mean density",
+    "alt": [
+     {
+      "v": 3.344,
+      "src": "NSSDCA moonfact.html: mean density"
+     }
+    ]
+   },
+   "rotationH": {
+    "v": 655.72,
+    "src": "NSSDCA moonfact.html: sidereal rotation period"
+   },
+   "solarDayH": {
+    "v": 708.7,
+    "src": "NSSDCA planetary fact table: length of day",
+    "alt": [
+     {
+      "v": 708.72,
+      "src": "NSSDCA moonfact.html: synodic period × 24"
+     }
+    ]
+   },
+   "orbitDays": {
+    "v": 27.3217,
+    "src": "NSSDCA moonfact.html: revolution period (sidereal)",
+    "alt": [
+     {
+      "v": 27.322,
+      "src": "JPL SSD sats/elem: P"
+     }
+    ]
+   },
+   "tempC": {
+    "v": [
+     -178,
+     117
+    ],
+    "src": "NSSDCA moonfact.html: diurnal temperature range (equator) 95 K to 390 K",
+    "alt": [
+     {
+      "v": -20,
+      "src": "NSSDCA planetary fact table: mean temperature"
+     }
+    ]
+   },
+   "escapeKms": {
+    "v": 2.38,
+    "src": "NSSDCA moonfact.html: escape velocity",
+    "alt": [
+     {
+      "v": 2.376,
+      "src": "JPL √(2GM/R)"
+     }
+    ]
+   },
+   "aKm": {
+    "v": 384400,
+    "src": "JPL SSD sats/elem: Moon a (DE405/LE405)",
+    "alt": [
+     {
+      "v": 384400,
+      "src": "NSSDCA moonfact.html: semimajor axis"
+     }
+    ]
+   },
+   "synodicDays": {
+    "v": 29.53,
+    "src": "NSSDCA moonfact.html: synodic period"
+   }
+  },
+  "io": {
+   "radiusKm": {
+    "v": 1821.49,
+    "src": "JPL SSD sats/phys_par: mean radius 1821.49 ±0.5 km",
+    "alt": [
+     {
+      "v": 1821.5,
+      "src": "NSSDCA joviansatfact.html: radius"
+     }
+    ]
+   },
+   "massKg": {
+    "v": 8.9296e+22,
+    "src": "JPL SSD sats/phys_par: GM 5959.91547 ±0.00135 km³/s² (JUP365) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 8.932e+22,
+      "src": "NSSDCA joviansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 3.5276,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 1.796,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 2558,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 421800,
+    "src": "JPL SSD sats/elem: a (JUP365, Laplace frame)",
+    "alt": [
+     {
+      "v": 421800,
+      "src": "NSSDCA joviansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 1.769138,
+    "src": "NSSDCA joviansatfact.html: orbital period (JPL Horizons header: ~1.77 d)",
+    "note": "JPL sats/elem P = 1.762732 d is the Keplerian period of the fitted mean elements; for the Laplace-resonant Galilean moons it is not the observed mean period (1.769138 d).",
+    "alt": [
+     {
+      "v": 1.762732,
+      "src": "JPL SSD sats/elem: P (JUP365, Laplace) — mean-element period"
+     },
+     {
+      "v": 1.77,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 0° to the Laplace plane"
+   },
+   "parent": {
+    "v": "jupiter",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 501,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Jupiter I",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1610,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "Galileo",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 5.11,
+    "src": "JPL Horizons APmag at opposition: 2026-01-10 5.04, 2027-02-11 5.17",
+    "alt": [
+     {
+      "v": 5.02,
+      "src": "Horizons V(1,0)=-1.68 at mean opposition (a=5.20336301 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "europa": {
+   "radiusKm": {
+    "v": 1560.8,
+    "src": "JPL SSD sats/phys_par: mean radius 1560.8 ±0.3 km",
+    "alt": [
+     {
+      "v": 1560.8,
+      "src": "NSSDCA joviansatfact.html: radius"
+     }
+    ]
+   },
+   "massKg": {
+    "v": 4.7986e+22,
+    "src": "JPL SSD sats/phys_par: GM 3202.7121 ±0.00181 km³/s² (JUP365) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 4.8e+22,
+      "src": "NSSDCA joviansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 3.013,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 1.315,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 2026,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 671100,
+    "src": "JPL SSD sats/elem: a (JUP365, Laplace frame)",
+    "alt": [
+     {
+      "v": 671100,
+      "src": "NSSDCA joviansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 3.551181,
+    "src": "NSSDCA joviansatfact.html: orbital period (JPL Horizons header: ~3.55 d)",
+    "note": "JPL sats/elem P = 3.525463 d is the Keplerian period of the fitted mean elements; for the Laplace-resonant Galilean moons it is not the observed mean period (3.551181 d).",
+    "alt": [
+     {
+      "v": 3.525463,
+      "src": "JPL SSD sats/elem: P (JUP365, Laplace) — mean-element period"
+     },
+     {
+      "v": 3.55,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 0.5° to the Laplace plane"
+   },
+   "parent": {
+    "v": "jupiter",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 502,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Jupiter II",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1610,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "Galileo",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 5.38,
+    "src": "JPL Horizons APmag at opposition: 2026-01-10 5.32, 2027-02-11 5.43",
+    "alt": [
+     {
+      "v": 5.29,
+      "src": "Horizons V(1,0)=-1.41 at mean opposition (a=5.20336301 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "ganymede": {
+   "radiusKm": {
+    "v": 2631.2,
+    "src": "JPL SSD sats/phys_par: mean radius 2631.2 ±1.7 km",
+    "alt": [
+     {
+      "v": 2631.2,
+      "src": "NSSDCA joviansatfact.html: radius"
+     }
+    ]
+   },
+   "massKg": {
+    "v": 1.4815e+23,
+    "src": "JPL SSD sats/phys_par: GM 9887.83275 ±0.00247 km³/s² (JUP365) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 1.4819e+23,
+      "src": "NSSDCA joviansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.9416,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 1.428,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 2742,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 1070400,
+    "src": "JPL SSD sats/elem: a (JUP365, Laplace frame)",
+    "alt": [
+     {
+      "v": 1070400,
+      "src": "NSSDCA joviansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 7.155588,
+    "src": "JPL SSD sats/elem: sidereal period P (JUP365)",
+    "alt": [
+     {
+      "v": 7.154553,
+      "src": "NSSDCA joviansatfact.html: orbital period"
+     },
+     {
+      "v": 7.155,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 0.2° to the Laplace plane"
+   },
+   "parent": {
+    "v": "jupiter",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 503,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Jupiter III",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1610,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "Galileo",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 4.7,
+    "src": "JPL Horizons APmag at opposition: 2026-01-10 4.64, 2027-02-11 4.75",
+    "alt": [
+     {
+      "v": 4.61,
+      "src": "Horizons V(1,0)=-2.09 at mean opposition (a=5.20336301 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "callisto": {
+   "radiusKm": {
+    "v": 2410.3,
+    "src": "JPL SSD sats/phys_par: mean radius 2410.3 ±1.5 km",
+    "alt": [
+     {
+      "v": 2410.3,
+      "src": "NSSDCA joviansatfact.html: radius"
+     }
+    ]
+   },
+   "massKg": {
+    "v": 1.0757e+23,
+    "src": "JPL SSD sats/phys_par: GM 7179.2834 ±0.00324 km³/s² (JUP365) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 1.0759000000000001e+23,
+      "src": "NSSDCA joviansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.834,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 1.236,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 2441,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 1882700,
+    "src": "JPL SSD sats/elem: a (JUP365, Laplace frame)",
+    "alt": [
+     {
+      "v": 1882700,
+      "src": "NSSDCA joviansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 16.69044,
+    "src": "JPL SSD sats/elem: sidereal period P (JUP365)",
+    "alt": [
+     {
+      "v": 16.689017,
+      "src": "NSSDCA joviansatfact.html: orbital period"
+     },
+     {
+      "v": 16.691,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 0.3° to the Laplace plane"
+   },
+   "parent": {
+    "v": "jupiter",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 504,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Jupiter IV",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1610,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "Galileo",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 5.74,
+    "src": "JPL Horizons APmag at opposition: 2026-01-10 5.67, 2027-02-11 5.81",
+    "alt": [
+     {
+      "v": 5.65,
+      "src": "Horizons V(1,0)=-1.05 at mean opposition (a=5.20336301 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "mimas": {
+   "radiusKm": {
+    "v": 198.2,
+    "src": "JPL SSD sats/phys_par: mean radius 198.2 ±0.4 km"
+   },
+   "massKg": {
+    "v": 37509000000000000000,
+    "src": "JPL SSD sats/phys_par: GM 2.50349 ±0.00014 km³/s² (SAT441) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 37900000000000000000,
+      "src": "NSSDCA saturniansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.1501,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 0.06373,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 158.9,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 186000,
+    "src": "JPL SSD sats/elem: a (SAT441, Laplace frame)",
+    "alt": [
+     {
+      "v": 185520,
+      "src": "NSSDCA saturniansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 0.942422,
+    "src": "JPL SSD sats/elem: sidereal period P (SAT441)",
+    "alt": [
+     {
+      "v": 0.9424218,
+      "src": "NSSDCA saturniansatfact.html: orbital period"
+     },
+     {
+      "v": 0.9424218,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 1.6° to the Laplace plane"
+   },
+   "parent": {
+    "v": "saturn",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 601,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Saturn I",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1789,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "W. Herschel",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 12.83,
+    "src": "JPL Horizons APmag at opposition: 2025-09-21 12.86, 2026-10-04 12.80",
+    "alt": [
+     {
+      "v": 12.85,
+      "src": "Horizons V(1,0)=3.3 at mean opposition (a=9.53707032 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "enceladus": {
+   "radiusKm": {
+    "v": 252.1,
+    "src": "JPL SSD sats/phys_par: mean radius 252.1 ±0.2 km"
+   },
+   "massKg": {
+    "v": 108030000000000000000,
+    "src": "JPL SSD sats/phys_par: GM 7.21037 ±0.00009 km³/s² (SAT441) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 108000000000000000000,
+      "src": "NSSDCA saturniansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.6097,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 0.1135,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 239.2,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 238400,
+    "src": "JPL SSD sats/elem: a (SAT441, Laplace frame)",
+    "alt": [
+     {
+      "v": 238020,
+      "src": "NSSDCA saturniansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 1.370218,
+    "src": "JPL SSD sats/elem: sidereal period P (SAT441)",
+    "alt": [
+     {
+      "v": 1.370218,
+      "src": "NSSDCA saturniansatfact.html: orbital period"
+     },
+     {
+      "v": 1.370218,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 0° to the Laplace plane"
+   },
+   "parent": {
+    "v": "saturn",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 602,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Saturn II",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1789,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "W. Herschel",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 11.63,
+    "src": "JPL Horizons APmag at opposition: 2025-09-21 11.66, 2026-10-04 11.60",
+    "alt": [
+     {
+      "v": 11.65,
+      "src": "Horizons V(1,0)=2.1 at mean opposition (a=9.53707032 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "tethys": {
+   "radiusKm": {
+    "v": 531.1,
+    "src": "JPL SSD sats/phys_par: mean radius 531.1 ±0.6 km"
+   },
+   "massKg": {
+    "v": 617500000000000000000,
+    "src": "JPL SSD sats/phys_par: GM 41.21353 ±0.00031 km³/s² (SAT441) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 618000000000000000000,
+      "src": "NSSDCA saturniansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 0.984,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 0.1461,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 394,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 295000,
+    "src": "JPL SSD sats/elem: a (SAT441, Laplace frame)",
+    "alt": [
+     {
+      "v": 294660,
+      "src": "NSSDCA saturniansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 1.887802,
+    "src": "JPL SSD sats/elem: sidereal period P (SAT441)",
+    "alt": [
+     {
+      "v": 1.887802,
+      "src": "NSSDCA saturniansatfact.html: orbital period"
+     },
+     {
+      "v": 1.888,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 1.1° to the Laplace plane"
+   },
+   "parent": {
+    "v": "saturn",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 603,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Saturn III",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1684,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "G.D. Cassini",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 10.13,
+    "src": "JPL Horizons APmag at opposition: 2025-09-21 10.16, 2026-10-04 10.10",
+    "alt": [
+     {
+      "v": 10.15,
+      "src": "Horizons V(1,0)=0.6 at mean opposition (a=9.53707032 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "dione": {
+   "radiusKm": {
+    "v": 561.4,
+    "src": "JPL SSD sats/phys_par: mean radius 561.4 ±0.4 km"
+   },
+   "massKg": {
+    "v": 1.0955e+21,
+    "src": "JPL SSD sats/phys_par: GM 73.11607 ±0.00005 km³/s² (SAT441) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 1.1e+21,
+      "src": "NSSDCA saturniansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.4781,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 0.232,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 510.4,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 377700,
+    "src": "JPL SSD sats/elem: a (SAT441, Laplace frame)",
+    "alt": [
+     {
+      "v": 377400,
+      "src": "NSSDCA saturniansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 2.736916,
+    "src": "JPL SSD sats/elem: sidereal period P (SAT441)",
+    "alt": [
+     {
+      "v": 2.736915,
+      "src": "NSSDCA saturniansatfact.html: orbital period"
+     },
+     {
+      "v": 2.736915,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 0° to the Laplace plane"
+   },
+   "parent": {
+    "v": "saturn",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 604,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Saturn IV",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1684,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "G.D. Cassini",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 10.33,
+    "src": "JPL Horizons APmag at opposition: 2025-09-21 10.36, 2026-10-04 10.30",
+    "alt": [
+     {
+      "v": 10.35,
+      "src": "Horizons V(1,0)=0.8 at mean opposition (a=9.53707032 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "rhea": {
+   "radiusKm": {
+    "v": 763.5,
+    "src": "JPL SSD sats/phys_par: mean radius 763.5 ±0.6 km"
+   },
+   "massKg": {
+    "v": 2.3065e+21,
+    "src": "JPL SSD sats/phys_par: GM 153.94175 ±0.00041 km³/s² (SAT441) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 2.3100000000000003e+21,
+      "src": "NSSDCA saturniansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.2372,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 0.2641,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 635,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 527200,
+    "src": "JPL SSD sats/elem: a (SAT441, Laplace frame)",
+    "alt": [
+     {
+      "v": 527040,
+      "src": "NSSDCA saturniansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 4.517503,
+    "src": "JPL SSD sats/elem: sidereal period P (SAT441)",
+    "alt": [
+     {
+      "v": 4.5175,
+      "src": "NSSDCA saturniansatfact.html: orbital period"
+     },
+     {
+      "v": 4.518,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 0.3° to the Laplace plane"
+   },
+   "parent": {
+    "v": "saturn",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 605,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Saturn V",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1672,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "G.D. Cassini",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 9.63,
+    "src": "JPL Horizons APmag at opposition: 2025-09-21 9.66, 2026-10-04 9.60",
+    "alt": [
+     {
+      "v": 9.65,
+      "src": "Horizons V(1,0)=0.1 at mean opposition (a=9.53707032 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "titan": {
+   "radiusKm": {
+    "v": 2574.76,
+    "src": "JPL SSD sats/phys_par: mean radius 2574.76 ±0.02 km",
+    "alt": [
+     {
+      "v": 2575,
+      "src": "NSSDCA saturniansatfact.html: radius"
+     }
+    ]
+   },
+   "massKg": {
+    "v": 1.3452e+23,
+    "src": "JPL SSD sats/phys_par: GM 8978.1371 ±0.00025 km³/s² (SAT441) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 1.3455e+23,
+      "src": "NSSDCA saturniansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.8814,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 1.354,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 2641,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 1221900,
+    "src": "JPL SSD sats/elem: a (SAT441, Laplace frame)",
+    "alt": [
+     {
+      "v": 1221870,
+      "src": "NSSDCA saturniansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 15.945448,
+    "src": "JPL SSD sats/elem: sidereal period P (SAT441)",
+    "alt": [
+     {
+      "v": 15.945421,
+      "src": "NSSDCA saturniansatfact.html: orbital period"
+     },
+     {
+      "v": 15.945421,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 0.3° to the Laplace plane"
+   },
+   "parent": {
+    "v": "saturn",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 606,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Saturn VI",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1655,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "C. Huygens",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 8.25,
+    "src": "JPL Horizons APmag at opposition: 2025-09-21 8.28, 2026-10-04 8.22",
+    "alt": [
+     {
+      "v": 8.27,
+      "src": "Horizons V(1,0)=-1.28 at mean opposition (a=9.53707032 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "hyperion": {
+   "radiusKm": {
+    "v": 135,
+    "src": "JPL SSD sats/phys_par: mean radius 135 ±4 km"
+   },
+   "massKg": {
+    "v": 5551000000000000000,
+    "src": "JPL SSD sats/phys_par: GM 0.37049 ±0.00005 km³/s² (SAT441) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 5600000000000000000,
+      "src": "NSSDCA saturniansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 0.5386,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 0.02033,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 74.09,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 1481500,
+    "src": "JPL SSD sats/elem: a (SAT441, Laplace frame)",
+    "alt": [
+     {
+      "v": 1500930,
+      "src": "NSSDCA saturniansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 21.276658,
+    "src": "JPL SSD sats/elem: sidereal period P (SAT441)",
+    "alt": [
+     {
+      "v": 21.276609,
+      "src": "NSSDCA saturniansatfact.html: orbital period"
+     },
+     {
+      "v": 21.28,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 0.6° to the Laplace plane"
+   },
+   "parent": {
+    "v": "saturn",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 607,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Saturn VII",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1848,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "W.C Bond, G.P. Bond, W. Lassell",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 14.16,
+    "src": "JPL Horizons APmag at opposition: 2025-09-21 14.19, 2026-10-04 14.13",
+    "alt": [
+     {
+      "v": 14.18,
+      "src": "Horizons V(1,0)=4.63 at mean opposition (a=9.53707032 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "iapetus": {
+   "radiusKm": {
+    "v": 734.3,
+    "src": "JPL SSD sats/phys_par: mean radius 734.3 ±2.8 km"
+   },
+   "massKg": {
+    "v": 1.8057e+21,
+    "src": "JPL SSD sats/phys_par: GM 120.51511 ±0.00242 km³/s² (SAT441) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 1.8100000000000003e+21,
+      "src": "NSSDCA saturniansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.0887,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 0.2235,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 572.9,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 3561700,
+    "src": "JPL SSD sats/elem: a (SAT441, Laplace frame)",
+    "alt": [
+     {
+      "v": 3560850,
+      "src": "NSSDCA saturniansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 79.331002,
+    "src": "JPL SSD sats/elem: sidereal period P (SAT441)",
+    "alt": [
+     {
+      "v": 79.330183,
+      "src": "NSSDCA saturniansatfact.html: orbital period"
+     },
+     {
+      "v": 79.33,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 7.6° to the Laplace plane"
+   },
+   "parent": {
+    "v": "saturn",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 608,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Saturn VIII",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1671,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "G.D. Cassini",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 11.04,
+    "src": "JPL Horizons APmag at opposition: 2025-09-21 11.07, 2026-10-04 11.00",
+    "alt": [
+     {
+      "v": 11.05,
+      "src": "Horizons V(1,0)=1.5 at mean opposition (a=9.53707032 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "phobos": {
+   "radiusKm": {
+    "v": 11.08,
+    "src": "JPL SSD sats/phys_par: mean radius 11.08 ±0.04 km"
+   },
+   "massKg": {
+    "v": 10618000000000000,
+    "src": "JPL SSD sats/phys_par: GM 0.0007087 ±6e-7 km³/s² (MAR097) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 10600000000000000,
+      "src": "NSSDCA marsfact.html: satellites — mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.872,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 0.005773,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 11.31,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 9375,
+    "src": "JPL SSD sats/elem: a (MAR099, Laplace frame)",
+    "alt": [
+     {
+      "v": 227.956,
+      "src": "NSSDCA marsfact.html: satellites — semimajor axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 0.3187,
+    "src": "JPL SSD sats/elem: sidereal period P (MAR099)",
+    "alt": [
+     {
+      "v": 686.98,
+      "src": "NSSDCA marsfact.html: satellites — sidereal orbit period"
+     },
+     {
+      "v": 0.319,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 1.1° to the Laplace plane"
+   },
+   "parent": {
+    "v": "mars",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 401,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Mars I",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1877,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "A. Hall",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 11.3,
+    "src": "NSSDCA marsfact.html: apparent visual magnitude V0 at mean opposition",
+    "alt": [
+     {
+      "v": 11.98,
+      "src": "JPL Horizons APmag at opposition: 2025-01-16 11.90, 2027-02-19 12.06"
+     },
+     {
+      "v": 11.31,
+      "src": "Horizons V(1,0)=11.8 at mean opposition (a=1.52366231 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "deimos": {
+   "radiusKm": {
+    "v": 6.2,
+    "src": "JPL SSD sats/phys_par: mean radius 6.2 ±0.24 km"
+   },
+   "massKg": {
+    "v": 1441300000000000,
+    "src": "JPL SSD sats/phys_par: GM 0.0000962 ±0.0000028 km³/s² (MAR097) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 2400000000000000,
+      "src": "NSSDCA marsfact.html: satellites — mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.471,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 0.002503,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 5.571,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 23457,
+    "src": "JPL SSD sats/elem: a (MAR099, Laplace frame)",
+    "alt": [
+     {
+      "v": 149.598,
+      "src": "NSSDCA marsfact.html: satellites — semimajor axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 1.2625,
+    "src": "JPL SSD sats/elem: sidereal period P (MAR099)",
+    "alt": [
+     {
+      "v": 365.256,
+      "src": "NSSDCA marsfact.html: satellites — sidereal orbit period"
+     },
+     {
+      "v": 1.263,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 1.8° to the Laplace plane"
+   },
+   "parent": {
+    "v": "mars",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 402,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Mars II",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1877,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "A. Hall",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 12.4,
+    "src": "NSSDCA marsfact.html: apparent visual magnitude V0 at mean opposition",
+    "alt": [
+     {
+      "v": 13.07,
+      "src": "JPL Horizons APmag at opposition: 2025-01-16 12.99, 2027-02-19 13.15"
+     },
+     {
+      "v": 12.4,
+      "src": "Horizons V(1,0)=12.89 at mean opposition (a=1.52366231 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "miranda": {
+   "radiusKm": {
+    "v": 235.8,
+    "src": "JPL SSD sats/phys_par: mean radius 235.8 ±0.7 km"
+   },
+   "massKg": {
+    "v": 64426000000000000000,
+    "src": "JPL SSD sats/phys_par: GM 4.3 ±0.2 km³/s² (URA111) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 66000000000000000000,
+      "src": "NSSDCA uraniansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.178,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 0.07734,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 191,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 129846,
+    "src": "JPL SSD sats/elem: a (URA182, equatorial frame)",
+    "alt": [
+     {
+      "v": 129900,
+      "src": "NSSDCA uraniansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 1.413479,
+    "src": "JPL SSD sats/elem: sidereal period P (URA182)",
+    "alt": [
+     {
+      "v": 1.413479,
+      "src": "NSSDCA uraniansatfact.html: orbital period"
+     },
+     {
+      "v": 1.413,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 4.4° to the equatorial plane"
+   },
+   "parent": {
+    "v": "uranus",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 705,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Uranus V",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1948,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "G. Kuiper",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 16.38,
+    "src": "JPL Horizons APmag at opposition: 2025-11-21 16.39, 2026-11-25 16.37",
+    "alt": [
+     {
+      "v": 16.31,
+      "src": "Horizons V(1,0)=3.6 at mean opposition (a=19.19126393 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "ariel": {
+   "radiusKm": {
+    "v": 578.9,
+    "src": "JPL SSD sats/phys_par: mean radius 578.9 ±0.6 km"
+   },
+   "massKg": {
+    "v": 1.2511e+21,
+    "src": "JPL SSD sats/phys_par: GM 83.5 ±1.4 km³/s² (URA111) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 1.29e+21,
+      "src": "NSSDCA uraniansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.539,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 0.2492,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 537.1,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 190929,
+    "src": "JPL SSD sats/elem: a (URA182, equatorial frame)",
+    "alt": [
+     {
+      "v": 190900,
+      "src": "NSSDCA uraniansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 2.520379,
+    "src": "JPL SSD sats/elem: sidereal period P (URA182)",
+    "alt": [
+     {
+      "v": 2.520379,
+      "src": "NSSDCA uraniansatfact.html: orbital period"
+     },
+     {
+      "v": 2.52,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 0° to the equatorial plane"
+   },
+   "parent": {
+    "v": "uranus",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 701,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Uranus I",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1851,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "W. Lassell",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 14.23,
+    "src": "JPL Horizons APmag at opposition: 2025-11-21 14.24, 2026-11-25 14.22",
+    "alt": [
+     {
+      "v": 14.16,
+      "src": "Horizons V(1,0)=1.45 at mean opposition (a=19.19126393 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "umbriel": {
+   "radiusKm": {
+    "v": 584.7,
+    "src": "JPL SSD sats/phys_par: mean radius 584.7 ±2.8 km",
+    "alt": [
+     {
+      "v": 584.7,
+      "src": "NSSDCA uraniansatfact.html: radius"
+     }
+    ]
+   },
+   "massKg": {
+    "v": 1.275e+21,
+    "src": "JPL SSD sats/phys_par: GM 85.1 ±1.9 km³/s² (URA111) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 1.22e+21,
+      "src": "NSSDCA uraniansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.523,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 0.2489,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 539.5,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 265986,
+    "src": "JPL SSD sats/elem: a (URA182, equatorial frame)",
+    "alt": [
+     {
+      "v": 266000,
+      "src": "NSSDCA uraniansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 4.144177,
+    "src": "JPL SSD sats/elem: sidereal period P (URA182)",
+    "alt": [
+     {
+      "v": 4.144176,
+      "src": "NSSDCA uraniansatfact.html: orbital period"
+     },
+     {
+      "v": 4.144,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 0.1° to the equatorial plane"
+   },
+   "parent": {
+    "v": "uranus",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 702,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Uranus II",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1851,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "W. Lassell",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 14.88,
+    "src": "JPL Horizons APmag at opposition: 2025-11-21 14.89, 2026-11-25 14.87",
+    "alt": [
+     {
+      "v": 14.81,
+      "src": "Horizons V(1,0)=2.1 at mean opposition (a=19.19126393 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "titania": {
+   "radiusKm": {
+    "v": 788.9,
+    "src": "JPL SSD sats/phys_par: mean radius 788.9 ±1.8 km",
+    "alt": [
+     {
+      "v": 788.9,
+      "src": "NSSDCA uraniansatfact.html: radius"
+     }
+    ]
+   },
+   "massKg": {
+    "v": 3.3996e+21,
+    "src": "JPL SSD sats/phys_par: GM 226.9 ±4.1 km³/s² (URA111) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 3.4200000000000005e+21,
+      "src": "NSSDCA uraniansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.653,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 0.3646,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 758.4,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 436298,
+    "src": "JPL SSD sats/elem: a (URA182, equatorial frame)",
+    "alt": [
+     {
+      "v": 436300,
+      "src": "NSSDCA uraniansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 8.705869,
+    "src": "JPL SSD sats/elem: sidereal period P (URA182)",
+    "alt": [
+     {
+      "v": 8.705867,
+      "src": "NSSDCA uraniansatfact.html: orbital period"
+     },
+     {
+      "v": 8.706,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 0.1° to the equatorial plane"
+   },
+   "parent": {
+    "v": "uranus",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 703,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Uranus III",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1787,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "W. Herschel",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 13.8,
+    "src": "JPL Horizons APmag at opposition: 2025-11-21 13.81, 2026-11-25 13.79",
+    "alt": [
+     {
+      "v": 13.73,
+      "src": "Horizons V(1,0)=1.02 at mean opposition (a=19.19126393 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "oberon": {
+   "radiusKm": {
+    "v": 761.4,
+    "src": "JPL SSD sats/phys_par: mean radius 761.4 ±2.6 km",
+    "alt": [
+     {
+      "v": 761.4,
+      "src": "NSSDCA uraniansatfact.html: radius"
+     }
+    ]
+   },
+   "massKg": {
+    "v": 3.076e+21,
+    "src": "JPL SSD sats/phys_par: GM 205.3 ±5.8 km³/s² (URA111) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 2.88e+21,
+      "src": "NSSDCA uraniansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 1.664,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 0.3541,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 734.3,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 583511,
+    "src": "JPL SSD sats/elem: a (URA182, equatorial frame)",
+    "alt": [
+     {
+      "v": 583500,
+      "src": "NSSDCA uraniansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 13.463237,
+    "src": "JPL SSD sats/elem: sidereal period P (URA182)",
+    "alt": [
+     {
+      "v": 13.463234,
+      "src": "NSSDCA uraniansatfact.html: orbital period"
+     },
+     {
+      "v": 13.463,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": false,
+    "src": "JPL SSD sats/elem: i = 0.1° to the equatorial plane"
+   },
+   "parent": {
+    "v": "uranus",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 704,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Uranus IV",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1787,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "W. Herschel",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 14.01,
+    "src": "JPL Horizons APmag at opposition: 2025-11-21 14.02, 2026-11-25 14.00",
+    "alt": [
+     {
+      "v": 13.94,
+      "src": "Horizons V(1,0)=1.23 at mean opposition (a=19.19126393 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "triton": {
+   "radiusKm": {
+    "v": 1352.6,
+    "src": "JPL SSD sats/phys_par: mean radius 1352.6 ±2.4 km",
+    "alt": [
+     {
+      "v": 1353.4,
+      "src": "NSSDCA neptuniansatfact.html: radius"
+     }
+    ]
+   },
+   "massKg": {
+    "v": 2.1403e+22,
+    "src": "JPL SSD sats/phys_par: GM 1428.49546 ±0.61603 km³/s² (NEP097) / G=6.6743e-11",
+    "alt": [
+     {
+      "v": 2.14e+22,
+      "src": "NSSDCA neptuniansatfact.html: mass"
+     }
+    ]
+   },
+   "density": {
+    "v": 2.0649,
+    "src": "JPL SSD sats/phys_par: mean density"
+   },
+   "gravity": {
+    "v": 0.7808,
+    "src": "derived: JPL GM / R²"
+   },
+   "escapeMs": {
+    "v": 1453,
+    "src": "derived: √(2·JPL GM / R)"
+   },
+   "aKm": {
+    "v": 354800,
+    "src": "JPL SSD sats/elem: a (NEP097, Laplace frame)",
+    "alt": [
+     {
+      "v": 354760,
+      "src": "NSSDCA neptuniansatfact.html: semi-major axis"
+     }
+    ]
+   },
+   "periodDays": {
+    "v": 5.876994,
+    "src": "JPL SSD sats/elem: sidereal period P (NEP097)",
+    "alt": [
+     {
+      "v": 5.876854,
+      "src": "NSSDCA neptuniansatfact.html: orbital period (R = retrograde)"
+     },
+     {
+      "v": 5.876994,
+      "src": "JPL Horizons header: orbital period"
+     }
+    ]
+   },
+   "retrograde": {
+    "v": true,
+    "src": "JPL SSD sats/elem: i = 157.3° to the Laplace plane"
+   },
+   "parent": {
+    "v": "neptune",
+    "src": "JPL SSD sats/elem: planet"
+   },
+   "naif": {
+    "v": 801,
+    "src": "JPL SSD sats/elem: code"
+   },
+   "designation": {
+    "v": "Neptune I",
+    "src": "JPL SSD sats/discovery: IAU number"
+   },
+   "discovered.year": {
+    "v": 1846,
+    "src": "JPL SSD sats/discovery: year discovered"
+   },
+   "discovered.by": {
+    "v": "W. Lassell",
+    "src": "JPL SSD sats/discovery: discoverer(s)"
+   },
+   "mag": {
+    "v": 13.44,
+    "src": "JPL Horizons APmag at opposition: 2025-09-23 13.44, 2026-09-26 13.44",
+    "alt": [
+     {
+      "v": 13.47,
+      "src": "Horizons V(1,0)=-1.24 at mean opposition (a=30.06896348 AU, Δ=a−1)"
+     }
+    ]
+   }
+  },
+  "constants": {
+   "AU_KM": {
+    "v": 149597870.7,
+    "src": "JPL Horizons header: 1 au = 149597870.700 km (IAU 2012)"
+   },
+   "LY_KM": {
+    "v": 9460730500000,
+    "src": "c = 299792.458 km/s (Horizons header) × Julian year"
+   },
+   "AU_PER_LY": {
+    "v": 63241.08,
+    "src": "LY_KM / AU_KM"
+   },
+   "NEPTUNE_AU": {
+    "v": 30.06896348,
+    "src": "NSSDCA neptunefact.html: mean orbital elements (J2000): semimajor axis"
+   },
+   "TWO_AU_S": {
+    "v": 499.0048,
+    "src": "light time for 1 au = AU_KM / c (scale.ts TWO_AU_S)"
+   }
+  }
+ },
+ "horizonsMagnitudes": {
+  "io": [
+   {
+    "date": "2026-01-10",
+    "mag": 5.042,
+    "delta": 4.23070462244808,
+    "phase": 0.0915,
+    "H": -1.68
+   },
+   {
+    "date": "2027-02-11",
+    "mag": 5.17,
+    "delta": 4.36396861785568,
+    "phase": 0.1948,
+    "H": -1.68
+   }
+  ],
+  "europa": [
+   {
+    "date": "2026-01-10",
+    "mag": 5.316,
+    "delta": 4.23622567498888,
+    "phase": 0.1003,
+    "H": -1.41
+   },
+   {
+    "date": "2027-02-11",
+    "mag": 5.434,
+    "delta": 4.35968016950727,
+    "phase": 0.1951,
+    "H": -1.41
+   }
+  ],
+  "ganymede": [
+   {
+    "date": "2026-01-10",
+    "mag": 4.637,
+    "delta": 4.23748631046189,
+    "phase": 0.0906,
+    "H": -2.09
+   },
+   {
+    "date": "2027-02-11",
+    "mag": 4.753,
+    "delta": 4.35905690262395,
+    "phase": 0.1958,
+    "H": -2.09
+   }
+  ],
+  "callisto": [
+   {
+    "date": "2026-01-10",
+    "mag": 5.665,
+    "delta": 4.21930322408451,
+    "phase": 0.1007,
+    "H": -1.05
+   },
+   {
+    "date": "2027-02-11",
+    "mag": 5.809,
+    "delta": 4.36664271626175,
+    "phase": 0.1971,
+    "H": -1.05
+   }
+  ],
+  "mimas": [
+   {
+    "date": "2025-09-21",
+    "mag": 12.859,
+    "delta": 8.54773732032553,
+    "phase": 0.2674,
+    "H": 3.3
+   },
+   {
+    "date": "2026-10-04",
+    "mag": 12.804,
+    "delta": 8.43487002867528,
+    "phase": 0.2961,
+    "H": 3.3
+   }
+  ],
+  "enceladus": [
+   {
+    "date": "2025-09-21",
+    "mag": 11.66,
+    "delta": 8.54832394462497,
+    "phase": 0.2673,
+    "H": 2.1
+   },
+   {
+    "date": "2026-10-04",
+    "mag": 11.604,
+    "delta": 8.43544121312759,
+    "phase": 0.2958,
+    "H": 2.1
+   }
+  ],
+  "tethys": [
+   {
+    "date": "2025-09-21",
+    "mag": 10.159,
+    "delta": 8.54631500901147,
+    "phase": 0.2663,
+    "H": 0.6
+   },
+   {
+    "date": "2026-10-04",
+    "mag": 10.103,
+    "delta": 8.43235417733794,
+    "phase": 0.2935,
+    "H": 0.6
+   }
+  ],
+  "dione": [
+   {
+    "date": "2025-09-21",
+    "mag": 10.358,
+    "delta": 8.5452758174125,
+    "phase": 0.266,
+    "H": 0.8
+   },
+   {
+    "date": "2026-10-04",
+    "mag": 10.303,
+    "delta": 8.43202817177883,
+    "phase": 0.2941,
+    "H": 0.8
+   }
+  ],
+  "rhea": [
+   {
+    "date": "2025-09-21",
+    "mag": 9.661,
+    "delta": 8.54990277074426,
+    "phase": 0.2673,
+    "H": 0.1
+   },
+   {
+    "date": "2026-10-04",
+    "mag": 9.603,
+    "delta": 8.43363942684922,
+    "phase": 0.2933,
+    "H": 0.1
+   }
+  ],
+  "titan": [
+   {
+    "date": "2025-09-21",
+    "mag": 8.275,
+    "delta": 8.53872581401519,
+    "phase": 0.2645,
+    "H": -1.28
+   },
+   {
+    "date": "2026-10-04",
+    "mag": 8.224,
+    "delta": 8.43532815136707,
+    "phase": 0.2986,
+    "H": -1.28
+   }
+  ],
+  "hyperion": [
+   {
+    "date": "2025-09-21",
+    "mag": 14.187,
+    "delta": 8.5435497021403,
+    "phase": 0.2625,
+    "H": 4.63
+   },
+   {
+    "date": "2026-10-04",
+    "mag": 14.13,
+    "delta": 8.4263834616014,
+    "phase": 0.2965,
+    "H": 4.63
+   }
+  ],
+  "iapetus": [
+   {
+    "date": "2025-09-21",
+    "mag": 11.07,
+    "delta": 8.56922166837054,
+    "phase": 0.2687,
+    "H": 1.5
+   },
+   {
+    "date": "2026-10-04",
+    "mag": 11.004,
+    "delta": 8.43464742666348,
+    "phase": 0.2887,
+    "H": 1.5
+   }
+  ],
+  "phobos": [
+   {
+    "date": "2025-01-16",
+    "mag": 11.899,
+    "delta": 0.6436323012441,
+    "phase": 2.5927,
+    "H": 11.8
+   },
+   {
+    "date": "2027-02-19",
+    "mag": 12.063,
+    "delta": 0.67797722538764,
+    "phase": 2.7061,
+    "H": 11.8
+   }
+  ],
+  "deimos": [
+   {
+    "date": "2025-01-16",
+    "mag": 12.988,
+    "delta": 0.64346492112319,
+    "phase": 2.5903,
+    "H": 12.89
+   },
+   {
+    "date": "2027-02-19",
+    "mag": 13.153,
+    "delta": 0.67797472371997,
+    "phase": 2.7034,
+    "H": 12.89
+   }
+  ],
+  "miranda": [
+   {
+    "date": "2025-11-21",
+    "mag": 16.387,
+    "delta": 18.509649216522,
+    "phase": 0.0347,
+    "H": 3.6
+   },
+   {
+    "date": "2026-11-25",
+    "mag": 16.372,
+    "delta": 18.4444237291352,
+    "phase": 0.0568,
+    "H": 3.6
+   }
+  ],
+  "ariel": [
+   {
+    "date": "2025-11-21",
+    "mag": 14.237,
+    "delta": 18.5092471584155,
+    "phase": 0.0349,
+    "H": 1.45
+   },
+   {
+    "date": "2026-11-25",
+    "mag": 14.222,
+    "delta": 18.4445131169574,
+    "phase": 0.0576,
+    "H": 1.45
+   }
+  ],
+  "umbriel": [
+   {
+    "date": "2025-11-21",
+    "mag": 14.887,
+    "delta": 18.5097851585827,
+    "phase": 0.0348,
+    "H": 2.1
+   },
+   {
+    "date": "2026-11-25",
+    "mag": 14.872,
+    "delta": 18.4446562697784,
+    "phase": 0.0567,
+    "H": 2.1
+   }
+  ],
+  "titania": [
+   {
+    "date": "2025-11-21",
+    "mag": 13.807,
+    "delta": 18.5085428850875,
+    "phase": 0.0364,
+    "H": 1.02
+   },
+   {
+    "date": "2026-11-25",
+    "mag": 13.792,
+    "delta": 18.4445988515802,
+    "phase": 0.0568,
+    "H": 1.02
+   }
+  ],
+  "oberon": [
+   {
+    "date": "2025-11-21",
+    "mag": 14.017,
+    "delta": 18.5101148249496,
+    "phase": 0.0349,
+    "H": 1.23
+   },
+   {
+    "date": "2026-11-25",
+    "mag": 14.002,
+    "delta": 18.4441506123946,
+    "phase": 0.0579,
+    "H": 1.23
+   }
+  ],
+  "triton": [
+   {
+    "date": "2025-09-23",
+    "mag": 13.44,
+    "delta": 28.8820949537675,
+    "phase": 0.052,
+    "H": -1.24
+   },
+   {
+    "date": "2026-09-26",
+    "mag": 13.44,
+    "delta": 28.8771485543562,
+    "phase": 0.0486,
+    "H": -1.24
+   }
+  ]
+ }
+}

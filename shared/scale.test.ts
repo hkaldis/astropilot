@@ -17,7 +17,7 @@ test("planets against Earth", () => {
 test("the Moon and the planets' moons", () => {
   const m = earthMoonScale();
   assert.match(m.headline, /About 49 Moons would fill Earth — and it would take 81/);
-  assert.match(m.lines.join(" "), /would just about fit in the gap/);
+  assert.match(m.lines.join(" "), /would fit in the gap when the Moon is at its farthest/);
   assert.match(satelliteScale("ganymede", "Ganymede", "Jupiter")!.headline, /Bigger than the planet Mercury — the largest moon/);
   assert.match(satelliteScale("deimos", "Deimos", "Mars")!.lines.join(" "), /almost jump off it/);
   assert.match(satelliteScale("phobos", "Phobos", "Mars")!.lines.join(" "), /thrown ball would leave it/);

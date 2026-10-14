@@ -78,6 +78,14 @@ export const TYPE_OVERRIDES = {
  * references. (Globular clusters are handled globally via Harris 2010.)
  */
 export const MAG_OVERRIDES = {
+  // crosscheck:MAG_OVERRIDES:begin (scripts/crosscheck/apply.py)
+  NGC1049: [12.71, "McLaughlin & van der Marel 2005 (VizieR J/ApJS/161/304), Fornax 3 King-model total V; 13.59 was OpenNGC's B magnitude"],
+  NGC2841: [9.2, "RC3 VT = BT - (B-V)T (de Vaucouleurs et al. 1991); the OpenNGC/HyperLEDA vt used now implies B-V <= 0.11 (or V fainter than B)"],
+  NGC300: [8.1, "RC3 VT = BT - (B-V)T (de Vaucouleurs et al. 1991); the OpenNGC/HyperLEDA vt used now implies B-V <= 0.11 (or V fainter than B)"],
+  NGC4438: [10.2, "RC3 VT = BT - (B-V)T (de Vaucouleurs et al. 1991); the OpenNGC/HyperLEDA vt used now implies B-V <= 0.11 (or V fainter than B)"],
+  NGC5005: [9.8, "RC3 VT = BT - (B-V)T (de Vaucouleurs et al. 1991); the OpenNGC/HyperLEDA vt used now implies B-V <= 0.11 (or V fainter than B)"],
+  NGC55: [7.9, "RC3 VT = BT - (B-V)T (de Vaucouleurs et al. 1991); the OpenNGC/HyperLEDA vt used now implies B-V <= 0.11 (or V fainter than B)"],
+  // crosscheck:MAG_OVERRIDES:end
   NGC6885: [6, 'OpenNGC V=14.1 for C37 is not an integrated magnitude; Wikipedia Caldwell table gives 6'],
 };
 
@@ -126,6 +134,28 @@ const NGC2000 = 'NGC 2000.0 (Sinnott 1988) via the SEDS NGC/IC database, spider.
  * those are replaced where the reference is > 20% larger. [size, source].
  */
 export const SIZE_OVERRIDES = {
+  // crosscheck:SIZE_OVERRIDES:begin (scripts/crosscheck/apply.py)
+  IC2395: [[18.6], "Dias et al. 2002 (B/ocl) apparent diameter 18.6′; others: HR23 2r50 27.5′, CG20 2r50 25.1′, D21 2r50 23.6′, MWSC 2r1 12′"],
+  IC349: [[0.5, 0.5], "Cederblad 1946 (VizieR VII/231) Ced 19i = IC 349, 0.5'x0.5'"],
+  NGC129: [[19], "Dias et al. 2002 (B/ocl) apparent diameter 19′; others: HR23 2r50 13.3′, CG20 2r50 20.3′, D21 2r50 17′, MWSC 2r1 10.8′"],
+  NGC1342: [[15], "Dias et al. 2002 (B/ocl) apparent diameter 15′; others: HR23 2r50 35.1′, CG20 2r50 34.7′, D21 2r50 32.6′, MWSC 2r1 12.6′"],
+  NGC1545: [[18], "Dias et al. 2002 (B/ocl) apparent diameter 18′; others: HR23 2r50 38.9′, CG20 2r50 34.8′, D21 2r50 31.2′, MWSC 2r1 8.4′"],
+  NGC1582: [[24], "Dias et al. 2002 (B/ocl) apparent diameter 24′; others: HR23 2r50 31.3′, CG20 2r50 31.7′, D21 2r50 30.6′, MWSC 2r1 15.6′"],
+  NGC189: [[5], "Dias et al. 2002 (B/ocl) apparent diameter 5′; others: HR23 2r50 16.7′, CG20 2r50 9.48′, D21 2r50 8.16′, MWSC 2r1 5.4′"],
+  NGC2232: [[53], "Dias et al. 2002 (B/ocl) apparent diameter 53′; others: HR23 2r50 63′, CG20 2r50 61.9′, D21 2r50 61.3′, MWSC 2r1 19.8′"],
+  NGC225: [[12], "Dias et al. 2002 (B/ocl) apparent diameter 12′; others: HR23 2r50 66.4′, CG20 2r50 25.9′, D21 2r50 21.1′, MWSC 2r1 8.4′"],
+  NGC2281: [[25], "Dias et al. 2002 (B/ocl) apparent diameter 25′; others: HR23 2r50 41′, CG20 2r50 50′, D21 2r50 46.7′, MWSC 2r1 21.6′"],
+  NGC2354: [[18], "Dias et al. 2002 (B/ocl) apparent diameter 18′; others: HR23 2r50 13.9′, CG20 2r50 18.2′, D21 2r50 17.8′, MWSC 2r1 9.6′"],
+  NGC2396: [[10], "Dias et al. 2002 (B/ocl) apparent diameter 10′; others: HR23 2r50 22.6′, CG20 2r50 22.1′, D21 2r50 22.1′, MWSC 2r1 13.2′"],
+  NGC2547: [[25], "Dias et al. 2002 (B/ocl) apparent diameter 25′; others: HR23 2r50 38.3′, CG20 2r50 34′, D21 2r50 32.2′, MWSC 2r1 15.6′"],
+  NGC5662: [[29], "Dias et al. 2002 (B/ocl) apparent diameter 29′; others: HR23 2r50 38.7′, CG20 2r50 39.6′, D21 2r50 34′, MWSC 2r1 16.2′"],
+  NGC5925: [[11], "Dias et al. 2002 (B/ocl) apparent diameter 11′; others: HR23 2r50 16.4′, CG20 2r50 22.8′, D21 2r50 19.7′, MWSC 2r1 9.6′"],
+  NGC6633: [[20], "Dias et al. 2002 (B/ocl) apparent diameter 20′; others: HR23 2r50 55.5′, CG20 2r50 43.2′, D21 2r50 43.7′, MWSC 2r1 24′"],
+  NGC6871: [[29], "Dias et al. 2002 (B/ocl) apparent diameter 29′; others: HR23 2r50 20′, CG20 2r50 44.5′, D21 2r50 42.1′, MWSC 2r1 18.6′"],
+  NGC7031: [[14], "Dias et al. 2002 (B/ocl) apparent diameter 14′; others: HR23 2r50 12.9′, CG20 2r50 14.2′, MWSC 2r1 7.8′"],
+  NGC7209: [[14], "Dias et al. 2002 (B/ocl) apparent diameter 14′; others: HR23 2r50 25.4′, CG20 2r50 36.5′, D21 2r50 32.9′, MWSC 2r1 12′"],
+  NGC7686: [[16], "Dias et al. 2002 (B/ocl) apparent diameter 16′; others: MWSC 2r1 7.2′"],
+  // crosscheck:SIZE_OVERRIDES:end
   // Messier
   M16: [[33, 27], 'SEDS M16: its 7′ is the cluster; "the nebula extends much farther out, to a diameter of over 30′, corresponding to a linear size of about 55x45 light years" at 5,700 ly = 33′ × 27′ (OpenNGC 120′ × 25′)'],
   M24: [[120, 60], `${wiki('Small Sagittarius Star Cloud', 1373100846)}: 2° × 1° (SEDS gives a single 90′)`],
@@ -584,4 +614,11 @@ export const M40_PAIR = { wds: '12222+5805', pair: ['WNC   4', ''] };
  */
 export const STAR_MAG_OVERRIDES = {
   30438: [-0.74, 'Canopus: SIMBAD / Wikipedia V −0.74; Hipparcos lists −0.62'],
+};
+
+/** Positions (J2000; RA in hours, Dec in degrees) replacing catalogue values that are off — [{ ra?, dec? }, source]. */
+export const POSITION_OVERRIDES = {
+  // crosscheck:POSITION_OVERRIDES:begin (scripts/crosscheck/apply.py)
+  Mel72: [{"ra": 7.6412, "dec": -10.698}, "SIMBAD Cl Melotte 72; HR23 145′, CG20 145′, D21 145′, MWSC 145′, DAML 144′ by name"],
+  // crosscheck:POSITION_OVERRIDES:end
 };

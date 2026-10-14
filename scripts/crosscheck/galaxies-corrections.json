@@ -1,0 +1,99 @@
+{
+ "ESO56-115": {
+  "mass": 140000000000.0,
+  "mass_src": "Erkal et al. 2019, MNRAS 487, 2685 (total incl. dark halo, 1.38e11 Msun)"
+ },
+ "M33": {
+  "mass": 400000000000.0,
+  "mass_src": "Corbelli et al. 2014, A&A 572, A23 (virial mass 4.3 +/- 1.0e11 Msun)"
+ },
+ "IC1613": {
+  "mass": null,
+  "mass_src": "drop: 1.1e8 is the stellar mass (McConnachie 2012), not a total"
+ },
+ "NGC2841": {
+  "mass": null,
+  "mass_src": "drop: 7e10 is below v^2 R25 / G = 3e11 for its 290 km/s rotation; not a total",
+  "catalog": {
+   "mag": 9.2,
+   "src": "RC3 VT = BT - (B-V)T (de Vaucouleurs et al. 1991); the OpenNGC/HyperLEDA vt used now implies B-V <= 0.11 (or V fainter than B)"
+  }
+ },
+ "NGC7793": {
+  "mass": null,
+  "mass_src": "drop: 3.2e9 is ~its stellar mass, below its disk dynamical mass; not a total"
+ },
+ "M101": {
+  "stars": 130000000000.0,
+  "stars_src": "M* = 5.3e10 Msun (van Dokkum et al. 2014, ApJ 782, L24) / 0.4 Msun per star"
+ },
+ "NGC1566": {
+  "d": 58000000.0,
+  "d_src": "cep",
+  "d_ref": "TRGB 17.9 Mpc (Sabbi et al. 2018, ApJS 235, 23); Hubble flow 17 Mpc"
+ },
+ "NGC3938": {
+  "d": 58000000.0,
+  "d_src": "lit",
+  "d_ref": "SN II 17.9 Mpc (Poznanski et al. 2009); 21.9-22.4 Mpc (Rodriguez et al. 2014)"
+ },
+ "NGC4490": {
+  "d": 22000000.0,
+  "d_src": "cep",
+  "d_ref": "TRGB 6.9 Mpc (Cosmicflows-4, Tully et al. 2023); NED-D TRGB 6.5 Mpc"
+ },
+ "NGC4568": {
+  "d": 55000000.0,
+  "d_src": "lit",
+  "d_ref": "Virgo member; post-2000 Tully-Fisher 17.3-19.7 Mpc (NED-D); same as partner NGC 4567"
+ },
+ "NGC4596": {
+  "d": 55000000.0,
+  "d_src": "sbf",
+  "d_ref": "SBF 16.8 Mpc (Cosmicflows-4, Tully et al. 2023)"
+ },
+ "NGC5643": {
+  "d": 41000000.0,
+  "d_src": "cep",
+  "d_ref": "Cepheids + TRGB 12.7 Mpc (Cosmicflows-4; Riess et al. 2022)"
+ },
+ "M108": {
+  "d": 31000000.0,
+  "d_src": "lit",
+  "d_ref": "Tully-Fisher 9.2 Mpc (Cosmicflows-4); median of 11 post-2000 TF distances 9.9 Mpc (NED-D)"
+ },
+ "NGC4565": {
+  "d": 39000000.0,
+  "d_src": "cep",
+  "d_ref": "TRGB 11.9 Mpc (Radburn-Smith et al. 2011, ApJS 195, 18; adopted by Cosmicflows-4); replaces SBF 17.5 Mpc"
+ },
+ "NGC5005": {
+  "catalog": {
+   "mag": 9.8,
+   "src": "RC3 VT = BT - (B-V)T (de Vaucouleurs et al. 1991); the OpenNGC/HyperLEDA vt used now implies B-V <= 0.11 (or V fainter than B)"
+  }
+ },
+ "NGC4438": {
+  "catalog": {
+   "mag": 10.2,
+   "src": "RC3 VT = BT - (B-V)T (de Vaucouleurs et al. 1991); the OpenNGC/HyperLEDA vt used now implies B-V <= 0.11 (or V fainter than B)"
+  }
+ },
+ "NGC55": {
+  "catalog": {
+   "mag": 7.9,
+   "src": "RC3 VT = BT - (B-V)T (de Vaucouleurs et al. 1991); the OpenNGC/HyperLEDA vt used now implies B-V <= 0.11 (or V fainter than B)"
+  }
+ },
+ "NGC300": {
+  "catalog": {
+   "mag": 8.1,
+   "src": "RC3 VT = BT - (B-V)T (de Vaucouleurs et al. 1991); the OpenNGC/HyperLEDA vt used now implies B-V <= 0.11 (or V fainter than B)"
+  }
+ },
+ "ESO97-13": {
+  "d": 14000000,
+  "d_src": "lit",
+  "d_ref": "Circinus Galaxy: NED-D median of post-2000 distances 13.7 Mly (n=2); Tully et al. 2009 4.2 Mpc"
+ }
+}

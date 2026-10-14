@@ -381,6 +381,14 @@ function sizePhrase(size) {
   return b != null && Math.abs(a - b) > 0.05 * a ? `about ${fmtNum(a)}′ × ${fmtNum(b)}′` : `about ${fmtNum(a)}′ across`;
 }
 const article = (w) => (/^(8|11|18)(\.|\b)/.test(w) || /^[aeiou]/i.test(w) ? 'An' : 'A');
+const APP_FACTS = (() => {
+  try {
+    const j = JSON.parse(fs.readFileSync(new URL('../../shared/data/objectFacts.json', import.meta.url), 'utf8'));
+    return j.facts ?? j;
+  } catch {
+    return {};
+  }
+})();
 function lightYears(kpc) {
   const ly = kpc * 3261.56;
   const p = 10 ** Math.max(0, Math.floor(Math.log10(ly)) - 1);
@@ -402,7 +410,11 @@ function generatedDescription(o, row, extra = {}) {
     if (cv != null) s += ` Its central star is magnitude ${round(cv, 1)}.`;
     else if (cb != null) s += ` Its central star is magnitude ${round(cb, 1)} (B-band).`;
   }
-  if (extra.harris?.rSunKpc) s += ` It lies about ${lightYears(extra.harris.rSunKpc)} light-years away.`;
+  // The app's own distance (Baumgardt & Vasiliev 2021 for globulars, cross-checked) when there is one, so the text
+  // matches the distance shown beside it; Harris 2010 otherwise.
+  const dLy = APP_FACTS[o.id]?.d;
+  if (dLy) s += ` It lies about ${lightYears(dLy / 3261.56)} light-years away.`;
+  else if (extra.harris?.rSunKpc) s += ` It lies about ${lightYears(extra.harris.rSunKpc)} light-years away.`;
   const m = o.mag != null ? `${o.mag.toFixed(1)}${o.magB ? ' (B-band)' : ''}` : '';
   if (o.magOf === 'star') s += ` Its catalogued magnitude, ${m}, is that of the star lighting it; the nebula itself is much fainter.`;
   if (o.magOf === 'cluster') s += ` Its catalogued magnitude, ${m}, is that of the star cluster; the nebulosity is much fainter.`;
@@ -495,6 +507,8 @@ for (const r of selected) {
   const name = displayCandidates[0] || (m ? `M ${m}` : desig[0] || canonical);
 
   const o = { id, name, designations: [], type, ra: round(ra, 4), dec: round(dec, 3), con };
+  // Positions the cross-check found off (scripts/crosscheck/apply.py writes POSITION_OVERRIDES).
+  if (CUR.POSITION_OVERRIDES?.[id]) Object.assign(o, CUR.POSITION_OVERRIDES[id][0]);
   if (m) o.m = m;
   if (c) o.c = c;
   if (mag != null) o.mag = round(mag, 2);

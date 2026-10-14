@@ -1,7 +1,7 @@
 /**
  * Physical facts about the Solar System bodies in the app, for size and mass comparisons: mean radius, mass,
  * surface gravity, rotation, orbital period and typical temperature (NASA planetary fact sheets; moon masses from
- * the JPL satellite physical parameters).
+ * the JPL satellite physical parameters). Cross-checked field by field: scripts/crosscheck/bodies-report.md.
  */
 
 export interface BodyPhysics {
@@ -34,8 +34,8 @@ export const LY_KM = 9.4607e12;
 export const AU_PER_LY = 63_241.1;
 
 export const BODY_PHYSICS: Record<string, BodyPhysics> = {
-  moon: { radiusKm: 1737.4, massKg: 7.346e22, gravity: 1.62, density: 3.344, rotationH: 655.7, solarDayH: 708.7, orbitDays: 27.32, tempC: [-173, 127], escapeKms: 2.38 },
-  mercury: { radiusKm: 2439.7, massKg: 3.301e23, gravity: 3.7, density: 5.429, rotationH: 1407.6, solarDayH: 4222.6, orbitDays: 88.0, tempC: [-173, 427], escapeKms: 4.25 },
+  moon: { radiusKm: 1737.4, massKg: 7.346e22, gravity: 1.62, density: 3.344, rotationH: 655.7, solarDayH: 708.7, orbitDays: 27.32, tempC: [-178, 117], escapeKms: 2.38 },
+  mercury: { radiusKm: 2439.7, massKg: 3.301e23, gravity: 3.7, density: 5.429, rotationH: 1407.6, solarDayH: 4222.6, orbitDays: 88.0, tempC: [-180, 430], escapeKms: 4.25 },
   venus: { radiusKm: 6051.8, massKg: 4.867e24, gravity: 8.87, density: 5.243, rotationH: -5832.5, solarDayH: 2802, orbitDays: 224.7, tempC: 464, escapeKms: 10.36 },
   mars: { radiusKm: 3389.5, massKg: 6.417e23, gravity: 3.71, density: 3.934, rotationH: 24.623, solarDayH: 24.66, orbitDays: 687.0, tempC: -65, escapeKms: 5.03 },
   jupiter: { radiusKm: 69_911, massKg: 1.898e27, gravity: 24.79, density: 1.326, rotationH: 9.925, solarDayH: 9.926, orbitDays: 4332.6, tempC: -110, escapeKms: 59.5 },
@@ -55,8 +55,8 @@ export const BODY_PHYSICS: Record<string, BodyPhysics> = {
   titan: { radiusKm: 2574.7, massKg: 1.3452e23 },
   hyperion: { radiusKm: 135, massKg: 5.6e18 },
   iapetus: { radiusKm: 734.5, massKg: 1.806e21 },
-  phobos: { radiusKm: 11.27, massKg: 1.066e16 },
-  deimos: { radiusKm: 6.2, massKg: 1.476e15 },
+  phobos: { radiusKm: 11.08, massKg: 1.066e16 },
+  deimos: { radiusKm: 6.2, massKg: 1.441e15 },
   miranda: { radiusKm: 235.8, massKg: 6.4e19 },
   ariel: { radiusKm: 578.9, massKg: 1.251e21 },
   umbriel: { radiusKm: 584.7, massKg: 1.275e21 },

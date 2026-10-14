@@ -1,0 +1,47 @@
+{
+ "BODY_PHYSICS.moon.tempC": {
+  "v": [
+   -178,
+   117
+  ],
+  "src": "NSSDCA moonfact.html: diurnal temperature range (equator) 95 K to 390 K",
+  "was": [
+   -173,
+   127
+  ],
+  "note": "range [night min, day max] °C"
+ },
+ "BODY_PHYSICS.mercury.tempC": {
+  "v": [
+   -180,
+   430
+  ],
+  "src": "NASA Science mercury/facts: daytime highs 800 °F (430 °C), night lows −290 °F (−180 °C)",
+  "was": [
+   -173,
+   427
+  ],
+  "note": "range [night min, day max] °C"
+ },
+ "BODY_PHYSICS.phobos.radiusKm": {
+  "v": 11.08,
+  "src": "JPL SSD sats/phys_par: mean radius 11.08 ±0.04 km",
+  "was": 11.27
+ },
+ "MOONS.phobos.radiusKm": {
+  "v": 11.08,
+  "src": "JPL SSD sats/phys_par: mean radius 11.08 ±0.04 km",
+  "was": 11.3
+ },
+ "BODY_PHYSICS.deimos.massKg": {
+  "v": 1441000000000000,
+  "src": "JPL SSD sats/phys_par: GM 0.0000962 ±0.0000028 km³/s² (MAR097) / G=6.6743e-11",
+  "was": 1476000000000000
+ },
+ "shared/scale.ts earthMoonScale() stats Temperature value": {
+  "v": "−178 to 117 °C",
+  "was": "−173 to 127 °C",
+  "src": "NSSDCA moonfact.html: diurnal temperature range (equator) 95 K to 390 K",
+  "note": "hard-coded string; keep in step with BODY_PHYSICS.moon.tempC"
+ }
+}

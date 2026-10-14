@@ -1,0 +1,39 @@
+{
+ "_note": "Distances for nebulae that had none, from the cross-check's Gaia-based anchors (nebulae-report.md).",
+ "NGC2182": {
+  "d": 2600,
+  "d_src": "Z20 cloud Mon_R2 (3 sightlines)"
+ },
+ "NGC2245": {
+  "d": 2100,
+  "d_src": "HR23 Collinder_95 (N=248, logt 6.6)"
+ },
+ "NGC2247": {
+  "d": 2100,
+  "d_src": "median of star HD 259431: Gaia BJ21 rgeo; HR23 Collinder_95 (N=248, logt 6.6)"
+ },
+ "NGC2282": {
+  "d": 5200,
+  "d_src": "median of star HD 289120: Gaia DR3 plx; HR23 vdBergh_85 (N=105, logt 7.7)"
+ },
+ "NGC6589": {
+  "d": 4100,
+  "d_src": "median of star HD 167638: Gaia DR3 plx; HR23 Dias_5 (N=202, logt 6.8)"
+ },
+ "NGC6590": {
+  "d": 4100,
+  "d_src": "median of star HD 313095: Gaia DR3 plx; HR23 Dias_5 (N=202, logt 6.8)"
+ },
+ "IC447": {
+  "d": 2100,
+  "d_src": "HR23 Collinder_95 (N=248, logt 6.6)"
+ },
+ "IC1284": {
+  "d": 4100,
+  "d_src": "HR23 Dias_5 (N=202, logt 6.8)"
+ },
+ "IC1287": {
+  "d": 740,
+  "d_src": "star HD 170740: Gaia DR3 plx"
+ }
+}

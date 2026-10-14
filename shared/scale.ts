@@ -192,7 +192,7 @@ export function earthMoonScale(): ScaleStory {
     lines: [
       `The Moon is ${ratio(rr)} of Earth’s width — ${km(2 * m.radiusKm)} across.`,
       `A 70 kg astronaut feels like ${kg70(g)} kg there, which is why the Apollo crews bounded instead of walking.`,
-      `On average it is ${km(384_400)} away — about 30 Earths side by side. All the other planets, lined up, would just about fit in the gap: together they are ${km(planetsWide)} wide.`,
+      `On average it is ${km(384_400)} away — about 30 Earths side by side. All the other planets, lined up, would fit in the gap when the Moon is at its farthest: together they are ${km(planetsWide)} wide.`,
       `A day there, sunrise to sunrise, lasts ${+(708.7 / 24).toFixed(1)} Earth days: two weeks of sunlight, then two weeks of night.`,
     ],
     stats: [
@@ -200,7 +200,7 @@ export function earthMoonScale(): ScaleStory {
       { label: "Mass", value: `${+((m.massKg / EARTH.massKg) * 100).toFixed(1)}% of Earth`, sub: "Earth weighs as much as 81 Moons" },
       { label: "Gravity", value: `${+(g / 9.81).toFixed(2)} g`, sub: `70 kg feels like ${kg70(g)} kg` },
       { label: "Day", value: "29.5 Earth days", sub: "sunrise to sunrise" },
-      { label: "Temperature", value: "−173 to 127 °C", sub: "night to day" },
+      { label: "Temperature", value: "−178 to 117 °C", sub: "night to day" },
     ],
     visual: {
       kind: "discs",

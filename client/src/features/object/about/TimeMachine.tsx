@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Hourglass } from "lucide-react";
 import { lookback, milestones, niceYears } from "@shared/lookback";
 import { formatLightYears } from "@shared/stories";
+import { theName } from "@shared/scale";
 import { cn } from "@/lib/utils";
 
 const MIN_AGO = 1;
@@ -30,7 +31,7 @@ export function TimeMachine({ name, ly, source }: { name: string; ly: number; so
         The light you’ll see set off <span className="text-sky-200">{lb.when}</span>
       </p>
       <p className="mt-2 max-w-2xl text-[0.95rem] leading-relaxed text-white/75">
-        …{lb.moment}. It has been crossing space for {travelled} {ly < 1.5 ? "year" : "years"} to reach your eye — you see {name} as it was then, not as it is now.
+        …{lb.moment}. It has been crossing space for {travelled} {ly < 1.5 ? "year" : "years"} to reach your eye — you see {theName(name)} as it was then, not as it is now.
       </p>
 
       {/* The timeline: deep time on the left, tonight on the right. */}
@@ -48,6 +49,8 @@ export function TimeMachine({ name, ly, source }: { name: string; ly: number; so
                   up ? "bottom-3" : "top-2",
                   // Phones: every other milestone keeps its label, so they don't collide.
                   (m.label === "First humans" || m.label === "Galileo’s telescope") && "hidden sm:block",
+                  // The object's own marker sits here: its label would be hidden under the glow.
+                  Math.abs(mx - x) < 0.05 && "hidden",
                   mx < 0.08 && "translate-x-[-15%]",
                   mx > 0.92 && "translate-x-[-85%]",
                 )}

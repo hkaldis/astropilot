@@ -69,5 +69,377 @@
  },
  "C41": {
   "age": 625000000
+ },
+ "ESO56-115": {
+  "mass": 140000000000.0,
+  "mass_src": "Erkal et al. 2019, MNRAS 487, 2685 (total incl. dark halo, 1.38e11 Msun)"
+ },
+ "IC1284": {
+  "d": 4100,
+  "d_src": "HR23 Dias_5 (N=202, logt 6.8)",
+  "src": "Gaia DR3 (Hunt & Reffert 2023)"
+ },
+ "IC1287": {
+  "d": 740,
+  "d_src": "star HD 170740: Gaia DR3 plx",
+  "src": "parallax"
+ },
+ "IC1442": {
+  "age": 46000000,
+  "age_src": "geometric median of HR23 46.3 Myr, D21 46.2 Myr"
+ },
+ "IC1613": {
+  "mass": null,
+  "mass_src": "drop: 1.1e8 is the stellar mass (McConnachie 2012), not a total"
+ },
+ "IC2157": {
+  "age": 52000000,
+  "age_src": "geometric median of HR23 74.6 Myr, D21 35.6 Myr"
+ },
+ "IC2395": {
+  "mass": 870.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) IC_2395 MassTot 866±66 M☉"
+ },
+ "IC2714": {
+  "mass": 3900.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) IC_2714 MassTot 3885±286 M☉"
+ },
+ "IC4406": {
+  "d": 3600,
+  "d_src": "Gaia DR3 6102472263541814272 central-star parallax 0.896±0.120 mas (C26)",
+  "src": "parallax"
+ },
+ "IC447": {
+  "d": 2100,
+  "d_src": "HR23 Collinder_95 (N=248, logt 6.6)",
+  "src": "Gaia DR3 (Hunt & Reffert 2023)"
+ },
+ "IC4605": {
+  "mass": null,
+  "mass_src": "remove: 4.4 M☉ is a stellar-scale mass with no published nebular counterpart (IC 4605 is the reflection/emission nebula around the B2V star 22 Sco)"
+ },
+ "IC5070": {
+  "d": 2600,
+  "d_src": "Hunt & Reffert 2023 UPK 127 (796 pc) and Zucker et al. 2020 North America clouds (~800 pc) — same complex as NGC 7000",
+  "src": "Gaia DR3 (Hunt & Reffert 2023)"
+ },
+ "M101": {
+  "stars": 130000000000.0,
+  "stars_src": "M* = 5.3e10 Msun (van Dokkum et al. 2014, ApJ 782, L24) / 0.4 Msun per star"
+ },
+ "M108": {
+  "d": 31000000.0,
+  "d_src": "Tully-Fisher 9.2 Mpc (Cosmicflows-4); median of 11 post-2000 TF distances 9.9 Mpc (NED-D)",
+  "src": "SIMBAD"
+ },
+ "M29": {
+  "age": 6900000,
+  "age_src": "geometric median of HR23 6.37 Myr, D21 7.55 Myr"
+ },
+ "M33": {
+  "mass": 400000000000.0,
+  "mass_src": "Corbelli et al. 2014, A&A 572, A23 (virial mass 4.3 +/- 1.0e11 Msun)"
+ },
+ "M37": {
+  "mass": 8700.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_2099 MassTot 8726±245 M☉"
+ },
+ "M40": {
+  "d": 1010,
+  "d_src": "Gaia DR3 parallax of the primary HD 238107, 3.219±0.012 mas (RUWE 0.95); companion HD 238108 is at 470 ly (6.93 mas): an optical pair",
+  "src": "parallax"
+ },
+ "M46": {
+  "mass": 7900.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_2437 MassTot 7942±392 M☉"
+ },
+ "M50": {
+  "mass": 1800.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_2323 MassTot 1789±201 M☉"
+ },
+ "Mel72": {},
+ "NGC1049": {
+  "d": 480000,
+  "d_src": "Fornax dSph host distance 147 kpc, McConnachie 2012 (VizieR J/AJ/144/4); NGC 1049 = Fornax 3",
+  "src": "SIMBAD"
+ },
+ "NGC129": {},
+ "NGC1342": {},
+ "NGC1432": {
+  "d": 440,
+  "d_src": "Hunt & Reffert 2023 (VizieR J/A+A/673/A114) Pleiades (Melotte 22) 134.8 pc; Gaia DR3 parallax of Maia 7.67±0.31 mas",
+  "src": "Gaia DR3 (Hunt & Reffert 2023)",
+  "mass": null,
+  "mass_src": "remove: 4.7 M☉ is a stellar mass (the B7 giant Maia), not the reflection nebula's; no nebular mass is published"
+ },
+ "NGC1545": {},
+ "NGC1566": {
+  "d": 58000000.0,
+  "d_src": "TRGB 17.9 Mpc (Sabbi et al. 2018, ApJS 235, 23); Hubble flow 17 Mpc",
+  "src": "Cepheids/TRGB"
+ },
+ "NGC1582": {},
+ "NGC189": {},
+ "NGC1977": {
+  "age": 5300000,
+  "age_src": "D21 5.26 Myr"
+ },
+ "NGC2182": {
+  "d": 2600,
+  "d_src": "Z20 cloud Mon_R2 (3 sightlines)",
+  "src": "SIMBAD"
+ },
+ "NGC2232": {},
+ "NGC2245": {
+  "d": 2100,
+  "d_src": "HR23 Collinder_95 (N=248, logt 6.6)",
+  "src": "Gaia DR3 (Hunt & Reffert 2023)"
+ },
+ "NGC2247": {
+  "d": 2100,
+  "d_src": "median of star HD 259431: Gaia BJ21 rgeo; HR23 Collinder_95 (N=248, logt 6.6)",
+  "src": "Gaia DR3 (Hunt & Reffert 2023)"
+ },
+ "NGC225": {},
+ "NGC2264": {
+  "age": 5900000,
+  "age_src": "geometric median of HR23 4.95 Myr, D21 7.03 Myr"
+ },
+ "NGC2281": {},
+ "NGC2282": {
+  "d": 5200,
+  "d_src": "median of star HD 289120: Gaia DR3 plx; HR23 vdBergh_85 (N=105, logt 7.7)",
+  "src": "Gaia DR3 (Hunt & Reffert 2023)"
+ },
+ "NGC2335": {
+  "age": 150000000,
+  "age_src": "HR23 148 Myr"
+ },
+ "NGC2345": {
+  "age": 76000000,
+  "age_src": "geometric median of HR23 80.6 Myr, D21 72.4 Myr"
+ },
+ "NGC2354": {},
+ "NGC2396": {
+  "age": 170000000,
+  "age_src": "geometric median of HR23 173 Myr, D21 170 Myr"
+ },
+ "NGC2451": {
+  "d": 620,
+  "d_src": "Hunt & Reffert 2023 (J/A+A/673/A114) NGC_2451A dist50 190 pc (CG20 195, D21 193)",
+  "src": "Gaia DR3 (Hunt & Reffert 2023)",
+  "age": 35000000,
+  "age_src": "Cantat-Gaudin et al. 2020 (J/A+A/640/A1) NGC_2451A AgeNN 7.55 (HR23 26 Myr, D21 55 Myr); the app has no age now",
+  "members": 407,
+  "members_src": "Hunt & Reffert 2023 (J/A+A/673/A114) NGC_2451A N"
+ },
+ "NGC246": {
+  "d": 1800,
+  "d_src": "Gaia EDR3 2376592910265354368 central-star parallax 1.816±0.079 mas (CW21); RUWE 1.53 (elevated)",
+  "src": "parallax"
+ },
+ "NGC2516": {
+  "mass": 3600.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_2516 MassTot 3639±195 M☉"
+ },
+ "NGC2547": {},
+ "NGC2841": {
+  "mass": null,
+  "mass_src": "drop: 7e10 is below v^2 R25 / G = 3e11 for its 290 km/s rotation; not a total"
+ },
+ "NGC300": {},
+ "NGC3247": {
+  "d": 15000,
+  "d_src": "Hunt & Reffert 2023 (VizieR J/A+A/673/A114) Westerlund 2, 4.53 kpc, the cluster ionising the RCW 49 nebula at our position (if NGC 3247 is instead meant as the cluster Collinder 220, use 7,500 ly and move it 14' SE)",
+  "src": "Gaia DR3 (Hunt & Reffert 2023)"
+ },
+ "NGC3572": {
+  "mass": 500.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_3572 MassTot 502±44 M☉"
+ },
+ "NGC381": {
+  "mass": 810.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_381 MassTot 808±74 M☉"
+ },
+ "NGC3938": {
+  "d": 58000000.0,
+  "d_src": "SN II 17.9 Mpc (Poznanski et al. 2009); 21.9-22.4 Mpc (Rodriguez et al. 2014)",
+  "src": "SIMBAD"
+ },
+ "NGC4438": {},
+ "NGC4490": {
+  "d": 22000000.0,
+  "d_src": "TRGB 6.9 Mpc (Cosmicflows-4, Tully et al. 2023); NED-D TRGB 6.5 Mpc",
+  "src": "Cepheids/TRGB"
+ },
+ "NGC4565": {
+  "d": 39000000.0,
+  "d_src": "TRGB 11.9 Mpc (Radburn-Smith et al. 2011, ApJS 195, 18; adopted by Cosmicflows-4); replaces SBF 17.5 Mpc",
+  "src": "Cepheids/TRGB"
+ },
+ "NGC4568": {
+  "d": 55000000.0,
+  "d_src": "Virgo member; post-2000 Tully-Fisher 17.3-19.7 Mpc (NED-D); same as partner NGC 4567",
+  "src": "SIMBAD"
+ },
+ "NGC4596": {
+  "d": 55000000.0,
+  "d_src": "SBF 16.8 Mpc (Cosmicflows-4, Tully et al. 2023)",
+  "src": "SBF"
+ },
+ "NGC4815": {
+  "mass": 9500.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_4815 MassTot 9456±442 M☉"
+ },
+ "NGC5005": {},
+ "NGC55": {},
+ "NGC5643": {
+  "d": 41000000.0,
+  "d_src": "Cepheids + TRGB 12.7 Mpc (Cosmicflows-4; Riess et al. 2022)",
+  "src": "Cepheids/TRGB"
+ },
+ "NGC5662": {},
+ "NGC5749": {
+  "mass": 350.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_5749 MassTot 346±40 M☉"
+ },
+ "NGC5925": {},
+ "NGC6067": {
+  "mass": 7300.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_6067 MassTot 7332±480 M☉"
+ },
+ "NGC6281": {
+  "mass": 1400.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_6281 MassTot 1445±163 M☉"
+ },
+ "NGC6520": {
+  "mass": 3100.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_6520 MassTot 3105±328 M☉"
+ },
+ "NGC6589": {
+  "d": 4100,
+  "d_src": "median of star HD 167638: Gaia DR3 plx; HR23 Dias_5 (N=202, logt 6.8)",
+  "src": "Gaia DR3 (Hunt & Reffert 2023)"
+ },
+ "NGC659": {
+  "mass": 1900.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_659 MassTot 1890±246 M☉"
+ },
+ "NGC6590": {
+  "d": 4100,
+  "d_src": "median of star HD 313095: Gaia DR3 plx; HR23 Dias_5 (N=202, logt 6.8)",
+  "src": "Gaia DR3 (Hunt & Reffert 2023)"
+ },
+ "NGC6633": {},
+ "NGC6664": {
+  "age": 69000000,
+  "age_src": "HR23 69.2 Myr"
+ },
+ "NGC6871": {},
+ "NGC6910": {
+  "mass": 2200.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_6910 MassTot 2224±278 M☉"
+ },
+ "NGC6960": {
+  "d": 2400,
+  "d_src": "Fesen et al. 2021 (Gaia EDR3 stars in/behind the Cygnus Loop, 725±15 pc; arXiv:2109.05368); Fesen et al. 2018: 735±25 pc",
+  "src": "SIMBAD"
+ },
+ "NGC6992": {
+  "d": 2400,
+  "d_src": "Fesen et al. 2021 (Gaia EDR3 stars in/behind the Cygnus Loop, 725±15 pc; arXiv:2109.05368); Fesen et al. 2018: 735±25 pc",
+  "src": "SIMBAD"
+ },
+ "NGC7009": {
+  "d": 3900,
+  "d_src": "Gaia DR3 6889338034837425920 central-star parallax 0.833±0.073 mas (C26)",
+  "src": "parallax"
+ },
+ "NGC7031": {},
+ "NGC7082": {
+  "age": 140000000,
+  "age_src": "geometric median of HR23 146 Myr, D21 136 Myr"
+ },
+ "NGC7209": {
+  "mass": 1500.0,
+  "mass_src": "Hunt & Reffert 2024 (J/A+A/686/A42) NGC_7209 MassTot 1525±119 M☉"
+ },
+ "NGC7261": {
+  "age": 45000000,
+  "age_src": "geometric median of HR23 46.9 Myr, D21 42.9 Myr"
+ },
+ "NGC7295": {
+  "age": 370000000,
+  "age_src": "geometric median of HR23 531 Myr, D21 259 Myr"
+ },
+ "NGC7380": {
+  "age": 9600000,
+  "age_src": "geometric median of HR23 9.2 Myr, D21 10.1 Myr"
+ },
+ "NGC7686": {},
+ "NGC7793": {
+  "mass": null,
+  "mass_src": "drop: 3.2e9 is ~its stellar mass, below its disk dynamical mass; not a total"
+ },
+ "achernar": {
+  "teff": 15000,
+  "teff_src": "PASTEL: Levenhagen & Leister 2006 (15,000 K); the other PASTEL value is 20,230 K"
+ },
+ "alpheratz": {
+  "r": 2.7,
+  "r_src": "R from L ≈ 230 L☉ (primary's share of V 2.06 at the Hipparcos 2007 distance, BC at PASTEL 13,810 K) — combined light gives 2.9 R☉"
+ },
+ "aludra": {
+  "mass": 19.2,
+  "mass_src": "Tetzlaff, Neuhäuser & Hohle 2011 (J/MNRAS/410/190)"
+ },
+ "gamma-delphini": {
+  "mass": 1.3,
+  "mass_src": "γ² Del: Gaia DR3 FLAME",
+  "r": 8.0,
+  "r_src": "γ² Del: Gaia DR3 FLAME 7.96 R☉; photometric L 31 L☉ with 4,800 K gives 8.0 R☉",
+  "lum": 30,
+  "lum_src": "γ² Del: R²T⁴ 30.3 L☉; photometric 30.9 L☉ (V 4.36, Hipparcos 2007 126 ly)",
+  "teff": 4800,
+  "teff_src": "γ² Del: PASTEL median of 5 (2000+)"
+ },
+ "garnet-star": {
+  "d": 3060,
+  "d_src": "Cep OB2 median member parallax, 939 pc (Melnik & Dambis 2020, Gaia DR2; 44 members)",
+  "src": "parallax",
+  "r": 1470,
+  "r_src": "from that luminosity and 3,800 K; equals an angular diameter of 14.6 mas (JMDC's visible-light 17.7–20.6 mas are swollen by TiO)",
+  "lum": 400000,
+  "lum_src": "V 4.08, A_V 2.0 from E(B−V) 0.65 (intrinsic B−V ≈ 1.70 for M2 I), BC_V −1.48 at 3,800 K (Torres 2010), d 939 pc"
+ },
+ "iota-orionis": {
+  "d": 1230,
+  "d_src": "NGC 1980, the cluster ι Ori belongs to: 378 pc (Hunt & Reffert 2023, Gaia DR3); ι Ori B Gaia DR3 parallax 2.787±0.048 mas agrees (1,170 ly)",
+  "src": "Gaia DR3 (Hunt & Reffert 2023)"
+ },
+ "kaus-australis": {
+  "teff": 9220,
+  "teff_src": "PASTEL median of 2 (B/pastel); SIMBAD mesFe_h 8,930–9,520 K"
+ },
+ "phact": {
+  "lum": 1080,
+  "lum_src": "V 2.65, Hipparcos 2007 12.48±0.36 mas (261 ly), BC at PASTEL 13,490 K (Torres 2010); R²T⁴ of our r and teff gives 980"
+ },
+ "phecda": {
+  "teff": 9350,
+  "teff_src": "PASTEL median of 2 (B/pastel)"
+ },
+ "sheratan": {
+  "r": 2.0,
+  "r_src": "R = √L·(5772/T)² from our lum 20.9 L☉ and teff 8,760 K; independent photometric estimate 2.25 R☉ (V 2.65, Hipparcos 2007 58.7 ly, PASTEL 8,320 K)"
+ },
+ "tianguan": {
+  "teff": 21300,
+  "teff_src": "PASTEL median of 2 (2000+); SIMBAD mesFe_h 21,132–21,478 K (4 values)"
+ },
+ "ESO97-13": {
+  "d": 14000000,
+  "d_src": "Circinus Galaxy: NED-D median of post-2000 distances 13.7 Mly (n=2); Tully et al. 2009 4.2 Mpc",
+  "src": "SIMBAD"
  }
 }

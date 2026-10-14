@@ -1,0 +1,10 @@
+{
+ "NGC1049": {
+  "d": 480000,
+  "d_src": "Fornax dSph host distance 147 kpc, McConnachie 2012 (VizieR J/AJ/144/4); NGC 1049 = Fornax 3",
+  "catalog": {
+   "mag": 12.71,
+   "src": "McLaughlin & van der Marel 2005 (VizieR J/ApJS/161/304), Fornax 3 King-model total V; 13.59 was OpenNGC's B magnitude"
+  }
+ }
+}

@@ -253,12 +253,16 @@ def consistent_star(f, o):
         review.append(f"{o['id']:<14} star               luminosity {lum} → {lum_rt:.3g} (from R and T; photometry says {l_phot:.3g})")
         f["lum"] = float(f"{lum_rt:.3g}")
 
-def apply_curated(oid, f):
+def apply_curated(oid, f, with_d=False):
     """Hand-checked values (scripts/data/stories/curated_facts.json) win over the automatic ones, for any field;
-    keys ending in "_src" or "note" record where a value comes from."""
-    for k, v in CURATED.get(oid, {}).items():
+    keys ending in "_src" or "note" record where a value comes from. Deep-sky distances are curated in the main
+    loop (with their source); stars' here, `with_d`."""
+    c = CURATED.get(oid, {})
+    for k, v in c.items():
         if k in ("d", "src", "note") or k.endswith("_src"): continue
         f[k] = v
+    if with_d and c.get("d"):
+        f["d"], f["src"] = c["d"], c.get("src", "SIMBAD")
     return f
 
 def star_facts(o):
@@ -291,7 +295,7 @@ facts, review = {}, []
 labels_needed = set()
 for o in CAT:
     if o["type"] == "star":
-        facts[o["id"]] = apply_curated(o["id"], star_facts(o))
+        facts[o["id"]] = apply_curated(o["id"], star_facts(o), with_d=True)
         if "d" not in facts[o["id"]]: review.append(f"{o['id']:<14} star               NO DISTANCE")
         continue
     f = {}

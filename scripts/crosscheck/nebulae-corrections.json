@@ -1,0 +1,49 @@
+{
+ "NGC246": {
+  "d": 1800,
+  "d_src": "Gaia EDR3 2376592910265354368 central-star parallax 1.816±0.079 mas (CW21); RUWE 1.53 (elevated)"
+ },
+ "NGC1432": {
+  "d": 440,
+  "d_src": "Hunt & Reffert 2023 (VizieR J/A+A/673/A114) Pleiades (Melotte 22) 134.8 pc; Gaia DR3 parallax of Maia 7.67±0.31 mas",
+  "mass": null,
+  "mass_src": "remove: 4.7 M☉ is a stellar mass (the B7 giant Maia), not the reflection nebula's; no nebular mass is published"
+ },
+ "NGC3247": {
+  "d": 15000,
+  "d_src": "Hunt & Reffert 2023 (VizieR J/A+A/673/A114) Westerlund 2, 4.53 kpc, the cluster ionising the RCW 49 nebula at our position (if NGC 3247 is instead meant as the cluster Collinder 220, use 7,500 ly and move it 14' SE)"
+ },
+ "NGC6960": {
+  "d": 2400,
+  "d_src": "Fesen et al. 2021 (Gaia EDR3 stars in/behind the Cygnus Loop, 725±15 pc; arXiv:2109.05368); Fesen et al. 2018: 735±25 pc"
+ },
+ "NGC6992": {
+  "d": 2400,
+  "d_src": "Fesen et al. 2021 (Gaia EDR3 stars in/behind the Cygnus Loop, 725±15 pc; arXiv:2109.05368); Fesen et al. 2018: 735±25 pc"
+ },
+ "NGC7009": {
+  "d": 3900,
+  "d_src": "Gaia DR3 6889338034837425920 central-star parallax 0.833±0.073 mas (C26)"
+ },
+ "IC349": {
+  "catalog": {
+   "size": [
+    0.5,
+    0.5
+   ],
+   "src": "Cederblad 1946 (VizieR VII/231) Ced 19i = IC 349, 0.5'x0.5'"
+  }
+ },
+ "IC4406": {
+  "d": 3600,
+  "d_src": "Gaia DR3 6102472263541814272 central-star parallax 0.896±0.120 mas (C26)"
+ },
+ "IC4605": {
+  "mass": null,
+  "mass_src": "remove: 4.4 M☉ is a stellar-scale mass with no published nebular counterpart (IC 4605 is the reflection/emission nebula around the B2V star 22 Sco)"
+ },
+ "IC5070": {
+  "d": 2600,
+  "d_src": "Hunt & Reffert 2023 UPK 127 (796 pc) and Zucker et al. 2020 North America clouds (~800 pc) — same complex as NGC 7000"
+ }
+}
