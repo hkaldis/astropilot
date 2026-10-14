@@ -130,6 +130,11 @@ export const SIZE_OVERRIDES = {
   M16: [[33, 27], 'SEDS M16: its 7′ is the cluster; "the nebula extends much farther out, to a diameter of over 30′, corresponding to a linear size of about 55x45 light years" at 5,700 ly = 33′ × 27′ (OpenNGC 120′ × 25′)'],
   M24: [[120, 60], `${wiki('Small Sagittarius Star Cloud', 1373100846)}: 2° × 1° (SEDS gives a single 90′)`],
   M108: [[8.7, 2.2], `${wiki('Messier 108', 1377881649)}: 8′.7 × 2′.2 (SEDS 8′ × 1′); OpenNGC/LEDA 3.98′ × 1.66′ is under half the visual length`],
+  // Hickson compact groups: the group diameter from Hickson's own catalogue (OpenNGC addendum gives larger extents).
+  HCG79: [[1.3], 'Hickson 1982 (ApJ 255, 382), VizieR VII/213/groups: HCG 79 AngSize 1.3′ (OpenNGC addendum 2.8′)'],
+  HCG92: [[3.2], 'Hickson 1982 (ApJ 255, 382), VizieR VII/213/groups: HCG 92 AngSize 3.2′ (OpenNGC addendum 4.4′)'],
+  // A star-like 0.11′ in OpenNGC; the cluster itself (= Bochum 4) is 5′ across.
+  NGC2409: [[5], 'Dias et al. 2002, VizieR B/ocl/clusters: NGC 2409 = Bochum 4, Diam 5.0′ (MWSC J/A+A/558/A53: r1 = 0.105° core radius); OpenNGC 0.11′'],
   // Caldwell star clusters (OpenNGC value in the comment)
   NGC663: [[15], wiki('NGC 663', 1370785828)], // C10; 6
   NGC457: [[20], wiki('NGC 457', 1373102082)], // C13; 7.8

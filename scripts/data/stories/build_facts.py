@@ -180,7 +180,18 @@ def wikidata(o):
         try:
             t = c["mainsnak"]["datavalue"]["value"]["time"]; yr = int(t[1:5]) if t[0] == "+" else None; break
         except Exception: pass
-    return d, by, yr
+    z = None
+    for c in claims.get("P1090", []):
+        try:
+            if c.get("rank") != "deprecated": z = float(c["mainsnak"]["datavalue"]["value"]["amount"]); break
+        except Exception: pass
+    return d, by, yr, z
+
+def too_near(o, d):
+    """A distance no object of this type can have — a unit slip in the source (Wikidata gives Seyfert's Sextet as
+    190 light-years; it is 190 million)."""
+    lim = 1e5 if o["type"] in ("galaxy", "galaxy_group") else 5e3 if o["type"] == "globular_cluster" else 0 if o["type"] in ("star", "double_star") else 100
+    return d is not None and d < lim
 
 def rnd(x):
     """Round to the precision the measurement deserves: 2–3 significant figures."""
@@ -242,6 +253,14 @@ def consistent_star(f, o):
         review.append(f"{o['id']:<14} star               luminosity {lum} → {lum_rt:.3g} (from R and T; photometry says {l_phot:.3g})")
         f["lum"] = float(f"{lum_rt:.3g}")
 
+def apply_curated(oid, f):
+    """Hand-checked values (scripts/data/stories/curated_facts.json) win over the automatic ones, for any field;
+    keys ending in "_src" or "note" record where a value comes from."""
+    for k, v in CURATED.get(oid, {}).items():
+        if k in ("d", "src", "note") or k.endswith("_src"): continue
+        f[k] = v
+    return f
+
 def star_facts(o):
     """Distance from the Hipparcos parallax for naked-eye stars (Gaia saturates on them), else SIMBAD's best; and the
     star's size, power, temperature and mass from its Wikipedia infobox, within sanity limits."""
@@ -272,7 +291,7 @@ facts, review = {}, []
 labels_needed = set()
 for o in CAT:
     if o["type"] == "star":
-        facts[o["id"]] = star_facts(o)
+        facts[o["id"]] = apply_curated(o["id"], star_facts(o))
         if "d" not in facts[o["id"]]: review.append(f"{o['id']:<14} star               NO DISTANCE")
         continue
     f = {}
@@ -297,7 +316,11 @@ for o in CAT:
         if age: f["age"] = rnd(age)
         # Gaia DR3 member count, when the Hunt & Reffert match agrees with the distance we use.
         if h and h.get("N") and h.get("dist50") and d and 0.75 < float(h["dist50"]) * LY_PER_PC / d < 1.33: f["members"] = int(h["N"])
-    wd_d, by, yr = wikidata(o)
+    wd_d, by, yr, wz = wikidata(o)
+    if d and too_near(o, d): review.append(f"{o['id']:<14} {o['type']:<18} {rnd(d):>12,} ({src}) too near for its type — dropped"); d = None
+    if wd_d and too_near(o, wd_d): review.append(f"{o['id']:<14} {o['type']:<18} wikidata {rnd(wd_d):>12,} too near for its type — dropped"); wd_d = None
+    if not d and not wd_d and o["type"] in ("galaxy", "galaxy_group") and wz and wz > 0.003:
+        d, src = wz * 299792.458 / 70 * 1e6 * LY_PER_PC, "Hubble flow"
     ib = (INFOBOX.get(o["id"]) or {}).get("ly")
     famous = bool(o.get("m") or o.get("c") or o.get("showpiece") or o["type"] == "double_star")
     if ib and "d" not in CURATED.get(o["id"], {}) and o["type"] not in TRUST_OURS and (not d or (famous and max(d, ib) / min(d, ib) > 1.25)):
@@ -336,7 +359,7 @@ for o in CAT:
             consistent_star(f, o)
     if by: f["_by"] = by; labels_needed.update(by)
     if yr: f["year"] = yr
-    facts[o["id"]] = f
+    facts[o["id"]] = apply_curated(o["id"], f)
 
 json.dump({"facts": facts, "labels": sorted(labels_needed)}, open(C("facts-raw.json"), "w"))
 open(C("facts-review.txt"), "w").write("\n".join(review))

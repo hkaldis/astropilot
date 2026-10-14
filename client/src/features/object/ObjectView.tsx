@@ -189,7 +189,7 @@ function DeepStats({ o }: { o: CatalogObject }) {
     const au = o.sep * (facts.d / 3.26156);
     items.push({ label: "Real gap", value: `${au >= 1000 ? Number(au.toPrecision(2)).toLocaleString() : Math.round(au)} AU`, sub: "at least, between the stars" });
   }
-  if (o.type !== "star" && facts?.mass) items.push({ label: "Mass", value: `${solarMultiple(facts.mass)} Suns` });
+  if (o.type !== "star" && facts?.mass) items.push({ label: "Mass", value: `${solarMultiple(facts.mass)} Sun${solarMultiple(facts.mass) === "1" ? "" : "s"}` });
   items.push({ label: "Right ascension", value: formatRA(o.ra), sub: "J2000", term: "right-ascension" });
   items.push({ label: "Declination", value: formatDec(o.dec), sub: "J2000", term: "declination" });
   return (

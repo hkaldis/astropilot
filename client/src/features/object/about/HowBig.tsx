@@ -57,7 +57,8 @@ function Discs({ v }: { v: Extract<ScaleVisual, { kind: "discs" }> }) {
         return (
           <g key={it.label}>
             {it.glyph ? (
-              <PlanetGlyph id={it.glyph} x={cx - size / 2} y={base - r - size / 2} size={size} />
+              // Stood on the line by its full height — the Sun's rays and Uranus's upright rings included.
+              <PlanetGlyph id={it.glyph} x={cx - size / 2} y={base - r * ext(it)[1] - size / 2} size={size} />
             ) : (
               <>
                 <circle cx={cx} cy={base - r} r={r} fill={it.color} />
@@ -202,17 +203,21 @@ function Model({ v }: { v: Extract<ScaleVisual, { kind: "model" }> }) {
       <ol className="relative mt-1.5">
         <span className="absolute bottom-6 left-[15px] top-6 w-px bg-white/15" aria-hidden="true" />
         {v.rows.map((r) => (
-          <li key={r.label} className={cn("relative flex items-center gap-3 py-2.5", r.main && "-mx-2 rounded-lg bg-white/[0.07] px-2 ring-1 ring-primary/50")}>
+          <li key={r.label} className={cn("relative flex items-start gap-3 py-2.5 sm:items-center", r.main && "-mx-2 rounded-lg bg-white/[0.07] px-2 ring-1 ring-primary/50")}>
             <span className="relative flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[#05070c]">
               <ModelIcon icon={r.icon} />
             </span>
-            <div className="min-w-0 flex-1">
-              <div className={cn("text-[0.92rem] leading-tight", r.main ? "font-semibold" : "text-white/90")}>{r.label}</div>
-              <div className="mt-0.5 text-[11px] leading-snug text-white/50">{r.note}</div>
-            </div>
-            <div className="max-w-[46%] shrink-0 text-right">
-              <div className="num text-[0.95rem] font-medium leading-tight">{r.size}</div>
-              <div className={cn("mt-0.5 text-[11px] leading-snug", r.main ? "text-primary" : "text-white/60")}>{r.like}</div>
+            {/* Phones: the comparison sits under the name, full width; wider screens: beside it, on the right. */}
+            <div className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-3">
+              <div className="min-w-0 sm:flex-1">
+                <div className={cn("text-[0.92rem] leading-tight", r.main ? "font-semibold" : "text-white/90")}>{r.label}</div>
+                <div className="mt-0.5 text-[11px] leading-snug text-white/50">{r.note}</div>
+              </div>
+              {/* The everyday comparison leads; the model size backs it up. */}
+              <div className="mt-1.5 leading-tight sm:mt-0 sm:max-w-[50%] sm:shrink-0 sm:text-right">
+                <span className={cn("text-[0.92rem] font-medium sm:block", r.main ? "text-primary" : "text-white")}>{r.like[0].toUpperCase() + r.like.slice(1)}</span>
+                <span className="num ml-2 whitespace-nowrap text-[11px] text-white/55 sm:ml-0 sm:mt-0.5 sm:block">{r.size}</span>
+              </div>
             </div>
           </li>
         ))}

@@ -72,10 +72,10 @@ test("nebulae and clusters: the Solar System, the nearest star and a coin-sized 
   const orion = model(34.6);
   assert.equal(orion.s.headline, "8.2 times the distance from the Sun to the nearest star");
   assert.deepEqual(orion.v.rows.map((r) => r.label), ["Our Solar System", "The nearest star", "Orion Nebula", "Our Milky Way"]);
-  assert.deepEqual(orion.v.rows.map((r) => r.size), ["2.4 cm", "110 m", "870 m", "2,520 km"]);
+  assert.deepEqual(orion.v.rows.map((r) => r.size), ["2.4 cm", "107 m", "873 m", "2,520 km"]);
   assert.equal(orion.v.rows[2].like, "8 football pitches end to end");
   assert.equal(orion.v.rows[3].like, "a 3-hour flight across");
-  assert.match(orion.v.text, /the Orion Nebula would be 870 m across/);
+  assert.match(orion.v.text, /the Orion Nebula would be 873 m across/);
   // Smaller than the gap to the nearest star: it comes before it, and the headline counts Solar Systems.
   const ring = model(1.06, "planetary_nebula", "Ring Nebula");
   assert.equal(ring.s.headline, "1,110 Solar Systems side by side");

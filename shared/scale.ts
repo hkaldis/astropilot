@@ -62,6 +62,20 @@ const ratio = (x: number) => (x >= 1.05 ? `${nice(x)}×` : `${Math.round(x * 100
 const versus = (x: number, what: string) => (x >= 1.05 ? `${nice(x)}× ${what}` : `${Math.round(x * 100)}% of ${what}`);
 const minus = (s: string) => s.replace(/-/g, "−");
 const TIMES = ["no", "once", "twice", "three times", "four times", "five times"];
+/** "1 light-year", "9.1 light-years", "1,860 light-years". */
+const ly = (x: number) => {
+  const v = x < 10 ? String(+x.toFixed(1)) : nice(x);
+  return `${v} light-year${v === "1" ? "" : "s"}`;
+};
+/** "1 Sun", "2,000 Suns" — and the possessive, "one Sun’s" / "2,000 Suns’" (worth of…). */
+const suns = (x: number) => {
+  const v = nice(x);
+  return `${v} Sun${v === "1" ? "" : "s"}`;
+};
+const sunsWorth = (x: number) => {
+  const v = nice(x);
+  return v === "1" ? "one Sun’s" : `${v} Suns’`;
+};
 /** "twice" or "N times", for prose. */
 const times = (x: number) => (x >= 1.9 && x < 2.1 ? "twice" : `${nice(x)} times`);
 const km = (n: number) => `${Math.round(n).toLocaleString("en-US")} km`;
@@ -383,9 +397,10 @@ export function theName(name: string): string {
 /** A length in the model: "27 m", "880 m", "2.9 km". */
 function modelSize(m: number): string {
   if (m < 1) return `${m < 0.1 ? +(m * 100).toFixed(1) : Math.round(m * 100)} cm`;
-  if (m < 1000) return `${m < 10 ? +m.toFixed(1) : Number(m.toPrecision(2))} m`;
+  // Three significant figures, so the rows divide out to the headline's numbers.
+  if (m < 1000) return `${m < 10 ? +m.toFixed(1) : Number(m.toPrecision(3))} m`;
   const km = m / 1000;
-  return `${km < 10 ? +km.toFixed(1) : nice(km)} km`;
+  return `${km < 10 ? Number(km.toPrecision(3)) : nice(km)} km`;
 }
 
 /** Something everyday that long: a bus, a tennis court, so many football pitches, a walk, a drive, a flight. */
@@ -469,7 +484,7 @@ export function deepScale(o: DeepScaleInput): ScaleStory | null {
             : "About as wide as our Solar System";
     ys = { headline, sentence: `That’s ${headline[0].toLowerCase()}${headline.slice(1)}.` };
     const m = w * M_PER_LY;
-    const across = `${w < 10 ? +w.toFixed(1) : nice(w)} light-years across`;
+    const across = `${ly(w)} across`;
     visual = coinModel(
       { label: o.name, note: across, m, like: everyday(m), icon: o.type },
       [],
@@ -477,7 +492,7 @@ export function deepScale(o: DeepScaleInput): ScaleStory | null {
     );
   }
   if (w) {
-    stats.push({ label: "Width", value: `${w < 10 ? +w.toFixed(1) : nice(w)} light-years` });
+    stats.push({ label: "Width", value: ly(w) });
     const t = w < 0.1 ? `${Math.round(w * 365.25)} days` : w < 0.9 ? `${Math.round(w * 12)} months` : w < 1.5 ? "about a year" : `${nice(w)} years`;
     lines.push(`Light itself takes ${t} to cross it.`);
   }
@@ -494,14 +509,14 @@ export function deepScale(o: DeepScaleInput): ScaleStory | null {
     }
     if (o.stars) lines.push(`It holds about ${nice(o.stars)} stars — the Milky Way has a few hundred billion.`);
     if (o.mass) {
-      lines.push(`All told — stars, gas and dark matter — it weighs about ${nice(o.mass)} Suns.`);
-      stats.push({ label: "Mass", value: `${nice(o.mass)} Suns` });
+      lines.push(`All told — stars, gas and dark matter — it weighs about ${suns(o.mass)}.`);
+      stats.push({ label: "Mass", value: suns(o.mass) });
     }
     if (o.stars) stats.push({ label: "Stars", value: nice(o.stars) });
   } else if (o.type === "globular_cluster") {
     if (o.mass) {
-      headline = `About ${nice(o.mass)} Suns’ worth of stars${w ? ` in a ball ${nice(w)} light-years wide` : ""}`;
-      stats.push({ label: "Mass", value: `${nice(o.mass)} Suns` });
+      headline = `About ${sunsWorth(o.mass)} worth of stars${w ? ` in a ball ${ly(w)} wide` : ""}`;
+      stats.push({ label: "Mass", value: suns(o.mass) });
     }
     if (ys) {
       if (headline) lines.push(ys.sentence);
@@ -528,21 +543,21 @@ export function deepScale(o: DeepScaleInput): ScaleStory | null {
         lines.push(`Gaia has picked out ${o.members.toLocaleString("en-US")} stars moving together through space as its members.`);
         stats.push({ label: "Stars", value: o.members.toLocaleString("en-US"), sub: "members found by Gaia" });
       }
-      if (o.mass) stats.push({ label: "Mass", value: `${nice(o.mass)} Suns` });
+      if (o.mass) stats.push({ label: "Mass", value: suns(o.mass) });
       if (o.age) {
         const lb = lookback(o.age);
         headline = `Born about ${niceYears(o.age)} years ago, ${lb.moment.replace(/^when /, "when ")}`;
       }
     } else if (o.mass) {
-      lines.push(`It holds about ${nice(o.mass)} Suns’ worth of ${o.type === "planetary_nebula" || o.type === "supernova_remnant" ? "material" : "gas and dust"}.`);
-      stats.push({ label: "Mass", value: `${nice(o.mass)} Suns` });
+      lines.push(`It holds about ${sunsWorth(o.mass)} worth of ${o.type === "planetary_nebula" || o.type === "supernova_remnant" ? "material" : "gas and dust"}.`);
+      stats.push({ label: "Mass", value: suns(o.mass) });
     }
     if (ys) {
       if (headline) lines.push(ys.sentence);
       else headline = ys.headline;
     }
   }
-  if (!headline) headline = w ? `${nice(w)} light-years across` : `About ${nice(o.mass!)} Suns`;
+  if (!headline) headline = w ? `${ly(w)} across` : `About ${suns(o.mass!)}`;
   return { headline, lines, stats, visual };
 }
 
